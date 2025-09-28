@@ -1,3 +1,3 @@
 # AfterglowRender
 
-TODO: Assets, Dependencies and documents is not uploaded.
+TODO: Assets, Dependencies and documents are not uploaded.
