@@ -1,0 +1,1 @@
+#include "AfterglowSharedResourcePool.h"

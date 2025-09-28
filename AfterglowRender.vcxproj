@@ -1,0 +1,386 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>17.0</VCProjectVersion>
+    <Keyword>Win32Proj</Keyword>
+    <ProjectGuid>{ab39ed0d-e60e-4bc9-987c-ec267d71081f}</ProjectGuid>
+    <RootNamespace>AfterglowRender</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <LibraryPath>Libraries\assimp-5.4.3\lib;$(LibraryPath)</LibraryPath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <LibraryPath>Libraries\assimp-5.4.3\lib;$(LibraryPath)</LibraryPath>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>Libraries\assimp-5.4.3\include;Libraries\stb;Libraries\VulkanSDK-1.3.290.0\Include;Libraries\glm-1.0.1;Libraries\glfw-3.4.bin.WIN64\include;Libraries\nlohmann</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <OpenMPSupport>true</OpenMPSupport>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalLibraryDirectories>Libraries\assimp-5.4.3\lib;Libraries\glfw-3.4.bin.WIN64\lib-vc2022;Libraries\VulkanSDK-1.3.290.0\Lib;Libraries\zlib\lib</AdditionalLibraryDirectories>
+      <AdditionalDependencies>vulkan-1.lib;glfw3_mt.lib;zlibstatic.lib;dxcompiler.lib;shaderc_combined_MTd.lib;assimp-vc143-mtd.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+    <PreBuildEvent>
+      <Command>
+      </Command>
+    </PreBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>Libraries\assimp-5.4.3\include;Libraries\stb;Libraries\VulkanSDK-1.3.290.0\Include;Libraries\glm-1.0.1;Libraries\glfw-3.4.bin.WIN64\include;Libraries\nlohmann</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalLibraryDirectories>Libraries\assimp-5.4.3\lib;Libraries\glfw-3.4.bin.WIN64\lib-vc2022;Libraries\VulkanSDK-1.3.290.0\Lib;Libraries\zlib\lib</AdditionalLibraryDirectories>
+      <AdditionalDependencies>vulkan-1.lib;glfw3_mt.lib;zlibstatic.lib;dxcompiler.lib;shaderc_combined_MT.lib;assimp-vc143-mt.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+    <PreBuildEvent>
+      <Command>
+      </Command>
+    </PreBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="ActionComponentLibrary.cpp" />
+    <ClCompile Include="AfterglowApplication.cpp" />
+    <ClCompile Include="AfterglowBuffer.cpp" />
+    <ClCompile Include="AfterglowCameraComponent.cpp" />
+    <ClCompile Include="AfterglowColor.cpp" />
+    <ClCompile Include="AfterglowColorImage.cpp" />
+    <ClCompile Include="AfterglowCommandBuffer.cpp" />
+    <ClCompile Include="AfterglowCommandManager.cpp" />
+    <ClCompile Include="AfterglowCommandPool.cpp" />
+    <ClCompile Include="AfterglowComponent.cpp" />
+    <ClCompile Include="AfterglowComponentBase.cpp" />
+    <ClCompile Include="AfterglowComponentPool.cpp" />
+    <ClCompile Include="AfterglowComponentRegistery.cpp" />
+    <ClCompile Include="AfterglowComputeCommandBuffer.cpp" />
+    <ClCompile Include="AfterglowComputeComponent.cpp" />
+    <ClCompile Include="AfterglowComputeLayout.cpp" />
+    <ClCompile Include="AfterglowComputeTask.cpp" />
+    <ClCompile Include="AfterglowDescriptorSetReferences.cpp" />
+    <ClCompile Include="AfterglowDescriptorSetWriter.cpp" />
+    <ClCompile Include="AfterglowDirectionalLightComponent.cpp" />
+    <ClCompile Include="AfterglowDrawCommandBuffer.cpp" />
+    <ClCompile Include="AfterglowDxcIncludeHandler.cpp" />
+    <ClCompile Include="AfterglowFences.cpp" />
+    <ClCompile Include="AfterglowInput.cpp" />
+    <ClCompile Include="AfterglowLightComponent.cpp" />
+    <ClCompile Include="AfterglowMaterialAsset.cpp" />
+    <ClCompile Include="AfterglowMaterialInstanceAsset.cpp" />
+    <ClCompile Include="AfterglowMaterialLayout.cpp" />
+    <ClCompile Include="AfterglowMaterialResource.cpp" />
+    <ClCompile Include="AfterglowMeshResource.cpp" />
+    <ClCompile Include="AfterglowModelAssetCache.cpp" />
+    <ClCompile Include="AfterglowPostProcessComponent.cpp" />
+    <ClCompile Include="AfterglowReferenceCounter.cpp" />
+    <ClCompile Include="AfterglowRenderableContext.cpp" />
+    <ClCompile Include="AfterglowActionComponent.cpp" />
+    <ClCompile Include="AfterglowMeshManager.cpp" />
+    <ClCompile Include="AfterglowAssetMonitor.cpp" />
+    <ClCompile Include="AfterglowSemaphores.cpp" />
+    <ClCompile Include="AfterglowShaderAsset.cpp" />
+    <ClCompile Include="AfterglowShape.cpp" />
+    <ClCompile Include="AfterglowSharedMeshPool.cpp" />
+    <ClCompile Include="AfterglowSharedResourcePool.cpp" />
+    <ClCompile Include="AfterglowSharedTexturePool.cpp" />
+    <ClCompile Include="AfterglowStructuredData.cpp" />
+    <ClCompile Include="AfterglowStructLayout.cpp" />
+    <ClCompile Include="AfterglowSSBOInfo.cpp" />
+    <ClCompile Include="AfterglowSSBOInitializer.cpp" />
+    <ClCompile Include="AfterglowStaticMeshComponent.cpp" />
+    <ClCompile Include="AfterglowSubpassContext.cpp" />
+    <ClCompile Include="AfterglowSystem.cpp" />
+    <ClCompile Include="AfterglowSystemUtilities.cpp" />
+    <ClCompile Include="AfterglowTransformComponent.cpp" />
+    <ClCompile Include="AfterglowUtilities.cpp" />
+    <ClCompile Include="AfterglowComputePipeline.cpp" />
+    <ClCompile Include="AfterglowComputeQueue.cpp" />
+    <ClCompile Include="AfterglowContext.cpp" />
+    <ClCompile Include="AfterglowDebugMessenger.cpp" />
+    <ClCompile Include="AfterglowDescriptorPool.cpp" />
+    <ClCompile Include="AfterglowDescriptorSets.cpp" />
+    <ClCompile Include="AfterglowDescriptorSetLayout.cpp" />
+    <ClCompile Include="AfterglowDevice.cpp" />
+    <ClCompile Include="AfterglowDeviceMemory.cpp" />
+    <ClCompile Include="AfterglowFramebuffer.cpp" />
+    <ClCompile Include="AfterglowImage.cpp" />
+    <ClCompile Include="AfterglowImageAsset.cpp" />
+    <ClCompile Include="AfterglowMaterialManager.cpp" />
+    <ClCompile Include="AfterglowMaterial.cpp" />
+    <ClCompile Include="AfterglowMaterialInstance.cpp" />
+    <ClCompile Include="AfterglowModelAsset.cpp" />
+    <ClCompile Include="AfterglowProxyArray.cpp" />
+    <ClCompile Include="AfterglowProxyTemplate.cpp" />
+    <ClCompile Include="AfterglowQueue.cpp" />
+    <ClCompile Include="AfterglowRenderer.cpp" />
+    <ClCompile Include="AfterglowSampler.cpp" />
+    <ClCompile Include="AfterglowEntity.cpp" />
+    <ClCompile Include="AfterglowScene.cpp" />
+    <ClCompile Include="AfterglowStorageBuffer.cpp" />
+    <ClCompile Include="AfterglowTextureImage.cpp" />
+    <ClCompile Include="AfterglowDepthImage.cpp" />
+    <ClCompile Include="AfterglowTransform.cpp" />
+    <ClCompile Include="AssetDefinitions.cpp" />
+    <ClCompile Include="ComputeDefinitions.cpp" />
+    <ClCompile Include="FunctionTraits.h" />
+    <ClCompile Include="LocalClock.cpp" />
+    <ClCompile Include="AfterglowGraphicsQueue.cpp" />
+    <ClCompile Include="AfterglowImageView.cpp" />
+    <ClCompile Include="AfterglowIndexBuffer.cpp" />
+    <ClCompile Include="AfterglowInstance.cpp" />
+    <ClCompile Include="AfterglowPipeline.cpp" />
+    <ClCompile Include="AfterglowPipelineLayout.cpp" />
+    <ClCompile Include="AfterglowPresentQueue.cpp" />
+    <ClCompile Include="AfterglowRenderPass.cpp" />
+    <ClCompile Include="AfterglowObject.cpp" />
+    <ClCompile Include="AfterglowPhysicalDevice.cpp" />
+    <ClCompile Include="AfterglowProxyObject.cpp" />
+    <ClCompile Include="AfterglowStagingBuffer.cpp" />
+    <ClCompile Include="AfterglowSynchronizer.cpp" />
+    <ClCompile Include="AfterglowShaderModule.cpp" />
+    <ClCompile Include="AfterglowSurface.cpp" />
+    <ClCompile Include="AfterglowSwapchain.cpp" />
+    <ClCompile Include="AfterglowFramebufferManager.cpp" />
+    <ClCompile Include="AfterglowUniformBuffer.cpp" />
+    <ClCompile Include="AfterglowVertex.cpp" />
+    <ClCompile Include="AfterglowVertexBuffer.cpp" />
+    <ClCompile Include="AfterglowWindow.cpp" />
+    <ClCompile Include="GlobalAssets.cpp" />
+    <ClCompile Include="Main.cpp" />
+    <ClCompile Include="RenderDefinitions.cpp" />
+    <ClCompile Include="ShaderDefinitions.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="ActionComponentLibrary.h" />
+    <ClInclude Include="AfterglowApplication.h" />
+    <ClInclude Include="AfterglowBuffer.h" />
+    <ClInclude Include="AfterglowCameraComponent.h" />
+    <ClInclude Include="AfterglowColor.h" />
+    <ClInclude Include="AfterglowColorImage.h" />
+    <ClInclude Include="AfterglowCommandBuffer.h" />
+    <ClInclude Include="AfterglowCommandManager.h" />
+    <ClInclude Include="AfterglowCommandPool.h" />
+    <ClInclude Include="AfterglowComponent.h" />
+    <ClInclude Include="AfterglowComponentBase.h" />
+    <ClInclude Include="AfterglowComponentPool.h" />
+    <ClInclude Include="AfterglowComponentRegistery.h" />
+    <ClInclude Include="AfterglowComputeCommandBuffer.h" />
+    <ClInclude Include="AfterglowComputeComponent.h" />
+    <ClInclude Include="AfterglowComputeLayout.h" />
+    <ClInclude Include="AfterglowComputeTask.h" />
+    <ClInclude Include="AfterglowDescriptorSetReferences.h" />
+    <ClInclude Include="AfterglowDescriptorSetWriter.h" />
+    <ClInclude Include="AfterglowDirectionalLightComponent.h" />
+    <ClInclude Include="AfterglowDrawCommandBuffer.h" />
+    <ClInclude Include="AfterglowDxcIncludeHandler.h" />
+    <ClInclude Include="AfterglowFences.h" />
+    <ClInclude Include="AfterglowInput.h" />
+    <ClInclude Include="AfterglowLightComponent.h" />
+    <ClInclude Include="AfterglowMaterialAsset.h" />
+    <ClInclude Include="AfterglowMaterialInstanceAsset.h" />
+    <ClInclude Include="AfterglowMaterialLayout.h" />
+    <ClInclude Include="AfterglowMaterialResource.h" />
+    <ClInclude Include="AfterglowMeshResource.h" />
+    <ClInclude Include="AfterglowModelAssetCache.h" />
+    <ClInclude Include="AfterglowPostProcessComponent.h" />
+    <ClInclude Include="AfterglowReferenceCounter.h" />
+    <ClInclude Include="AfterglowRenderableContext.h" />
+    <ClInclude Include="AfterglowAssetMonitor.h" />
+    <ClInclude Include="AfterglowSemaphores.h" />
+    <ClInclude Include="AfterglowShaderAsset.h" />
+    <ClInclude Include="AfterglowShape.h" />
+    <ClInclude Include="AfterglowSharedMeshPool.h" />
+    <ClInclude Include="AfterglowSharedResourcePool.h" />
+    <ClInclude Include="AfterglowSharedTexturePool.h" />
+    <ClInclude Include="AfterglowStructuredData.h" />
+    <ClInclude Include="AfterglowStructLayout.h" />
+    <ClInclude Include="AfterglowSSBOInfo.h" />
+    <ClInclude Include="AfterglowSSBOInitializer.h" />
+    <ClInclude Include="AfterglowSubpassContext.h" />
+    <ClInclude Include="AfterglowSystemUtilities.h" />
+    <ClInclude Include="AssetDefinitions.h" />
+    <ClInclude Include="ComputeDefinitions.h" />
+    <ClInclude Include="GlobalAssets.h" />
+    <ClInclude Include="Inreflect.h" />
+    <ClInclude Include="RenderDefinitions.h" />
+    <ClInclude Include="ShaderDefinitions.h" />
+    <ClInclude Include="TemplateString.h" />
+    <ClInclude Include="Tests.h" />
+    <ClInclude Include="UniformBufferObjects.h" />
+    <ClInclude Include="AfterglowActionComponent.h" />
+    <ClInclude Include="AfterglowMeshManager.h" />
+    <ClInclude Include="AfterglowStaticMeshComponent.h" />
+    <ClInclude Include="AfterglowSystem.h" />
+    <ClInclude Include="AfterglowTransformComponent.h" />
+    <ClInclude Include="AfterglowUtilities.h" />
+    <ClInclude Include="AfterglowComputePipeline.h" />
+    <ClInclude Include="AfterglowComputeQueue.h" />
+    <ClInclude Include="AfterglowContext.h" />
+    <ClInclude Include="AfterglowDebugMessenger.h" />
+    <ClInclude Include="AfterglowDescriptorPool.h" />
+    <ClInclude Include="AfterglowDescriptorSets.h" />
+    <ClInclude Include="AfterglowDescriptorSetLayout.h" />
+    <ClInclude Include="AfterglowDevice.h" />
+    <ClInclude Include="AfterglowDeviceMemory.h" />
+    <ClInclude Include="AfterglowFramebuffer.h" />
+    <ClInclude Include="AfterglowImage.h" />
+    <ClInclude Include="AfterglowImageAsset.h" />
+    <ClInclude Include="AfterglowMaterialManager.h" />
+    <ClInclude Include="AfterglowMaterial.h" />
+    <ClInclude Include="AfterglowMaterialInstance.h" />
+    <ClInclude Include="AfterglowModelAsset.h" />
+    <ClInclude Include="AfterglowProxyArray.h" />
+    <ClInclude Include="AfterglowProxyTemplate.h" />
+    <ClInclude Include="AfterglowQueue.h" />
+    <ClInclude Include="AfterglowRenderer.h" />
+    <ClInclude Include="AfterglowSampler.h" />
+    <ClInclude Include="AfterglowEntity.h" />
+    <ClInclude Include="AfterglowScene.h" />
+    <ClInclude Include="AfterglowStorageBuffer.h" />
+    <ClInclude Include="AfterglowTextureImage.h" />
+    <ClInclude Include="AfterglowDepthImage.h" />
+    <ClInclude Include="AfterglowTransform.h" />
+    <ClInclude Include="VertexStructs.h" />
+    <ClInclude Include="LocalClock.h" />
+    <ClInclude Include="AfterglowGraphicsQueue.h" />
+    <ClInclude Include="AfterglowImageView.h" />
+    <ClInclude Include="AfterglowIndexBuffer.h" />
+    <ClInclude Include="AfterglowInstance.h" />
+    <ClInclude Include="AfterglowPipeline.h" />
+    <ClInclude Include="AfterglowPipelineLayout.h" />
+    <ClInclude Include="AfterglowPresentQueue.h" />
+    <ClInclude Include="AfterglowRenderPass.h" />
+    <ClInclude Include="AfterglowObject.h" />
+    <ClInclude Include="AfterglowPhysicalDevice.h" />
+    <ClInclude Include="AfterglowProxyObject.h" />
+    <ClInclude Include="AfterglowStagingBuffer.h" />
+    <ClInclude Include="AfterglowSynchronizer.h" />
+    <ClInclude Include="AfterglowShaderModule.h" />
+    <ClInclude Include="AfterglowSurface.h" />
+    <ClInclude Include="AfterglowSwapchain.h" />
+    <ClInclude Include="AfterglowFramebufferManager.h" />
+    <ClInclude Include="AfterglowUniformBuffer.h" />
+    <ClInclude Include="AfterglowVertex.h" />
+    <ClInclude Include="AfterglowVertexBuffer.h" />
+    <ClInclude Include="AfterglowWindow.h" />
+    <ClInclude Include="Configurations.h" />
+    <ClInclude Include="DebugUtilities.h" />
+    <ClInclude Include="IndexableNode.h" />
+    <ClInclude Include="IndexableTree.h" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>
