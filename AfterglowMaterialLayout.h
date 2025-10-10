@@ -43,8 +43,12 @@ public:
 
 	// @brief: Apply material modification to layout.
 	void updateDescriptorSetLayouts(AfterglowDescriptorSetLayout& globalSetLayout, AfterglowDescriptorSetLayout& perObjectSetLayout);
+
 	void updatePipeline();
 	void updateComputePipeline();
+
+	// @brief: Update both of the compute pipeline and the render pipeline.
+	void updatePipelines();
 
 private:
 	struct ComputeLayout {

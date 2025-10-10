@@ -1,11 +1,11 @@
 #pragma once
 
-#include <thread>
 #include <algorithm>
+#include <thread>
 
-#include "AfterglowScene.h"
-#include "AfterglowRenderableContext.h"
 #include "AfterglowMaterialManager.h"
+#include "AfterglowRenderableContext.h"
+#include "AfterglowScene.h"
 #include "AfterglowSystemUtilities.h"
 #include "AfterglowWindow.h"
 

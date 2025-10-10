@@ -36,6 +36,7 @@ public:
 
 	~AfterglowProxyObject();
 
+	// Remind that these functions will create info implicitly if info is not exists, differentiate with data().
 	operator Type&();
 	operator Type*();
 

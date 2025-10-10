@@ -8,13 +8,15 @@
 
 #include "LocalClock.h"
 
+class AfterglowSystem;
+
 // For action entity call system functions.
 class AfterglowSystemUtilities {
 public:
 	friend class AfterglowSystem;
 	using TypeIndexArray = std::vector<std::type_index>;
 
-	AfterglowSystemUtilities(void* system);
+	AfterglowSystemUtilities(AfterglowSystem* system);
 	~AfterglowSystemUtilities();
 
 	/* System interfaces */ 
@@ -35,6 +37,7 @@ public:
 	// @return: created material instance name of this asset.
 	std::string registerMaterialInstanceAsset(const std::string& materialInstancePath) const;
 
+	// TODO: Potential thread interference.
 	void unregisterMaterialAsset(const std::string& materialPath) const;
 	void unregisterMaterialInstanceAsset(const std::string& materialInstancePath) const;
 

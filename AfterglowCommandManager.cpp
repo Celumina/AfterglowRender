@@ -27,16 +27,15 @@ bool AfterglowCommandManager::recordDraw(
 	AfterglowDescriptorSetReferences& setRefs,
 	AfterglowVertexBufferHandle& vertexBufferHandle,
 	util::MutableOptionalRef<AfterglowIndexBuffer> indexBuffer, 
-	uint32_t  instanceCount) {
+	uint32_t instanceCount) {
 
-	auto* recordInfo = createDrawRecordInfo(matResource, setRefs);
+	auto* recordInfo = aquireDrawRecordInfo(matResource, setRefs);
 	if (!recordInfo) {
 		return false;
 	}
 	
-	recordInfo->vertexBuffers.push_back(vertexBufferHandle.buffer);
+	recordInfo->vertexBuffer = vertexBufferHandle.buffer;
 	// TODO: Same indexBuffer for different vertexBuffers
-	recordInfo->vertexBufferOffsets.push_back(0);
 	recordInfo->vertexCount = vertexBufferHandle.vertexCount;
 	recordInfo->instanceCount = instanceCount;
 
@@ -55,12 +54,11 @@ bool AfterglowCommandManager::recordDraw(
 	util::OptionalRef<AfterglowSSBOInfo> indexSSBOInfo,
 	util::MutableOptionalRef<AfterglowStorageBuffer> indexData) {
 
-	auto* recordInfo = createDrawRecordInfo(matResource, setRefs);
+	auto* recordInfo = aquireDrawRecordInfo(matResource, setRefs);
 	if (!recordInfo) {
 		return false;
 	}
-	recordInfo->vertexBuffers.push_back(vertexData);
-	recordInfo->vertexBufferOffsets.push_back(0);
+	recordInfo->vertexBuffer = vertexData;
 	recordInfo->vertexCount = vertexSSBOInfo.numElements;
 	recordInfo->instanceCount = 1;
 
@@ -69,6 +67,7 @@ bool AfterglowCommandManager::recordDraw(
 		recordInfo->indexCount = indexSSBOInfo->get().numElements;
 	}
 	return true;
+
 }
 
 // TODO: GPU Instancing
@@ -155,7 +154,7 @@ void AfterglowCommandManager::applyComputeCommands() {
 	_computeRecordInfos.clear();
 }
 
-inline AfterglowDrawCommandBuffer::RecordInfo* AfterglowCommandManager::createDrawRecordInfo(
+inline AfterglowDrawCommandBuffer::RecordInfo* AfterglowCommandManager::aquireDrawRecordInfo(
 	AfterglowMaterialResource& matResource, AfterglowDescriptorSetReferences& setRefs) {
 	auto& pipeline = matResource.materialLayout().pipeline();
 	auto domain = matResource.materialLayout().material().domain();
@@ -163,5 +162,6 @@ inline AfterglowDrawCommandBuffer::RecordInfo* AfterglowCommandManager::createDr
 		DEBUG_CLASS_WARNING("Failed to record the draw, due to this material domain is not declare in RenderPass.");
 		return nullptr;
 	}
+	// TODO: Try to find first.
 	return &_drawRecordInfos[domain][&pipeline][&setRefs].emplace_back();
 }

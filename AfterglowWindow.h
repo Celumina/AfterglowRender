@@ -6,7 +6,8 @@
 #include <GLFW/glfw3.h>
 #include "AfterglowProxyObject.h"
 
-#include "AfterglowInput.h"
+
+class AfterglowInput;
 
 class AfterglowWindow : public AfterglowProxyObject<AfterglowWindow, GLFWwindow*> {
 	AFTERGLOW_PROXY_STORAGE_ONLY
@@ -37,17 +38,9 @@ public:
 	void unlockCursor();
 
 private:
-	static void framebufferResizeCallback(GLFWwindow* glfwWindow, int width, int height);
-	static void keyCallback(GLFWwindow* glfwWindow, int key, int scancode, int action, int mods);
-	static void mouseButtonCallback(GLFWwindow* glfwWindow, int button, int action, int mods);
-	static void cursorPosCallback(GLFWwindow* glfwWindow, double posX, double posY);
-	static void scrollCallback(GLFWwindow* glfwWindow, double offsetX, double offsetY);
-	static void cursorEnterCallback(GLFWwindow* glfwWindow, int entered);
-
-	AfterglowInput _input;
-	bool _resized;
-	bool _shouldLockCursor;
-	bool _shouldUnlockCursor;
+	struct Context;
+	std::unique_ptr<Context> _context;
+	bool _resized = false;
 };
 
 template<typename FuncType>

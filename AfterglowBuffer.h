@@ -72,7 +72,7 @@ inline void AfterglowBuffer<DerivedType>::initMemory(VkMemoryPropertyFlags prope
 
 	// Bind buffer with memory.
 	if (vkBindBufferMemory(_device, Parent::data(), _memory, 0) != VK_SUCCESS) {
-		Parent::runtimeError("Faild to bind buffer memory.");
+		throw Parent::runtimeError("Faild to bind buffer memory.");
 	}
 }
 

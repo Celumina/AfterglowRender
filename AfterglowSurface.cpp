@@ -1,4 +1,5 @@
 #include "AfterglowSurface.h"
+#include "AfterglowWindow.h"
 
 AfterglowSurface::AfterglowSurface(AfterglowInstance& instance, AfterglowWindow& window) : 
 	_instance(instance) {

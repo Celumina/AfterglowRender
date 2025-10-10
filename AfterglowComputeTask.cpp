@@ -108,6 +108,15 @@ AfterglowComputeTask::DispatchFrequency AfterglowComputeTask::dispatchFrequency(
 	return _dispatchFrequency;
 }
 
+bool AfterglowComputeTask::isInitComputeShader(const std::string& shaderPath) const {
+	for (const auto& ssboInfo : _ssboInfos) {
+		if (ssboInfo.initMode == compute::SSBOInitMode::ComputeShader && ssboInfo.initResource == shaderPath) {
+			return true;
+		}
+	}
+	return false;
+}
+
 AfterglowComputeTask::SSBOInfoRefs AfterglowComputeTask::computeShaderInitSSBOInfos() const {
 	SSBOInfoRefs refs;
 	for (auto& ssboInfo : _ssboInfos) {
@@ -137,6 +146,16 @@ uint32_t AfterglowComputeTask::instanceCount() const {
 		return 1;
 	}
 	return ssboInfo->numElements;
+}
+
+uint32_t AfterglowComputeTask::numInitComputeShaders() const {
+	uint32_t nums = 0;
+	for (const auto& ssboInfo : _ssboInfos) {
+		if (ssboInfo.initMode == compute::SSBOInitMode::ComputeShader) {
+			++nums;
+		}
+	}
+	return nums;
 }
 
 AfterglowComputeTask::SSBOInfos::iterator AfterglowComputeTask::findSSBOInfo(const std::string& name) {

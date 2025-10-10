@@ -6,8 +6,8 @@
 #include "DebugUtilities.h"
 
 struct AfterglowInput::Context {
-	std::vector<uint32_t> unstableKeyIndices;
-	std::vector<uint32_t> unstableMouseButtonIndices;
+	UnstableStates unstableKeyIndices;
+	UnstableStates unstableMouseButtonIndices;
 	KeyStateArray<Key> keyStates;
 	KeyStateArray<MouseButton> mouseButtonStates;
 	Position cursorPos;
@@ -91,11 +91,11 @@ bool AfterglowInput::releaseUp(Key key) const {
 }
 
 bool AfterglowInput::released(MouseButton mouseButton) const {
-	return _context->mouseButtonStates[util::EnumValue(mouseButton)] == State::Released;
+	return released(_context->mouseButtonStates[util::EnumValue(mouseButton)]);
 }
 
 bool AfterglowInput::released(Key key) const {
-	return _context->keyStates[util::EnumValue(key)] == State::Released;
+	return released(_context->keyStates[util::EnumValue(key)]);
 }
 
 bool AfterglowInput::repeated(MouseButton mouseButton) const {
@@ -119,7 +119,11 @@ bool AfterglowInput::cursorEntered() const {
 }
 
 inline bool AfterglowInput::pressed(State state) const {
-	return state == State::Pressed || state == State::Repeat;
+	return state == State::Pressed || state == State::Repeat || state == State::PressDown;
+}
+
+inline bool AfterglowInput::released(State state) const {
+	return state == State::Released || state == State::ReleaseUp;
 }
 
 inline bool AfterglowInput::modified(Modifier modifiers) const {
@@ -141,7 +145,6 @@ inline bool AfterglowInput::modified(Modifier modifiers) const {
 
 void AfterglowInput::update() {
 	LockGuard lockGuard(_mutex);
-	// TODO: A potential thread conflit: Delay callback data receive is not required? 
 	updateUnstableIndices<Key>(
 		_context->keyStates, _context->unstableKeyIndices
 	);

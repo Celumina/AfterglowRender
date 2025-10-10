@@ -6,9 +6,9 @@ struct AfterglowSystemUtilities::Context {
 	AfterglowSystem* system = nullptr;
 };
 
-AfterglowSystemUtilities::AfterglowSystemUtilities(void* system) : 
+AfterglowSystemUtilities::AfterglowSystemUtilities(AfterglowSystem* system) :
 	_context(std::make_unique<AfterglowSystemUtilities::Context>()){
-	_context->system = reinterpret_cast<AfterglowSystem*>(system);
+	_context->system = system;
 }
 
 AfterglowSystemUtilities::~AfterglowSystemUtilities() {

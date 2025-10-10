@@ -1,6 +1,7 @@
 #include "AfterglowSwapchain.h"
 #include <algorithm>
 #include "AfterglowFramebufferManager.h"
+#include "AfterglowWindow.h"
 
 AfterglowSwapchain::AfterglowSwapchain(AfterglowDevice& device, AfterglowWindow& window, AfterglowSurface& surface) :
 	_device(device), _window(window), _surface(surface), _imageFormat(VkFormat()), _extent(VkExtent2D()) {

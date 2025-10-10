@@ -2,8 +2,15 @@
 
 #include "Common.hlsl"
 
-static const float randomSeed0 = 51312.215451;
-static const float randomSeed1 = 35441.354924;
+static const float randomSeed0 = 51312.21551f;
+static const float randomSeed1 = 35441.35424f;
+static const float randomSeed2 = 73829.19572f;  
+static const float randomSeed3 = 12948.75398f;  
+static const float randomSeed4 = 94756.28463f;  
+static const float randomSeed5 = 31789.54627f;  
+static const float randomSeed6 = 62841.93752f;  
+static const float randomSeed7 = 47592.18365f;  
+
 
 int BitHash(int x) {
 	x = (x ^ 61) ^ (x >> 16);

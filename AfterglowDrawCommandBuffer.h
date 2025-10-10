@@ -3,9 +3,6 @@
 
 class AfterglowDrawCommandBuffer : public AfterglowCommandBuffer<AfterglowDrawCommandBuffer> {
 public:
-	using VertexBufferArray = std::vector<VkBuffer>;
-	using VertexBufferOffsetArray = std::vector<VkDeviceSize>;
-
 	struct BeginInfo {
 		BeginInfo();
 
@@ -17,13 +14,13 @@ public:
 		VkRect2D scissor{};
 	};
 
+	// One index buffer with one vertex buffer, forget the one-to-multi model, its overengineered.
 	struct RecordInfo {
 		// Index Buffer
 		VkBuffer indexBuffer = nullptr;
 
 		// Vertex Buffer
-		VertexBufferArray vertexBuffers;
-		VertexBufferOffsetArray vertexBufferOffsets;
+		VkBuffer vertexBuffer;
 
 		// Vertex Info
 		uint32_t indexCount = 0;

@@ -167,7 +167,6 @@
     <ClCompile Include="AfterglowComponentRegistery.cpp" />
     <ClCompile Include="AfterglowComputeCommandBuffer.cpp" />
     <ClCompile Include="AfterglowComputeComponent.cpp" />
-    <ClCompile Include="AfterglowComputeLayout.cpp" />
     <ClCompile Include="AfterglowComputeTask.cpp" />
     <ClCompile Include="AfterglowDescriptorSetReferences.cpp" />
     <ClCompile Include="AfterglowDescriptorSetWriter.cpp" />
@@ -178,6 +177,7 @@
     <ClCompile Include="AfterglowInput.cpp" />
     <ClCompile Include="AfterglowLightComponent.cpp" />
     <ClCompile Include="AfterglowMaterialAsset.cpp" />
+    <ClCompile Include="AfterglowMaterialAssetRegistrar.cpp" />
     <ClCompile Include="AfterglowMaterialInstanceAsset.cpp" />
     <ClCompile Include="AfterglowMaterialLayout.cpp" />
     <ClCompile Include="AfterglowMaterialResource.cpp" />
@@ -278,7 +278,6 @@
     <ClInclude Include="AfterglowComponentRegistery.h" />
     <ClInclude Include="AfterglowComputeCommandBuffer.h" />
     <ClInclude Include="AfterglowComputeComponent.h" />
-    <ClInclude Include="AfterglowComputeLayout.h" />
     <ClInclude Include="AfterglowComputeTask.h" />
     <ClInclude Include="AfterglowDescriptorSetReferences.h" />
     <ClInclude Include="AfterglowDescriptorSetWriter.h" />
@@ -289,6 +288,7 @@
     <ClInclude Include="AfterglowInput.h" />
     <ClInclude Include="AfterglowLightComponent.h" />
     <ClInclude Include="AfterglowMaterialAsset.h" />
+    <ClInclude Include="AfterglowMaterialAssetRegistrar.h" />
     <ClInclude Include="AfterglowMaterialInstanceAsset.h" />
     <ClInclude Include="AfterglowMaterialLayout.h" />
     <ClInclude Include="AfterglowMaterialResource.h" />

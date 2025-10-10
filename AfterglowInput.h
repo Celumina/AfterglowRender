@@ -3,6 +3,7 @@
 #include <memory>
 #include <mutex>
 #include <glm/glm.hpp>
+#include <unordered_map>
 
 #include "AfterglowObject.h"
 #include "AfterglowUtilities.h"
@@ -163,6 +164,7 @@ public:
 
 	using Mutex = std::mutex;
 	using LockGuard = std::lock_guard<Mutex>;
+	using UnstableStates = std::unordered_map<uint32_t, State>;
 
 	AfterglowInput();
 	~AfterglowInput();
@@ -208,12 +210,13 @@ private:
 	using KeyStateArray = std::array<State, util::EnumValue(EnumType::EnumCount)>;
 
 	inline bool pressed(State state) const;
+	inline bool released(State state) const;
 	inline bool modified(Modifier modifiers) const;
 
 	template<typename EnumType>
 	inline void updateUnstableIndices(
 		KeyStateArray<EnumType>& states,
-		std::vector<uint32_t>& unstableIndices
+		UnstableStates& unstableIndices
 	);
 
 	template<typename EnumType>
@@ -221,7 +224,7 @@ private:
 		EnumType targetEnum, 
 		State targetState, 
 		KeyStateArray<EnumType>& states, 
-		std::vector<uint32_t>& unstableIndices
+		UnstableStates& unstables
 	);
 
 	struct Context;
@@ -230,16 +233,23 @@ private:
 };
 
 template<typename EnumType>
-inline void AfterglowInput::updateUnstableIndices(KeyStateArray<EnumType>& states, std::vector<uint32_t>& unstableIndices) {
-	for (auto unstableIndex : unstableIndices) {
-		if (states[unstableIndex] == State::PressDown) {
-			states[unstableIndex] = State::Pressed;
+inline void AfterglowInput::updateUnstableIndices(KeyStateArray<EnumType>& states, UnstableStates& unstables) {
+	for (auto& [index, state] : unstables) {
+		states[index] = state;
+	}
+
+	std::erase_if(unstables, [](const auto& item){ 
+		return item.second == State::Pressed || item.second == State::Released; 
+	});
+
+	for (auto& [index, state] : unstables) {
+		if (state == State::PressDown) {
+			state = State::Pressed;
 		}
-		else if (states[unstableIndex] == State::ReleaseUp) {
-			states[unstableIndex] = State::Released;
+		else if (state == State::ReleaseUp) {
+			state = State::Released;
 		}
 	}
-	unstableIndices.clear();
 }
 
 template<typename EnumType>
@@ -247,21 +257,20 @@ inline void AfterglowInput::updateFromGLFWImpl(
 	EnumType targetEnum,
 	State targetState,
 	KeyStateArray<EnumType>& states,
-	std::vector<uint32_t>& unstableIndices) {
+	UnstableStates& unstables) {
 
 	LockGuard lockGuard(_mutex);
 
 	uint32_t index = util::EnumValue(targetEnum);
 	State state = states[index];
+	// Don't update states directly, due to a potential thread interference.
 	if (targetState == State::Pressed) {
-		states[index] = State::PressDown;
-		unstableIndices.push_back(index);
+		unstables[index] = State::PressDown;
 	}
 	else if (targetState == State::Released) {
-		states[index] = State::ReleaseUp;
-		unstableIndices.push_back(index);
+		unstables[index] = State::ReleaseUp;
 	}
 	else {
-		states[index] = targetState;
+		unstables[index] = targetState;
 	}
 }

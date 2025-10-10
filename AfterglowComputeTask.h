@@ -55,6 +55,8 @@ public:
 	const std::string& computeShaderPath() const;
 	const compute::DispatchGroup dispatchGroup() const;
 	DispatchFrequency dispatchFrequency() const;
+	// @return: Ture if shader path is one of the SSBOInfos' ComputeShader InitResource.
+	bool isInitComputeShader(const std::string& shaderPath) const;
 
 	// @return: SSBOs which should be initialized from compute shaders.
 	SSBOInfoRefs computeShaderInitSSBOInfos() const;
@@ -63,6 +65,9 @@ public:
 	//const SSBOInstancingInfos& ssboInstancingInfos() const;
 	const AfterglowSSBOInfo* instancingSSBOInfo() const;
 	uint32_t instanceCount() const;
+
+	// @desc: all initComputeShaders belong to shader::Stage::Compute;
+	uint32_t numInitComputeShaders() const;
 
 	SSBOInfos::iterator findSSBOInfo(const std::string& name);
 

@@ -1,6 +1,8 @@
 #include "AfterglowPresentQueue.h"
 #include <stdexcept>
 
+#include "AfterglowWindow.h"
+
 AfterglowPresentQueue::AfterglowPresentQueue(AfterglowDevice& device) : 
 	AfterglowQueue(device, device.physicalDevice().presentFamilyIndex()) {
 }

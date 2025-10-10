@@ -1,6 +1,6 @@
 #pragma once
 
-#include <deque>
+#include <vector>
 #include <unordered_map>
 #include <typeindex>
 #include <memory>
@@ -18,7 +18,7 @@ public:
 	template<typename Type>
 	Type& get();
 
-	const std::deque<AttributeType>& data() const;
+	const std::vector<AttributeType>& data() const;
 
 private:
 	template<typename Type>
@@ -30,9 +30,8 @@ private:
 	template <typename Type>
 	void registerAttribute();
 
-	// We must ensure that the destruction order is reverse from  the construction order.
-	// std::deque is better for this.
-	std::deque<AttributeType> _attributes;
+	// We must ensure that the destruction order is reverse from the construction order.
+	std::vector<AttributeType> _attributes;
 	std::unordered_map<std::type_index, uint32_t> _attributeIndices;
 };
 

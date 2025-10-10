@@ -1,4 +1,7 @@
 #pragma once
+
+#include <array>
+
 #include "AfterglowSemaphores.h"
 #include "AfterglowFences.h"
 #include "Configurations.h"

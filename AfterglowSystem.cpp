@@ -60,11 +60,9 @@ AfterglowRenderableContext& AfterglowSystem::renderableContext() {
 void AfterglowSystem::systemLoop() {
 	// TODO: Stop system automatically?
 	while (!_systemStoped) {
-		// TODO: Replace as an instance.
 		_clock.update();
 		_window.input().update();
 		updateComponents<reg::RegisteredComponentTypes>();
-
 	}
 }
 

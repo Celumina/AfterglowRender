@@ -90,10 +90,19 @@ void acl::SimpleController::update() {
 	}
 
 	if (input.pressDown(AfterglowInput::Key::G)) {
+		sysUtils().unregisterMaterialAsset(
+			"Assets/Shared/Materials/Standard.mat"
+		);
 		sysUtils().unregisterMaterialInstanceAsset(
 			"Assets/Characters/BattleMage/MaterialInstances/BattleMageWeapon.mati"
 		);
 	}
+	// TODO: unregister compute task cause crash.
+	//if (input.pressDown(AfterglowInput::Key::H)) {
+	//	sysUtils().unregisterMaterialAsset(
+	//		"Assets/Shared/Materials/BoidInstancing.mat"
+	//	);
+	//}
 
 	if (input.pressDown(AfterglowInput::Key::Tab)) {
 		_fpvMode = !_fpvMode;

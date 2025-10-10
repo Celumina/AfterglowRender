@@ -15,27 +15,10 @@
 // 	float TEST3;
 // };
 
-// struct VSInput {
-// 	// Althrough we don't use semanticm, POSITION etc., we also should be keep them on.
-// 	[[vk::location(0)]] float3 position : POSITION;
-// 	[[vk::location(1)]] float3 normal : NORMAL;
-// 	[[vk::location(2)]] float4 color : COLOR;
-// 	[[vk::location(3)]] float2 texCoord0 : TEXCOORD0;
-// };
+#include "CommonStructs.hlsl"
 
-struct VSOutput {
-	[[vk::location(0)]] float4 position : SV_POSITION; // Screen Space Position
-	[[vk::location(1)]] float3 worldPosition : POSITION;
-	[[vk::location(2)]] float3 worldNormal : NORMAL;
-	[[vk::location(3)]] float3 worldTangent : TANGENT;
-	[[vk::location(4)]] float3 worldBitangent : BITANGENT;
-	[[vk::location(5)]] float4 color : COLOR;
-	[[vk::location(6)]] float2 texCoord0 : TEXCOORD0;
-	[[vk::location(7)]] uint objectID : OBJECT_ID;
-};
-
-VSOutput main(VSInput input) {
-	VSOutput output;
+StandardVSOutput main(VSInput input) {
+	StandardVSOutput output;
 	float4 worldPosition = mul(model, float4(input.position, 1.0));
 	output.position = mul(projection, mul(view, worldPosition));
 	output.worldPosition = worldPosition;

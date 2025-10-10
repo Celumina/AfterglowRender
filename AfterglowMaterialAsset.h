@@ -182,7 +182,7 @@ inline std::type_index AfterglowMaterialAsset::vertexTypeIndex(uint32_t index) {
 		if (index == tupleIndex) {
 			return util::TypeIndex<Vertex>();
 		}
-		vertexTypeIndex<tupleIndex + 1>(index);
+		return vertexTypeIndex<tupleIndex + 1>(index);
 	}
 	else {
 		throw std::runtime_error("Invalid index parameter, can not cast it to vertexTypeIndex.");

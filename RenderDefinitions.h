@@ -13,10 +13,10 @@ namespace render {
 		DepthPrepass,
 		Shadow,
 		DeferredGeometry,
+		Decal,
 		DeferredLighting,
 		Forward,
 		Transparency,
-		Decal,
 		PostProcess,
 		UserInterface,
 

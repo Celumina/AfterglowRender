@@ -336,9 +336,6 @@
     <ClCompile Include="AfterglowFences.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="AfterglowComputeLayout.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="AfterglowComputeTask.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -365,6 +362,9 @@
     </ClCompile>
     <ClCompile Include="AfterglowComputeComponent.cpp">
       <Filter>Source Files\Components</Filter>
+    </ClCompile>
+    <ClCompile Include="AfterglowMaterialAssetRegistrar.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -686,9 +686,6 @@
     <ClInclude Include="AfterglowFences.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="AfterglowComputeLayout.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="AfterglowComputeTask.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -715,6 +712,9 @@
     </ClInclude>
     <ClInclude Include="AfterglowComputeComponent.h">
       <Filter>Header Files\Components</Filter>
+    </ClInclude>
+    <ClInclude Include="AfterglowMaterialAssetRegistrar.h">
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

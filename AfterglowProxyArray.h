@@ -6,24 +6,24 @@
 ProxyObject::Array
 	a.k.a std::vector<ProxyObject::AsElement>
 	This Type use for every objects have theirs own independent create() procedual.
-	Dynamic Array Size:			Yes
-	Memory Continuous:			No
-	CRTP:									Yes
+	Dynamic Array Size:    Yes
+	Memory Continuous:     No
+	CRTP:                  Yes
 
 ProxyObject<DerivedType, Type[Size], CreateInfoType>
 	This class use for vulkan array reference if this array has fixed size. 
 	Its array created use only one create() procedual for all element.
 	If you want to change array size, you should re-compile program.
-	Dynamic Array Size:			No
-	Memory Continuous:			Yes
-	CRTP:									Yes
+	Dynamic Array Size:    No
+	Memory Continuous:     Yes
+	CRTP:                  Yes
 
 ProxyArray
 	This proxy class make sure vkptrs have continuous memory.
 	You can also set array size when class is constructed.
-	Dynamic Array Size:			Yes
-	Memory Continuous:			Yes
-	CRTP:									Yes
+	Dynamic Array Size:    Yes
+	Memory Continuous:     Yes
+	CRTP:                  Yes
 */
 
 

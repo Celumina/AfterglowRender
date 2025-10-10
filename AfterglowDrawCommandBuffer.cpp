@@ -52,8 +52,10 @@ void AfterglowDrawCommandBuffer::setupDescriptorSets(const AfterglowDescriptorSe
 }
 
 void AfterglowDrawCommandBuffer::record(const RecordInfo& recordInfo) {
+	static constexpr std::array<VkDeviceSize, 1> vertexoffsets = { 0 };
+	
 	vkCmdBindVertexBuffers(
-		_currentCommandBuffer, 0, recordInfo.vertexBuffers.size(), recordInfo.vertexBuffers.data(), recordInfo.vertexBufferOffsets.data()
+		_currentCommandBuffer, 0, 1, &recordInfo.vertexBuffer, vertexoffsets.data()
 	);
 
 	// If indexBuffer exists, draw indexed.

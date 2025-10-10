@@ -1,3 +1,5 @@
+#include "Common.hlsl"
+
 struct VSOutput {
 	[[vk::location(0)]] float4 position : SV_POSITION; // Screen Space Position
 	[[vk::location(1)]] float3 worldPosition : POSITION;
@@ -10,20 +12,20 @@ struct VSOutput {
 VSOutput main(VSInput input) {
 	VSOutput output;
 	InstanceBufferStruct instanceInfo = InstanceBufferIn[input.instanceID];
-	float4x4 instanceModel = {
+	float4x4 instanceTransform = {
 		instanceInfo.transformR0, 
 		instanceInfo.transformR1, 
 		instanceInfo.transformR2, 
 		instanceInfo.transformR3, 
 	};
-	float4x4 invTransInstanceModel = transpose(instanceModel);
-	invTransInstanceModel = mul(invTransInstanceModel, invTransModel);
-
+	// Not scaling for better performance.
+	float4x4 invTransInstanceModel = mul(transpose(InverseRigidTransform(instanceTransform)), invTransModel);
 	float4 worldPosition = mul(model, float4(input.position, 1.0));
 
+	// Shaking
 	worldPosition.xy += sin(time + worldPosition.xy * 0.03) * 10.0 * input.color;
 
-	worldPosition = mul(instanceModel, worldPosition);
+	worldPosition = mul(instanceTransform, worldPosition);
 	output.position = mul(projection, mul(view, worldPosition));
 	output.worldPosition = worldPosition;
 	output.worldNormal = normalize(mul(invTransInstanceModel, float4(input.normal, 0.0)).xyz);

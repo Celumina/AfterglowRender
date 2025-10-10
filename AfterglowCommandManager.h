@@ -11,6 +11,7 @@
 
 class AfterglowCommandManager : public AfterglowObject {
 public:
+	// TODO: Here "vector" has not any specification, try to add something.
 	template<typename RecordInfoType>
 	using SetRecordInfos = std::unordered_map<AfterglowDescriptorSetReferences*, std::vector<RecordInfoType>>;
 
@@ -67,7 +68,7 @@ public:
 	void applyComputeCommands();
 
 private:
-	inline AfterglowDrawCommandBuffer::RecordInfo* createDrawRecordInfo(
+	inline AfterglowDrawCommandBuffer::RecordInfo* aquireDrawRecordInfo(
 		AfterglowMaterialResource& matResource, AfterglowDescriptorSetReferences& setRefs
 	);
 
@@ -75,9 +76,14 @@ private:
 	AfterglowCommandPool _commandPool;
 
 	AfterglowDrawCommandBuffer _drawCommandBuffer;
+	// TODO: Update modified meehes only, don't clear every update.
+	// TODO: A easy implementation:
+	//  Adding a dirty flag and set to false every apply. 
+	//  If renderer is not update the dirty flag, clear this recordInfo instead of submit it.
 	DomainPipelineSetDrawRecordInfos _drawRecordInfos;
 	
 	AfterglowComputeCommandBuffer _computeCommandBuffer;
+	// TODO: Update modified computeTasks only, don't clear every update.
 	PipelineSetComputeRecordInfos _computeRecordInfos;
 };
 

@@ -39,9 +39,9 @@ struct Inreflect<Type> : public InreflectDefinition<Type>
 InreflectEnumAttribute<decltype(Class::enumeration), TEMPLATE_STR(#enumeration), Class::enumeration> {}
 
 
-// If yout want to enable private member reflection, Define it in the taget class.
+// If you want to enable private member reflection, Define it in the target class.
 #define INR_ENABLE_PRIVATE_REFLECTION(Type) \
-friend class Inreflect<Type>
+friend struct Inreflect<Type>
 
 
 template<typename Type>

@@ -138,11 +138,14 @@ AfterglowApplication::AfterglowApplication() :
 	auto& particleExample = _system.createEntity<AfterglowComputeComponent>("ParticleExample");
 	particleExample.get<AfterglowComputeComponent>().setComputeMaterial(particleExampleMaterialName);
 
-	// [WIP] Boid instancings.
-	//std::string boidInstancingMaterialName = materialManager.registerMaterialAsset("Assets/Shared/Materials/BoidInstancing.mat");
-	//auto& boids = _system.createEntity<AfterglowStaticMeshComponent, AfterglowComputeComponent>("Boids");
-	//boids.get<AfterglowStaticMeshComponent>().setMaterial(boidInstancingMaterialName);
-	//boids.get<AfterglowComputeComponent>().setComputeMaterial(boidInstancingMaterialName);
+	// Boid instancings.
+	std::string boidInstancingMaterialName = materialManager.registerMaterialAsset("Assets/Shared/Materials/BoidInstancing.mat");
+	auto& boids = _system.createEntity<AfterglowStaticMeshComponent, AfterglowComputeComponent>("Boids");
+	boids.get<AfterglowTransformComponent>().setScaling({ 100.0f, 100.0f, 100.0f });
+	auto& boidMesh = boids.get<AfterglowStaticMeshComponent>();
+	boidMesh.setModel("Assets/Shared/Models/PaperAirplane.fbx");
+	boidMesh.setMaterial(boidInstancingMaterialName);
+	boids.get<AfterglowComputeComponent>().setComputeMaterial(boidInstancingMaterialName);
 
 	// Grass instancing
 	std::string grassInstancingMaterialName = materialManager.registerMaterialAsset("Assets/Shared/Materials/GrassInstancing.mat");

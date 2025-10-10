@@ -146,11 +146,11 @@ namespace reflectionTest {
 			else {
 				std::cout << typeInfo.value(tc) << "\n";
 			}
-			});
+		});
 
 		Inreflect<TestClass>::forEachFunction([&tc](auto typeInfo) {
 			if constexpr (typeInfo.name == "whatFunc") {
-				std::cout << " CallFunc: " << typeInfo.name << ", result: " << typeInfo.call(tc, 1000) << "\n";
+				std::cout << " CallFunc: " << typeInfo.name << ", result: " << typeInfo.call(tc, 1000.0) << "\n";
 			}
 			if constexpr (typeInfo.name == "testFunc") {
 				std::cout << " CallFunc: " << typeInfo.name << ", result: " << typeInfo.call(tc, 10) << "\n";
@@ -165,11 +165,11 @@ namespace reflectionTest {
 			if constexpr (typeInfo.sameParamTypes<>() && typeInfo.sameReturnType<std::string>() && !typeInfo.isStatic) {
 				std::cout << " FilterCall: " << typeInfo.name << ", result: " << typeInfo.call(tc) << "\n";
 			}
-			});
+		});
 
 		Inreflect<TestEnum>::forEachAttribute([](auto enumInfo) {
 			std::cout << "Enum: " << enumInfo.name << ", Value: " << enumInfo.value << '\n';
-			});
+		});
 	}
 };
 

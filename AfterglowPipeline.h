@@ -121,7 +121,7 @@ inline void AfterglowPipeline::assignVertex(std::type_index vertexTypeIndex) {
 		assignVertex<index + 1>(vertexTypeIndex);
 	}
 	else {
-		throw runtimeError("Not suitable vertex type, check type index value is from vertex type and the vertex type is registered.");
+		throw runtimeError("Not suitable vertex type, verify that the type index corresponds to a registered vertex type.");
 	}
 }
 

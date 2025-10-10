@@ -5,7 +5,8 @@
 #include <unordered_map>
 #include <mutex>
 
-#include "AfterglowAssetMonitor.h"
+// #include "AfterglowAssetMonitor.h"
+#include "AfterglowMaterialAssetRegistrar.h"
 #include "AfterglowMaterialAsset.h"
 
 #include "AfterglowMaterialResource.h"
@@ -65,6 +66,7 @@ public:
 	);
 
 	AfterglowDevice& device();
+	AfterglowDescriptorPool& descriptorPool();
 	AfterglowDescriptorSetWriter& descriptorSetWriter();
 
 	// @return: created material name of this asset.
@@ -78,9 +80,14 @@ public:
 	/**
 	* @brief: Create material by name, if name exists, replace old material by new one.
 	* @return: Material handle;
+	* @param materialAsset [optional]: For existing material to reapply shaders;
 	* @thread_safety
 	*/
-	AfterglowMaterial& createMaterial(const std::string& name, const AfterglowMaterial& sourceMaterial = AfterglowMaterial::emptyMaterial());
+	AfterglowMaterial& createMaterial(
+		const std::string& name, 
+		const AfterglowMaterial& sourceMaterial = AfterglowMaterial::emptyMaterial(), 
+		util::OptionalRef<AfterglowMaterialAsset> materialAsset = std::nullopt
+	);
 
 	/**
 	* @brief: Create materialInstance by name, if name exists, replace old material by new one.
@@ -93,15 +100,20 @@ public:
 	// @return: Material handle;
 	AfterglowMaterial* material(const std::string& name);
 
-	// @return: MaterialInstance  handle;
+	// @return: MaterialLayout handle;
+	AfterglowMaterialLayout* materialLayout(const std::string& name);
+	const AfterglowMaterialLayout* materialLayout(const std::string& name) const;
+
+	// @return: MaterialInstance handle;
 	AfterglowMaterialInstance* materialInstance(const std::string& name);
 
-	// @return: MaterialResource  handle;
+	// @return: MaterialResource handle;
 	AfterglowMaterialResource* materialResource(const std::string& name);
 	const AfterglowMaterialResource* materialResource(const std::string& name) const;
 
 	// @brief: If static mesh have a invalid material instance name, use this material instance.
 	static AfterglowMaterialAsset& errorMaterialAsset();
+	static const std::string& errorMaterialName();
 	static const std::string&  errorMaterialInstanceName();
 
 	/**
@@ -153,6 +165,8 @@ public:
 	// @brief: For compute record.
 	AfterglowDescriptorSetReferences* computeDescriptorSetReferences(const std::string& materialName, const ubo::MeshUniform& meshUniform);
 
+	void applyShaders(AfterglowMaterialLayout& matLayout, const AfterglowMaterialAsset& matAsset);
+	void applyErrorShaders(AfterglowMaterialLayout& matLayout);
 
 	UniqueLock lock() const;
 
@@ -162,9 +176,6 @@ private:
 
 	inline void initGlobalDescriptorSet();
 
-	inline void initAssetMonitorCallbacks();
-	inline void createMaterialFromAsset(const AfterglowMaterialAsset& materialAsset);
-
 	// Call it when that material submit.
 	inline void reloadMaterialResources(AfterglowMaterialLayout& matLayout);
 
@@ -173,12 +184,9 @@ private:
 	inline void applyExternalSetContext(AfterglowMaterialResource& matResource, PerObjectSetContextArray& perObjectSetContexts);
 	inline void applyGlobalSetContext(img::WriteInfoArray& imageWriteInfos);
 
-	inline void applyErrorShaders(AfterglowMaterialLayout& matLayout);
 	inline void appendGlobalSetTextureResource(shader::GlobalSetBindingIndex textureBindingIndex);
 
 	inline PerObjectSetContextArray* perObjectSetContexts(AfterglowMaterialResource* matResource);
-
-	inline void applyShaders(AfterglowMaterialLayout& matLayout, AfterglowMaterialAsset& matAsset);
 
 	// Static Pool Size
 	// TODO: add a new pool for dynamic pool size.
@@ -188,7 +196,8 @@ private:
 
 	// TODO: Different subpass as material domain.
 	AfterglowRenderPass& _renderPass;
-	AfterglowAssetMonitor& _assetMonitor;
+
+	AfterglowMaterialAssetRegistrar _assetRegistrar;
 
 	MaterialLayouts _materialLayouts;
 	MaterialResources _materialResources;

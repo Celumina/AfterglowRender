@@ -18,25 +18,14 @@
 #include "Common.hlsl"
 #include "ColorConversion.hlsl"
 #include "ShadingModels.hlsl"
-
-
-struct VSOutput {
-	[[vk::location(0)]] float4 position : SV_POSITION; // Screen Space Position
-	[[vk::location(1)]] float3 worldPosition : POSITION;
-	[[vk::location(2)]] float3 worldNormal : NORMAL;
-	[[vk::location(3)]] float3 worldTangent : TANGENT;
-	[[vk::location(4)]] float3 worldBitangent : BITANGENT;
-	[[vk::location(5)]] float4 color : COLOR;
-	[[vk::location(6)]] float2 texCoord0 : TEXCOORD0;
-	[[vk::location(7)]] uint objectID : OBJECT_ID;
-};
+#include "CommonStructs.hlsl"
 
 struct PSOutput {
 	[[vk::location(0)]] float4 color : SV_TARGET;
 	// [[vk::location(1)]] uint stencil : SV_STENCILREF;
 };
 
-PSOutput main(VSOutput input) {
+PSOutput main(StandardFSInput input) {
 	PSOutput output;
 
 	float3x3 tbn = {
@@ -44,6 +33,7 @@ PSOutput main(VSOutput input) {
 		input.worldBitangent, 
 		input.worldNormal
 	};
+	tbn = input.isFrontFace ? tbn : -tbn;
 
 	half4 baseColor = albedoTex.Sample(albedoTexSampler, input.texCoord0);
 	// tbn defines as row-major so put matrix in the rightside.
@@ -51,7 +41,7 @@ PSOutput main(VSOutput input) {
 	// normal = input.worldNormal;
 	
 	// Gram-Schmidt Orthogonization
-	half3 tangent = normalize(input.worldTangent - dot(input.worldTangent, normal) * normal);
+	half3 tangent = normalize(tbn[0] - dot(tbn[0], normal) * normal);
 	half3 bitangent = cross(normal, tangent);
 
 	float3 view = normalize(cameraPosition.xyz - input.worldPosition);
@@ -80,7 +70,7 @@ PSOutput main(VSOutput input) {
 	// finalColor = lightingResult.specular + 1000;	// TEMP
 
 	output.color.xyz = finalColor;
-	// output.color.xyz = input.objectID;
+	// output.color.xyz = normal;
 	// output.color.xyz = baseColor; //HSVToLinearRGB(LinearRGBToHSV(baseColor));
 
 	return output;

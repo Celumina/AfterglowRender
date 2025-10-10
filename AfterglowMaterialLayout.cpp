@@ -131,7 +131,7 @@ void AfterglowMaterialLayout::updatePipeline() {
 	AfterglowPipeline& pipeline = _pipeline;
 
 	if (_material.twoSided()) {
-		// TODO: There looks not right.
+		// TODO: Filp normal if it is backface.
 		pipeline.setCullMode(VK_CULL_MODE_NONE);
 	}
 	if (_material.domain() == render::Domain::Transparency) {
@@ -223,6 +223,13 @@ void AfterglowMaterialLayout::updateComputePipeline() {
 	}
 }
 
+void AfterglowMaterialLayout::updatePipelines() {
+	updatePipeline();
+	if (_material.hasComputeTask()) {
+		updateComputePipeline();
+	}
+}
+
 void AfterglowMaterialLayout::appendDescriptorSetLayout(shader::Stage stage) {
 	auto vulkanStage = vulkanShaderStage(stage);
 
@@ -251,7 +258,6 @@ void AfterglowMaterialLayout::appendDescriptorSetLayout(shader::Stage stage) {
 		for (uint32_t index = 0; index < numSSBOs; ++index) {
 			setLayout.appendBinding(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, vulkanStage);
 		}
-		break;
 	}
 }
 

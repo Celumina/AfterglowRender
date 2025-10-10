@@ -14,7 +14,7 @@ public:
 	//	Custom additional infos [tag, context]
 	using TagInfos = std::unordered_map<std::string, std::string>;
 
-	enum class AssetType {
+	enum class AssetType : uint32_t {
 		Undefined, 
 		Image, 
 		Model, 
@@ -41,7 +41,7 @@ public:
 
 	void update(const LocalClock& clock);
 	// @return: Is success to register.
-	bool registerAsset(AssetType type, const std::string& path, const TagInfos& tagInfos = {});
+	AssetInfo* registerAsset(AssetType type, const std::string& path, const TagInfos& tagInfos = {});
 	// @return: Is success to unregister.
 	bool unregisterAsset(const std::string& path);
 
@@ -51,6 +51,10 @@ public:
 
 	void unregisterModifiedCallback(AssetType type);
 	void unregisterDeleteCallback(AssetType type);
+
+	// @return: nullptr if this asset path is not registered.
+	AssetInfo* registeredAssetInfo(const std::string& path);
+	const AssetInfo* registeredAssetInfo(const std::string& path) const;
 
 private:
 	struct Context;

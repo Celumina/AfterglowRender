@@ -53,7 +53,6 @@ public:
 	DerivedType& operator*();
 	DerivedType& get();
 
-	// Because it is too difficult to make a friend class.
 	std::unique_ptr<DerivedType>& raw();
 
 	template<typename ...ArgTypes>
@@ -92,7 +91,6 @@ protected:
 	void initCreateInfo();
 	void create();
 
-	// Remind that this function will create info if its not exists, differentiate with data().
 	ContextType& context();
 	const ContextType& context() const;
 
@@ -166,16 +164,16 @@ inline __PROXY_TYPE::AsElement __PROXY_TYPE::makeElement(ArgTypes&& ...args) {
 __PROXY_MEMBER_FUNCTION(void)::initCreateInfo() {
 	static_assert(
 		!std::is_same_v<decltype(&__PROXY_TYPE::initCreateInfo), decltype(&DerivedType::initCreateInfo)>,
-		"[AfterglowProxyTemplate::initCreateInfo] CRTP funtion has not been declared in DerivedType."
-		);
+		"[AfterglowProxyTemplate::initCreateInfo] The CRTP interface function has not been declared in DerivedType."
+	);
 	reinterpret_cast<DerivedType*>(this)->initCreateInfo();
 }
 
 __PROXY_MEMBER_FUNCTION(void)::create() {
 	static_assert(
 		!std::is_same_v<decltype(&__PROXY_TYPE::create), decltype(&DerivedType::create)>,
-		"[AfterglowProxyTemplate::create] CRTP funtion has not been declared in DerivedType."
-		);
+		"[AfterglowProxyTemplate::create] The CRTP interface function has not been declared in DerivedType."
+	);
 	reinterpret_cast<DerivedType*>(this)->create();
 }
 
