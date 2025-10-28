@@ -1,6 +1,7 @@
 #pragma once
 
 #include <concepts>
+#include <stdexcept>
 #include "AfterglowStructLayout.h"
 
 #include "DebugUtilities.h"

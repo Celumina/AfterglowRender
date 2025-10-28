@@ -1,6 +1,7 @@
 #pragma once
 #include "AfterglowDevice.h"
-#include "AfterglowSynchronizer.h"
+
+class AfterglowSynchronizer;
 
 class AfterglowQueue : public AfterglowObject {
 public:

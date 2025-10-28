@@ -1,4 +1,5 @@
 #include "AfterglowRenderPass.h"
+#include "AfterglowPhysicalDevice.h"
 
 AfterglowRenderPass::AfterglowRenderPass(AfterglowSwapchain& swapchain) :
 	_swapchain(swapchain) {
@@ -8,7 +9,7 @@ AfterglowRenderPass::~AfterglowRenderPass() {
 	destroy(vkDestroyRenderPass, device(), data(), nullptr);
 }
 
-inline AfterglowDevice& AfterglowRenderPass::device() {
+inline AfterglowDevice& AfterglowRenderPass::device() noexcept {
 	return _swapchain.device();
 }
 
@@ -74,7 +75,9 @@ void AfterglowRenderPass::initCreateInfo() {
 		AfterglowSubpassContext::presentAttachment(colorFormat)
 	);
 
+	////////////////////////////////////////
 	// Forward
+	////////////////////////////////////////
 	_subpassContext->appendSubpass(render::Domain::Forward);
 	_subpassContext->bindColorAttachment(render::Domain::Forward, colorIndex);
 	_subpassContext->bindDepthAttachment(render::Domain::Forward, depthIndex);
@@ -86,7 +89,9 @@ void AfterglowRenderPass::initCreateInfo() {
 	auto& forwarDependency = 
 		_subpassContext->makeDependency(render::Domain::Undefined, render::Domain::Forward);
 
+	////////////////////////////////////////
 	// Transparency
+	////////////////////////////////////////
 	_subpassContext->appendSubpass(render::Domain::Transparency);
 	// Both support Input and output
 	_subpassContext->bindInputAttachment(render::Domain::Transparency, forwardColorResolveIndex, "sceneColorTexture");
@@ -100,7 +105,9 @@ void AfterglowRenderPass::initCreateInfo() {
 		render::Domain::Forward, render::Domain::Transparency, AfterglowSubpassContext::fragmentRWDependency
 	);
 	
+	////////////////////////////////////////
 	// Postprocess
+	////////////////////////////////////////
 	_subpassContext->appendSubpass(render::Domain::PostProcess);
 	_subpassContext->bindInputAttachment(render::Domain::PostProcess, transparencyColorResolveIndex, "sceneColorTexture");
 	_subpassContext->bindInputAttachment(render::Domain::PostProcess, depthIndex, "depthTexture");
@@ -109,6 +116,17 @@ void AfterglowRenderPass::initCreateInfo() {
 	auto& postProcessDependency = _subpassContext->makeDependency(
 		render::Domain::Transparency, render::Domain::PostProcess, AfterglowSubpassContext::fragmentRWColorRDepthDependency
 	);
+
+	////////////////////////////////////////
+	// UserInterface
+	////////////////////////////////////////
+	_subpassContext->appendSubpass(render::Domain::UserInterface);
+	_subpassContext->bindColorAttachment(render::Domain::UserInterface, presentColorIndex);
+	auto& userInterfaceDependency = _subpassContext->makeDependency(
+		render::Domain::PostProcess, render::Domain::UserInterface, AfterglowSubpassContext::fragmentWColorDependency
+	);
+	// TODO: ...
+
 
 	// RenderPass
 	// RenderPass to specify: 

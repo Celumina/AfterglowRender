@@ -14,17 +14,15 @@ AfterglowSynchronizer::AfterglowSynchronizer(AfterglowDevice& device) :
 }
 
 void AfterglowSynchronizer::wait(FenceFlag fenceFlag) {
-	vkWaitForFences(
-		_device, 
-		1, 
-		&_inFlightFences[_device.currentFrameIndex()][util::EnumValue(fenceFlag)], 
-		VK_TRUE, 
-		UINT64_MAX
-	);
+	vkWaitForFences(_device, 1, &fence(fenceFlag), VK_TRUE,  UINT64_MAX);
+}
+
+VkResult AfterglowSynchronizer::fenceStatus(FenceFlag fenceFlag) {
+	return vkGetFenceStatus(_device, fence(fenceFlag));
 }
 
 void AfterglowSynchronizer::reset(FenceFlag fenceFlag) {
-	vkResetFences(_device, 1, &_inFlightFences[_device.currentFrameIndex()][util::EnumValue(fenceFlag)]);
+	vkResetFences(_device, 1, &fence(fenceFlag));
 }
 
 VkSemaphore& AfterglowSynchronizer::semaphore(SemaphoreFlag semaphoreFlag) {
@@ -35,6 +33,6 @@ VkFence& AfterglowSynchronizer::fence(FenceFlag fenceFlag) {
 	return _inFlightFences[_device.currentFrameIndex()][util::EnumValue(fenceFlag)];
 }
 
-AfterglowDevice& AfterglowSynchronizer::device() {
+AfterglowDevice& AfterglowSynchronizer::device() noexcept {
 	return _device;
 }

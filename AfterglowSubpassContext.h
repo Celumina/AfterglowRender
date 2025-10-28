@@ -39,6 +39,7 @@ public:
 	static VkSubpassDependency firstDependency(uint32_t destSubpassIndex);
 	static VkSubpassDependency fragmentRWDependency(uint32_t srcSubpassIndex, uint32_t destSubpassIndex);
 	static VkSubpassDependency fragmentRWColorRDepthDependency(uint32_t srcSubpassIndex, uint32_t destSubpassIndex);
+	static VkSubpassDependency fragmentWColorDependency(uint32_t srcSubpassIndex, uint32_t destSubpassIndex);
 
 	// @return: If subpass exists, return target subpass description, otherwise append a new subpass and return its description.
 	VkSubpassDescription& appendSubpass(render::Domain domain);
@@ -70,7 +71,7 @@ public:
 	VkClearValue& clearValue(uint32_t index);
 
 	// @brief: aquire subpass descriptions, it will also updaate subpass attachment references.
-	const SubpassDescriptionArray& subpasses();
+	const SubpassDescriptionArray& subpasses(bool updateAttachmentRefs = true);
 	const SubpassDependencyArray& dependencies();
 	const AttachmentDescriptionArray& attachments();
 	const ClearValueArray& clearValues(); 

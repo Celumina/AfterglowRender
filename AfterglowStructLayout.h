@@ -57,6 +57,9 @@ public:
 		Float2,
 		Float3,
 		Float4,
+		Float2x2, 
+		Float3x3,
+		Float4x4,
 		Double, 
 		Double2, 
 		Double3, 
@@ -111,6 +114,9 @@ public:
 	void forEachAttributeMember(const std::function<AttributeMemberCallback>& callback) const;
 	void forEachAttributeMemberWithOffset(const std::function<AttributeMemberWithOffsetCallback>& callback) const;
 
+	// Adding paddings automatically.
+	std::vector<AttributeMember> generateHLSLStructMembers() const;
+
 private:
 	template<vert::VertexType Type, vert::AttributeType CurrentAttributeType>
 	static void createFromVertexImplement(AfterglowStructLayout& layout);
@@ -118,6 +124,8 @@ private:
 	template<typename Type> constexpr AttributeType attributeType() = delete;
 	template<> constexpr AttributeType attributeType<float>() { return AttributeType::Float; };
 	template<> constexpr AttributeType attributeType<double>() { return AttributeType::Double; };
+
+	inline void appendPaddingAttributes(std::vector<AttributeMember>& dest, int32_t paddingSize) const;
 
 	std::vector<AttributeMember> _attributes;
 
@@ -129,7 +137,7 @@ private:
 
 	static inline uint32_t _structAlignment = 16;
 
-	// TODO: HLSL Standard memory alignment.
+	// HLSL Standard memory alignment.
 	static inline const std::unordered_map<AttributeType, AttributeInfo> _attributeTypeInfos = {
 		{AttributeType::Undefined, {"undefined", 0, 0}}, 
 		{AttributeType::Half2, {"half2", 4, 2}},
@@ -138,6 +146,9 @@ private:
 		{AttributeType::Float2, {"float2", 8, 2}},
 		{AttributeType::Float3, {"float3", 12, 3}},
 		{AttributeType::Float4, {"float4", 16, 4}},
+		{AttributeType::Float2x2, {"float2x2", 16, 4}},
+		{AttributeType::Float3x3, {"float3x3", 36, 9}},
+		{AttributeType::Float4x4, {"float4x4", 64, 16}},
 		{AttributeType::Double, {"double", 8, 1}},
 		{AttributeType::Double2, {"double2", 16, 2}},
 		{AttributeType::Double3, {"double3", 24, 3}},

@@ -1,8 +1,9 @@
 #pragma once
 #include "AfterglowImage.h"
-#include "AfterglowCommandPool.h"
-#include "AfterglowGraphicsQueue.h"
-#include "AfterglowStagingBuffer.h"
+
+class AfterglowCommandPool;
+class AfterglowGraphicsQueue;
+class AfterglowStagingBuffer;
 
 class AfterglowTextureImage : public AfterglowImage<AfterglowTextureImage> {
 public:

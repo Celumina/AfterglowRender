@@ -11,7 +11,7 @@ namespace ubo {
 		// TODO: PointLightStructure
 		alignas(16) glm::vec4 dirLightDirection;
 		alignas(16) glm::vec4 dirLightColor;
-		alignas(16) glm::vec4 cameraPosition;
+		alignas(16) glm::vec4 cameraPosition; // TODO: Insert camera fov here...
 		alignas(16) glm::vec4 cameraVector;
 		alignas(8) glm::vec2 screenResolution;
 		alignas(8) glm::vec2 invScreenResolution;
@@ -40,9 +40,9 @@ namespace ubo {
 		);
 	};
 
-
+	// TODO: Provide combined mvp mat.
 	struct MeshUniform {
-		// Column-major matrices
+		// Row-major matrices
 		alignas(16) glm::mat4 model;			// Model to World maxtrix
 		alignas(16) glm::mat4 view;				// World to Viewport matrix
 		alignas(16) glm::mat4 projection;	// Viewport to Clip Space matrix

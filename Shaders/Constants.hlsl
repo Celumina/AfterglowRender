@@ -2,3 +2,5 @@
 
 static const float pi = 3.14159265359;
 static const float invPi = 0.31830988618;
+
+static const float inf = asfloat(0x7F800000);

@@ -168,7 +168,7 @@ void AfterglowTransformComponent::setGlobalTransform(const AfterglowTransform& g
 		setScaling(globalTransform.scaling / parentTransformComponent.globalScaling());
 	}
 	else {
-		setTransform (AfterglowTransform{});
+		setTransform(globalTransform);
 	}
 }
 

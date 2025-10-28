@@ -24,12 +24,19 @@ public:
 	// TODO: HOST_VISIBLE feature.
 	// TODO: Usage Enum: For vertexInput? build global textures?
 
-	enum class DispatchFrequency {
+	enum class DispatchFrequency : uint16_t {
 		Never,         // Submit to command buffer manually
 		Once,          // Submit once when compute resource is initialized, or you can set it on manually.
 		PerFrame       // Submit every update
 
 		// TODO:  Fixed update rate
+	};
+
+	// In-order, OnceCompleted also means Initialized is completed.
+	enum class DispatchStatus : uint16_t {
+		None, 
+		Initialized, 
+		OnceCompleted
 	};
 
 	SSBOInfos& ssboInfos();
@@ -45,6 +52,8 @@ public:
 	void setComputeShader(const std::string& computeShaderPath);
 	void setDispatchGroup(const compute::DispatchGroup& dispatchGroup);
 	void setDispatchFrequency(DispatchFrequency dispatchFrequency);
+	void setDispatchStatus(DispatchStatus dispatchStatus);
+
 
 	//bool setSSBOInstancingInfo(const std::string& ssboInfoName, const std::string& materialName, const std::string& modelPath);
 	//void removeSSOBInstancingInfo(const std::string& ssboInfoName);
@@ -55,6 +64,8 @@ public:
 	const std::string& computeShaderPath() const;
 	const compute::DispatchGroup dispatchGroup() const;
 	DispatchFrequency dispatchFrequency() const;
+	DispatchStatus dispatchStatus() const;
+
 	// @return: Ture if shader path is one of the SSBOInfos' ComputeShader InitResource.
 	bool isInitComputeShader(const std::string& shaderPath) const;
 
@@ -76,6 +87,7 @@ private:
 	std::string _computeShaderPath;
 	compute::DispatchGroup _dispatchGroup = {};
 	DispatchFrequency _dispatchFrequency = DispatchFrequency::Never;
+	DispatchStatus _dispatchStatus = DispatchStatus::None;
 	SSBOInfos _ssboInfos;
 	// SSBOInstancingInfos _ssboInstancingInfos;
 };

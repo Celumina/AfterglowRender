@@ -1,4 +1,6 @@
 #include "AfterglowComputeQueue.h"
+#include "AfterglowSynchronizer.h"
+#include "AfterglowPhysicalDevice.h"
 
 // Compute use same the queue with Graphics now.
 AfterglowComputeQueue::AfterglowComputeQueue(AfterglowDevice& device) : 

@@ -4,6 +4,7 @@
 #include <typeindex>
 
 #include "AfterglowObject.h"
+#include "Inreflect.h"
 
 class AfterglowComponentBase : AfterglowObject {
 public:
@@ -22,3 +23,8 @@ private:
 	static inline ID _allocatedID = 0;
 };
 
+INR_CLASS(AfterglowComponentBase) {
+	INR_FUNCS(
+		INR_FUNC(id)
+	);
+};

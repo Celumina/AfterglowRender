@@ -15,9 +15,9 @@ public:
 
 	AfterglowFramebufferManager(AfterglowRenderPass& renderPass);
 
-	inline AfterglowDevice& device();
-	inline AfterglowSwapchain& swapchain();
-	inline AfterglowRenderPass& renderPass();
+	inline AfterglowDevice& device() noexcept;
+	inline AfterglowSwapchain& swapchain() noexcept;
+	inline AfterglowRenderPass& renderPass() noexcept;
 
 	// If window size is changed, call this function.
 	void recreate();

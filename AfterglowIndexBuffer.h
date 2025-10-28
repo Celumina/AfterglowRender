@@ -1,8 +1,9 @@
 #pragma once
 #include "VertexStructs.h"
 #include "AfterglowBuffer.h"
-#include "AfterglowCommandPool.h"
-#include "AfterglowGraphicsQueue.h"
+
+class AfterglowCommandPool;
+class AfterglowGraphicsQueue;
 
 class AfterglowIndexBuffer : public AfterglowBuffer<AfterglowIndexBuffer> {
 public:

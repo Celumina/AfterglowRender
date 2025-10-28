@@ -12,7 +12,7 @@
 #include "AfterglowUtilities.h"
 #include "DebugUtilities.h"
 
-struct AfterglowModelAsset::Context {
+struct AfterglowModelAsset::Impl {
 	std::string path;
 	unsigned int importSettings = 0;
 	Assimp::Importer importer;
@@ -36,22 +36,22 @@ struct AfterglowModelAsset::Context {
 };
 
 AfterglowModelAsset::AfterglowModelAsset(const std::string& modelPath) :
-	_context(std::make_unique<Context>()){
-	_context->path = modelPath;
+	_impl(std::make_unique<Impl>()){
+	_impl->path = modelPath;
 	initialize();
 }
 
 AfterglowModelAsset::AfterglowModelAsset(const model::AssetInfo& assetInfo) :
-	_context(std::make_unique<Context>()) {
-	_context->path = assetInfo.path;
+	_impl(std::make_unique<Impl>()) {
+	_impl->path = assetInfo.path;
 
 	auto importFlagBits = util::EnumValue(assetInfo.importFlags);
 
 	if (importFlagBits & util::EnumValue(model::ImportFlag::GenerateTangent)) {
-		_context->importSettings |= aiProcess_CalcTangentSpace;
+		_impl->importSettings |= aiProcess_CalcTangentSpace;
 	}
 	if (importFlagBits & util::EnumValue(model::ImportFlag::GenerateAABB)) {
-		_context->importSettings |= aiProcess_GenBoundingBoxes;
+		_impl->importSettings |= aiProcess_GenBoundingBoxes;
 	}
 
 	initialize();
@@ -61,19 +61,19 @@ AfterglowModelAsset::~AfterglowModelAsset() {
 }
 
 uint32_t AfterglowModelAsset::numMeshes() {
-	return _context->numMeshes;
+	return _impl->numMeshes;
 }
 
 std::weak_ptr<AfterglowModelAsset::IndexArray> AfterglowModelAsset::indices(uint32_t meshIndex) {
-	return _context->indices[meshIndex];
+	return _impl->indices[meshIndex];
 }
 
 std::weak_ptr<AfterglowModelAsset::VertexArray> AfterglowModelAsset::vertices(uint32_t meshIndex) {
-	return _context->vertices[meshIndex];
+	return _impl->vertices[meshIndex];
 }
 
 void AfterglowModelAsset::printModelInfo() {
-	_context->forEachNode(
+	_impl->forEachNode(
 		[this](aiNode* node) {
 			std::cout << "Node: " << node->mName.C_Str() << "\n";
 			uint32_t numMeshes = node->mNumMeshes;
@@ -81,7 +81,7 @@ void AfterglowModelAsset::printModelInfo() {
 				std::cout << "..NumMeshes: " << numMeshes << "\n";
 				for (uint32_t index = 0; index < numMeshes; ++index) {
 					uint32_t meshIndex = node->mMeshes[index];
-					auto* mesh = _context->scene->mMeshes[meshIndex];
+					auto* mesh = _impl->scene->mMeshes[meshIndex];
 					std::cout << "..Mesh: " << mesh->mName.C_Str() << "\n";
 					std::cout << "....NumVertices: " << mesh->mNumVertices << "\n";
 					std::cout << "....NumFaces: " << mesh->mNumFaces << "\n";
@@ -91,35 +91,35 @@ void AfterglowModelAsset::printModelInfo() {
 				}
 			}
 		}, 
-		_context->scene->mRootNode
+		_impl->scene->mRootNode
 	);
 }
 
 inline void AfterglowModelAsset::initialize() {
-	_context->importSettings |= aiProcess_Triangulate | aiProcess_SortByPType;
+	_impl->importSettings |= aiProcess_Triangulate | aiProcess_SortByPType;
 	// Try to load cache first.
 	// TODO: Add a force reparse flag as param.
-	std::string cachePath = _context->path + AfterglowModelAssetCache::suffix();
+	std::string cachePath {_impl->path + AfterglowModelAssetCache::suffix()};
 	if (std::filesystem::exists(cachePath)) {
 		AfterglowModelAssetCache cache{ AfterglowModelAssetCache::Mode::Read, cachePath };
-		if (cache.fileHead().sourceFileModifiedTime == std::filesystem::last_write_time(_context->path)) {
-			_context->initDataFromCache(cache);
+		if (cache.fileHead().sourceFileModifiedTime == std::filesystem::last_write_time(_impl->path)) {
+			_impl->initDataFromCache(cache);
 			return;
 		}
 	}
 
 	// Otherwise parse model file (Very long time).
-	DEBUG_CLASS_INFO("Model asset load begin: " + _context->path);
-	_context->initScene();
+	DEBUG_CLASS_INFO("Model asset load begin: " + _impl->path);
+	_impl->initScene();
 	DEBUG_CLASS_INFO("Scene inialized.");
-	_context->initData();
+	_impl->initData();
 	DEBUG_CLASS_INFO("Indices and vertices data were loaded.");
-	_context->generateCache();
+	_impl->generateCache();
 	DEBUG_CLASS_INFO("Cache file was generated.");
 	// printModelInfo();
 }
 
-inline void AfterglowModelAsset::Context::initScene() {
+inline void AfterglowModelAsset::Impl::initScene() {
 	if (scene) {
 		return;
 	}
@@ -131,7 +131,7 @@ inline void AfterglowModelAsset::Context::initScene() {
 	numMeshes = scene->mNumMeshes;
 }
 
-void AfterglowModelAsset::Context::initData() {
+void AfterglowModelAsset::Impl::initData() {
 	indices.resize(scene->mNumMeshes);
 	vertices.resize(scene->mNumMeshes);
 
@@ -155,7 +155,7 @@ void AfterglowModelAsset::Context::initData() {
 	}
 }
 
-inline void AfterglowModelAsset::Context::initDataFromCache(const AfterglowModelAssetCache& cache) {
+inline void AfterglowModelAsset::Impl::initDataFromCache(const AfterglowModelAssetCache& cache) {
 	numMeshes = cache.numMeshes();
 	indices.resize(numMeshes);
 	vertices.resize(numMeshes);
@@ -166,7 +166,7 @@ inline void AfterglowModelAsset::Context::initDataFromCache(const AfterglowModel
 	}
 }
 
-inline void AfterglowModelAsset::Context::generateCache() {
+inline void AfterglowModelAsset::Impl::generateCache() {
 	AfterglowModelAssetCache cache(AfterglowModelAssetCache::Mode::Write, path + AfterglowModelAssetCache::suffix());
 	for (uint32_t index = 0; index < scene->mNumMeshes; ++index) {
 		cache.recordWrite(*indices[index], *vertices[index]);
@@ -174,7 +174,7 @@ inline void AfterglowModelAsset::Context::generateCache() {
 	cache.write(std::filesystem::last_write_time(path));
 }
 
-inline void AfterglowModelAsset::Context::setVertex(uint32_t meshIndex, const aiMesh* mesh, uint32_t meshVertexIndex) {
+inline void AfterglowModelAsset::Impl::setVertex(uint32_t meshIndex, const aiMesh* mesh, uint32_t meshVertexIndex) {
 	auto& vertex = (*vertices[meshIndex])[meshVertexIndex];
 	if constexpr (vert::StandardVertex::hasAttribute<vert::Position>()) {
 		if (mesh->HasPositions()) {
@@ -241,7 +241,7 @@ inline void AfterglowModelAsset::Context::setVertex(uint32_t meshIndex, const ai
 }
 
 template<typename FuncType>
-inline void AfterglowModelAsset::Context::forEachNode(FuncType&& func, aiNode* parent) {
+inline void AfterglowModelAsset::Impl::forEachNode(FuncType&& func, aiNode* parent) {
 	if (!parent) {
 		return;
 	}

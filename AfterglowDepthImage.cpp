@@ -1,4 +1,8 @@
 #include "AfterglowDepthImage.h"
+
+#include "AfterglowCommandPool.h"
+#include "AfterglowGraphicsQueue.h"
+
 #include "Configurations.h"
 
 AfterglowDepthImage::AfterglowDepthImage(

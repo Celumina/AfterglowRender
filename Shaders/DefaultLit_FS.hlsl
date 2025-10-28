@@ -70,7 +70,7 @@ PSOutput main(StandardFSInput input) {
 	// finalColor = lightingResult.specular + 1000;	// TEMP
 
 	output.color.xyz = finalColor;
-	// output.color.xyz = normal;
+	// output.color.xyz = input.color;
 	// output.color.xyz = baseColor; //HSVToLinearRGB(LinearRGBToHSV(baseColor));
 
 	return output;

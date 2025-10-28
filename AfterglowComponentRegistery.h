@@ -10,6 +10,8 @@
 #include "AfterglowComputeComponent.h"
 #include "ActionComponentLibrary.h"
 
+#include "DebugUtilities.h"
+
 
 namespace reg {
 	// Registered Components
@@ -21,8 +23,7 @@ namespace reg {
 		AfterglowPostProcessComponent, 
 		AfterglowComputeComponent, 
 		acl::EntityRotator, 
-		acl::SimpleController, 
-		acl::ParticleSpawner
+		acl::SimpleController
 	>;
 
 	template<typename ComponentType>
@@ -39,6 +40,10 @@ namespace reg {
 
 	template<typename FirstComponentType, typename ...OtherComponentTypes>
 	constexpr bool AllComponentsRegistered();
+
+	// Cast component type by type_index info.
+	template<typename CallbackType, uint32_t index = 0>
+	void AsType(std::type_index typeIndex, CallbackType callback);
 };
 
 namespace {
@@ -98,4 +103,21 @@ constexpr bool reg::AllComponentsRegistered() {
 template<typename FirstComponentType, typename ...OtherComponentTypes>
 constexpr bool reg::AllComponentsRegistered() {
 	return IsComponentRegistered<FirstComponentType>() && AllComponentsRegistered<OtherComponentTypes...>();
+}
+
+template<typename CallbackType, uint32_t index>
+void reg::AsType(std::type_index typeIndex, CallbackType callback) {
+	using Component = std::tuple_element_t<index, RegisteredComponentTypes>;
+	if (std::type_index(typeid(Component)) == typeIndex) {
+		callback.template operator() <Component>();
+		return;
+	}
+	else {
+		if constexpr (index + 1 < std::tuple_size_v<RegisteredComponentTypes>) {
+			AsType<CallbackType, index + 1>(typeIndex, callback);
+		}
+		else {
+			DEBUG_WARNING(std::format("[reg::AsType] TypeIndex is not a registered component types: {}", typeIndex.name()));
+		}
+	}
 }

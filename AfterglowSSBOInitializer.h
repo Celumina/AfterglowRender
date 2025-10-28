@@ -1,14 +1,17 @@
 #pragma once
 
 #include <memory>
-
-#include "AfterglowSSBOInfo.h"
-#include "AfterglowStructuredData.h"
 #include "glm/glm.hpp"
+
+#include "Inreflect.h"
+
+class AfterglowStructuredData;
+struct AfterglowSSBOInfo;
 
 class AfterglowSSBOInitializer {
 public:
 	AfterglowSSBOInitializer(const AfterglowSSBOInfo& ssboInfo);
+	~AfterglowSSBOInitializer();
 
 	const char* data() const;
 	uint64_t byteSize() const;

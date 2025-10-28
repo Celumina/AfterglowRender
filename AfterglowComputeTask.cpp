@@ -60,6 +60,10 @@ void AfterglowComputeTask::setDispatchFrequency(DispatchFrequency dispatchFreque
 	_dispatchFrequency = dispatchFrequency;
 }
 
+void AfterglowComputeTask::setDispatchStatus(DispatchStatus dispatchStatus) {
+	_dispatchStatus = dispatchStatus;
+}
+
 //bool AfterglowComputeTask::setSSBOInstancingInfo(const std::string& ssboInfoName, const std::string& materialName, const std::string& modelPath) {
 //	auto iterator = findSSBOInfo(ssboInfoName);
 //	if (iterator == _ssboInfos.end()) {
@@ -106,6 +110,10 @@ const compute::DispatchGroup AfterglowComputeTask::dispatchGroup() const {
 
 AfterglowComputeTask::DispatchFrequency AfterglowComputeTask::dispatchFrequency() const {
 	return _dispatchFrequency;
+}
+
+AfterglowComputeTask::DispatchStatus AfterglowComputeTask::dispatchStatus() const {
+	return _dispatchStatus;
 }
 
 bool AfterglowComputeTask::isInitComputeShader(const std::string& shaderPath) const {

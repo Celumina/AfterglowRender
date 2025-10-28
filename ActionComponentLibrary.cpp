@@ -5,16 +5,23 @@
 
 #include "AfterglowTransformComponent.h"
 #include "DebugUtilities.h"
-#include "LocalClock.h"
+#include "AfterglowInput.h"
 
 #include "AfterglowStaticMeshComponent.h"
 
 void acl::EntityRotator::update() {
 	auto& transform = *entity().component<AfterglowTransformComponent>();
-	float angularSpeed = 1.0f;
-	float deltaTime = static_cast<float>(sysUtils().clock().deltaTimeSec());
-	auto deltaRotation = glm::angleAxis(angularSpeed * deltaTime, glm::vec3(0.0f, 0.0f, 1.0f));
+	float deltaTime = static_cast<float>(sysUtils().deltaTimeSec());
+	auto deltaRotation = glm::angleAxis(_angularSpeed * deltaTime, glm::vec3(0.0f, 0.0f, 1.0f));
 	transform.setRotation(glm::normalize(deltaRotation * transform.rotation()));
+}
+
+float acl::EntityRotator::angularSpeed() const noexcept {
+	return _angularSpeed;
+}
+
+void acl::EntityRotator::setAngularSpeed(float speed) noexcept {
+	_angularSpeed = speed;
 }
 
 
@@ -22,7 +29,7 @@ void acl::SimpleController::update() {
 	auto& input = sysUtils().input();
 	auto& transform = *entity().component<AfterglowTransformComponent>();
 	glm::vec2 deltaCursorPos = input.cursorPosition() - _cursorPosLastUpdate;
-	float deltaTime = static_cast<float>(sysUtils().clock().deltaTimeSec());
+	float deltaTime = static_cast<float>(sysUtils().deltaTimeSec());
 
 	float moveSpeed = 200.0f ;
 	float rotateSpeed = 0.002f;
@@ -116,32 +123,8 @@ void acl::SimpleController::update() {
 
 	// DEBUG_INFO(std::to_string(input.cursorEntered()));
 	_cursorPosLastUpdate = input.cursorPosition();
-}
 
-
-void acl::ParticleSpawner::awake() {
-	std::default_random_engine randomEngine(time(nullptr));
-	std::uniform_real_distribution<float> randomDistribution(0.0f, 1.0f);
-
-	_particles.resize(512);
-
-	for (auto& particle : _particles) {
-		float radius = 0.25f * sqrt(randomDistribution(randomEngine));
-		float theta = randomDistribution(randomEngine) * 2.0 * constant::pi;
-		particle.position.x = radius * cos(theta) * 100.0f;
-		particle.position.y = radius * sin(theta) * 100.0f;
-		particle.position.z = radius * 100.0f;
-
-		particle.velocity = glm::normalize(particle.position) * 0.00025f;
-		particle.color = glm::vec4(
-			randomDistribution(randomEngine),
-			randomDistribution(randomEngine),
-			randomDistribution(randomEngine),
-			1.0f
-		);
-	}
-
-}
-
-void acl::ParticleSpawner::update() {
+	//if (input.wheelOffset() != glm::dvec2(0.0)) {
+	//	DEBUG_INFO("Move!!!!!!!!!!");
+	//}
 }

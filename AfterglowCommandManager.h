@@ -1,13 +1,17 @@
 #pragma once
+
+#include <imgui.h>
+
 #include "AfterglowDrawCommandBuffer.h"
 #include "AfterglowComputeCommandBuffer.h"
 #include "AfterglowFramebuffer.h"
 #include "AfterglowMaterialResource.h"
 #include "AfterglowIndexBuffer.h"
 
-// TEMP
 #include "AfterglowComputePipeline.h"
 #include "ComputeDefinitions.h"
+
+struct AfterglowSSBOInfo;
 
 class AfterglowCommandManager : public AfterglowObject {
 public:
@@ -67,6 +71,8 @@ public:
 	// @brief: Apply all commands to device. Call it every ticks.
 	void applyComputeCommands();
 
+	void recordUIDraw(ImDrawData* uiDrawData);
+
 private:
 	inline AfterglowDrawCommandBuffer::RecordInfo* aquireDrawRecordInfo(
 		AfterglowMaterialResource& matResource, AfterglowDescriptorSetReferences& setRefs
@@ -85,5 +91,7 @@ private:
 	AfterglowComputeCommandBuffer _computeCommandBuffer;
 	// TODO: Update modified computeTasks only, don't clear every update.
 	PipelineSetComputeRecordInfos _computeRecordInfos;
+
+	ImDrawData* _uiDrawData = nullptr;
 };
 

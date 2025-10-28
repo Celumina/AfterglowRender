@@ -36,3 +36,14 @@ template<typename ComponentType>
 inline void AfterglowLightComponent<ComponentType>::setColor(AfterglowColor color) noexcept {
 	_color = color;
 }
+
+
+INR_CRTP_CLASS(AfterglowLightComponent, ComponentType) {
+	INR_BASE_CLASSES<AfterglowComponent<InreflectDerivedType>>;
+	INR_FUNCS (
+		INR_FUNC(intensity), 
+		INR_FUNC(color),
+		INR_FUNC(setIntensity),
+		INR_FUNC(setColor)
+	);
+};

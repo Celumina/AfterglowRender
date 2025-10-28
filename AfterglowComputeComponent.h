@@ -11,3 +11,10 @@ private:
 	std::string _materialName;
 };
 
+INR_CLASS(AfterglowComputeComponent) {
+	INR_BASE_CLASSES<AfterglowComponent<AfterglowComputeComponent>>;
+	INR_FUNCS(
+		INR_FUNC(setComputeMaterial), 
+		INR_FUNC(computeMaterialName)
+	);
+};

@@ -31,6 +31,10 @@ public:
 	void setMaterial(const std::string& materialName, SlotID id = 0);
 	void setModel(const std::string& modelPath);
 
+	// TODO: ...
+	// @brief: For special effect like "Outline".
+	void setOverlayMaterial(const std::string& materialName, SlotID id = 0);
+
 	bool meshDated() const;
 	void setMeshDated(bool isDated);
 
@@ -46,3 +50,20 @@ private:
 	static inline std::string emptyMaterialName = "";
 };
 
+INR_CLASS(AfterglowStaticMeshComponent) {
+	INR_BASE_CLASSES<AfterglowComponent<AfterglowStaticMeshComponent>>;
+	INR_FUNCS(
+		INR_FUNC(materialName),
+		INR_FUNC(materialNames),
+		INR_FUNC(modelPath),
+		INR_FUNC(modelImportFlags),
+		INR_FUNC(modelAssetInfo),
+		INR_FUNC(setMaterial), 
+		INR_FUNC(setModel),
+		// TODO: INR_FUNC(setOverlayMaterial), 
+		INR_FUNC(meshDated),
+		INR_FUNC(setMeshDated),
+		INR_FUNC(addImportFlags),
+		INR_FUNC(removeImportFlags)
+	);
+};

@@ -150,7 +150,7 @@ namespace reflectionTest {
 
 		Inreflect<TestClass>::forEachFunction([&tc](auto typeInfo) {
 			if constexpr (typeInfo.name == "whatFunc") {
-				std::cout << " CallFunc: " << typeInfo.name << ", result: " << typeInfo.call(tc, 1000.0) << "\n";
+				std::cout << " CallFunc: " << typeInfo.name << ", result: " << typeInfo.call(tc, 1000.0f) << "\n";
 			}
 			if constexpr (typeInfo.name == "testFunc") {
 				std::cout << " CallFunc: " << typeInfo.name << ", result: " << typeInfo.call(tc, 10) << "\n";
@@ -160,7 +160,7 @@ namespace reflectionTest {
 			}
 
 			if constexpr (typeInfo.sameParamTypes<float>() && typeInfo.isStatic) {
-				std::cout << " BatchCall: " << typeInfo.name << ", result: " << typeInfo.call(123.0) << "\n";
+				std::cout << " BatchCall: " << typeInfo.name << ", result: " << typeInfo.call(123.0f) << "\n";
 			}
 			if constexpr (typeInfo.sameParamTypes<>() && typeInfo.sameReturnType<std::string>() && !typeInfo.isStatic) {
 				std::cout << " FilterCall: " << typeInfo.name << ", result: " << typeInfo.call(tc) << "\n";
@@ -185,4 +185,48 @@ namespace structLayoutTest {
 
 		std::cout << "ByteOffset: " << layout.offset("member3") << '\n';
 	};
+}
+
+namespace partialSpecificationTest {
+	template<typename D>
+	struct AA {
+		using Tag = D;
+	};
+
+	template<typename D>
+	struct A : AA<D> {
+		using Tag = D;
+	};
+
+	struct B : public A<B> {};
+
+	template<typename T>
+	struct S {};
+
+	template<typename T>
+	concept DeriviedFromA = std::is_same_v<typename A<T>::Tag, T>;
+	template<DeriviedFromA T>
+	struct S<A<T>> {};
+
+	template<typename T>
+	concept DeriviedFromAA = std::is_same_v<typename AA<T>::Tag, T>;
+	template<DeriviedFromAA T>
+	struct S<AA<T>> {};
+
+	//
+	//template<>
+	//struct S<B> {};
+
+	using TestAA = S<AA<B>>;
+	// using TestA = S<A<B>>;
+	// using TestB = S<A1<B>>;
+	// using TestC = S<B>;
+
+	void Test() {
+		TestAA{};
+		// TestA{};
+		// TestB{};
+		// TestC{};
+
+	}
 }

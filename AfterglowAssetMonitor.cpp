@@ -5,7 +5,7 @@
 
 #include "DebugUtilities.h"
 
-struct AfterglowAssetMonitor::Context {
+struct AfterglowAssetMonitor::Impl {
 	// Unit: second.
 	float checkInterval = 1.0f;
 	float lastCheckTime = 0.0f;
@@ -22,24 +22,24 @@ struct AfterglowAssetMonitor::Context {
 };
 
 AfterglowAssetMonitor::AfterglowAssetMonitor() : 
-	_context(std::make_unique<Context>()) {
+	_impl(std::make_unique<Impl>()) {
 }
 
 AfterglowAssetMonitor::~AfterglowAssetMonitor() {
 }
 
 void AfterglowAssetMonitor::update(const LocalClock& clock) {
-	_context->unloadRegisterCaches();
+	_impl->unloadRegisterCaches();
 
 	// Fixed interval modified callbacks.
-	if (clock.timeSec() - _context->lastCheckTime < _context->checkInterval) {
+	if (clock.timeSec() - _impl->lastCheckTime < _impl->checkInterval) {
 		return;
 	}
-	_context->lastCheckTime = static_cast<float>(clock.timeSec());
+	_impl->lastCheckTime = static_cast<float>(clock.timeSec());
 
-	for (auto& [path, info] : _context->monitoredAssets) {
+	for (auto& [path, info] : _impl->monitoredAssets) {
 		if (!std::filesystem::exists(path)) {
-		auto& deletedCallback = _context->deletedCallbacks[info.type];
+		auto& deletedCallback = _impl->deletedCallbacks[info.type];
 			if (deletedCallback) {
 				deletedCallback(path, info.tagInfos);
 			}
@@ -48,7 +48,7 @@ void AfterglowAssetMonitor::update(const LocalClock& clock) {
 		}
 		auto modifiedTime = std::filesystem::last_write_time(path);
 		if (modifiedTime != info.lastModifiedTime) {
-			auto& modifiedCallback = _context->modifiedCallbacks[info.type];
+			auto& modifiedCallback = _impl->modifiedCallbacks[info.type];
 			if (modifiedCallback) {
 				modifiedCallback(path, info.tagInfos);
 			}
@@ -62,7 +62,7 @@ AfterglowAssetMonitor::AssetInfo* AfterglowAssetMonitor::registerAsset(AssetType
 		DEBUG_CLASS_WARNING(std::format("Failed to register asset due to the file is not exists: {}", path));
 		return nullptr;
 	}
-	return &_context->registerAssetCaches.emplace(
+	return &_impl->registerAssetCaches.emplace(
 		path, 
 		AssetInfo {
 			.type = type,
@@ -73,39 +73,39 @@ AfterglowAssetMonitor::AssetInfo* AfterglowAssetMonitor::registerAsset(AssetType
 }
 
 bool AfterglowAssetMonitor::unregisterAsset(const std::string& path) {
-	auto iterator = _context->monitoredAssets.find(path);
-	if (iterator == _context->monitoredAssets.end()) {
+	auto iterator = _impl->monitoredAssets.find(path);
+	if (iterator == _impl->monitoredAssets.end()) {
 		DEBUG_CLASS_WARNING(std::format("Failed to unregister asset due to this path is not registered: {}", path));
 		return false;
 	}
-	_context->unregisterPathCaches.insert(path);
+	_impl->unregisterPathCaches.insert(path);
 	return  true;
 }
 
 void AfterglowAssetMonitor::setCheckInterval(float sec) {
-	_context->checkInterval = sec;
+	_impl->checkInterval = sec;
 }
 
 void AfterglowAssetMonitor::registerModifiedCallback(AssetType type, std::function<ModifiedCallback> callback) {
-	_context->modifiedCallbacks[type] = callback;
+	_impl->modifiedCallbacks[type] = callback;
 }
 
 void AfterglowAssetMonitor::registerDeletedCallback(AssetType type, std::function<DeletedCallback> callback) {
-	_context->deletedCallbacks[type] = callback;
+	_impl->deletedCallbacks[type] = callback;
 }
 
 void AfterglowAssetMonitor::unregisterModifiedCallback(AssetType type) {
-	_context->modifiedCallbacks.erase(type);
+	_impl->modifiedCallbacks.erase(type);
 }
 
 void AfterglowAssetMonitor::unregisterDeleteCallback(AssetType type) {
-	_context->deletedCallbacks.erase(type);
+	_impl->deletedCallbacks.erase(type);
 }
 
 AfterglowAssetMonitor::AssetInfo* AfterglowAssetMonitor::registeredAssetInfo(const std::string& path) {
-	auto iterator = _context->monitoredAssets.find(path);
+	auto iterator = _impl->monitoredAssets.find(path);
 	// Excluding asset info which will be unregistered.
-	if (iterator != _context->monitoredAssets.end() && !_context->unregisterPathCaches.contains(path)) {
+	if (iterator != _impl->monitoredAssets.end() && !_impl->unregisterPathCaches.contains(path)) {
 		return &iterator->second;
 	}
 	return nullptr;
@@ -115,7 +115,7 @@ const AfterglowAssetMonitor::AssetInfo* AfterglowAssetMonitor::registeredAssetIn
 	return const_cast<AfterglowAssetMonitor*>(this)->registeredAssetInfo(path);
 }
 
-void AfterglowAssetMonitor::Context::unloadRegisterCaches() {
+void AfterglowAssetMonitor::Impl::unloadRegisterCaches() {
 	// Register / Unregister new assets.
 	// DEBUG_COST_INFO_BEGIN("MonitorRegisterCache");
 	std::erase_if(monitoredAssets, [this](const auto& item) {

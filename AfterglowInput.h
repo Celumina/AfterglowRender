@@ -169,6 +169,7 @@ public:
 	AfterglowInput();
 	~AfterglowInput();
 
+	// TODO: No blocking by GUI methods.
 	bool modifiedWith(MouseButton mouseButton, Modifier modifiers) const;
 	bool modifiedWith(Key key, Modifier modifiers) const;
 
@@ -227,8 +228,8 @@ private:
 		UnstableStates& unstables
 	);
 
-	struct Context;
-	std::unique_ptr<Context> _context;
+	struct Impl;
+	std::unique_ptr<Impl> _impl;
 	Mutex _mutex;
 };
 

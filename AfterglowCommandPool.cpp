@@ -1,4 +1,5 @@
 #include "AfterglowCommandPool.h"
+#include "AfterglowPhysicalDevice.h"
 
 #include "Configurations.h"
 
@@ -10,7 +11,7 @@ AfterglowCommandPool::~AfterglowCommandPool() {
 	destroy(vkDestroyCommandPool, _device, data(), nullptr);
 }
 
-AfterglowDevice& AfterglowCommandPool::device() {
+AfterglowDevice& AfterglowCommandPool::device() noexcept {
 	return _device;
 }
 

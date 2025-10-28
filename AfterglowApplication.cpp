@@ -3,24 +3,24 @@
 #include "AfterglowStaticMeshComponent.h"
 #include "AfterglowCameraComponent.h"
 #include "ActionComponentLibrary.h"
-
+#include "AfterglowMaterialManager.h"
 #include "LocalClock.h"
 #include "Tests.h"
 
 AfterglowApplication::AfterglowApplication() : 
 	_window(),
 	_renderer(_window), 
-	_system(_window, _renderer.materialManager()) {
+	_system(_window, _renderer.materialManager(), _renderer.ui()) {
 
 	// reflectionTest::test();
 	// structLayoutTest::test();
 
-	DEBUG_ERROR(
-			"\n" + AfterglowMaterialAsset("Assets/Shared/Materials/PostProcess.mat").generateShaderCode(
-			shader::Stage::Fragment
-			)
-	);
-	// TODO: Expose material interfaces in renderer.
+	//DEBUG_ERROR(
+	//		"\n" + AfterglowMaterialAsset("Assets/Shared/Materials/PostProcess.mat").generateShaderCode(
+	//		shader::Stage::Fragment
+	//		)
+	//);
+
 	auto& materialManager = _renderer.materialManager();
 
 	_renderer.bindRenderableContext(_system.renderableContext());
@@ -141,7 +141,7 @@ AfterglowApplication::AfterglowApplication() :
 	// Boid instancings.
 	std::string boidInstancingMaterialName = materialManager.registerMaterialAsset("Assets/Shared/Materials/BoidInstancing.mat");
 	auto& boids = _system.createEntity<AfterglowStaticMeshComponent, AfterglowComputeComponent>("Boids");
-	boids.get<AfterglowTransformComponent>().setScaling({ 100.0f, 100.0f, 100.0f });
+	boids.get<AfterglowTransformComponent>().setScaling({ 50.0f, 50.0f, 50.0f });
 	auto& boidMesh = boids.get<AfterglowStaticMeshComponent>();
 	boidMesh.setModel("Assets/Shared/Models/PaperAirplane.fbx");
 	boidMesh.setMaterial(boidInstancingMaterialName);
@@ -155,6 +155,7 @@ AfterglowApplication::AfterglowApplication() :
 	auto& grassInstancesMesh = grassInstances.get<AfterglowStaticMeshComponent>();
 	grassInstancesMesh.setModel("Assets/Shared/Models/InstancingGrass.fbx");
 	grassInstancesMesh.setMaterial(grassInstancingMaterialName);
+	// TODO: Try to use a simplified model contains pos, normal, color only.
 	grassInstances.get<AfterglowComputeComponent>().setComputeMaterial(grassInstancingMaterialName);
 
 	DEBUG_WARNING("---------------------");

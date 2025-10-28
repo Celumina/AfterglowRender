@@ -60,3 +60,11 @@ void AfterglowColor::setB(uint8_t b) noexcept {
 void AfterglowColor::setA(uint8_t a) noexcept {
 	_data = (_data & ~Mask::Alpha) | a;
 }
+
+void AfterglowColor::setRGBA(uint8_t r, uint8_t g, uint8_t b, uint8_t a) noexcept {
+	_data = (r << 24) | (g << 16) | (b << 8) | a;
+}
+
+void AfterglowColor::setFloatRGBA(float r, float g, float b, float a) noexcept {
+	setRGBA(r * 255.0f, g * 255.0f, b * 255.0f, a * 255.0f);
+}

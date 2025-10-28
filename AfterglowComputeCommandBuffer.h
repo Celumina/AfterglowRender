@@ -1,5 +1,5 @@
 #pragma once
-#include "AfterglowProxyArray.h"
+
 #include "AfterglowCommandBuffer.h"
 #include "AfterglowComputePipeline.h"
 #include "ComputeDefinitions.h"

@@ -2,10 +2,11 @@
 
 #include <algorithm>
 #include <GLFW/glfw3.h>
+#include <imgui.h>
 
 #include "DebugUtilities.h"
 
-struct AfterglowInput::Context {
+struct AfterglowInput::Impl {
 	UnstableStates unstableKeyIndices;
 	UnstableStates unstableMouseButtonIndices;
 	KeyStateArray<Key> keyStates;
@@ -16,7 +17,7 @@ struct AfterglowInput::Context {
 };
 
 AfterglowInput::AfterglowInput() : 
-	_context(std::make_unique<Context>()) {
+	_impl(std::make_unique<Impl>()) {
 }
 
 AfterglowInput::~AfterglowInput() {
@@ -28,8 +29,8 @@ void AfterglowInput::updateKeyFromGLFW(int keyCode, int actionCode) {
 	updateFromGLFWImpl(
 		key, 
 		targetState, 
-		_context->keyStates, 
-		_context->unstableKeyIndices
+		_impl->keyStates, 
+		_impl->unstableKeyIndices
 	);
 }
 
@@ -39,23 +40,24 @@ void AfterglowInput::updateMouseButtonFromGLFW(int buttonCode, int actionCode) {
 	updateFromGLFWImpl(
 		button,
 		targetState,
-		_context->mouseButtonStates,
-		_context->unstableMouseButtonIndices
+		_impl->mouseButtonStates,
+		_impl->unstableMouseButtonIndices
 	);
 }
 
 void AfterglowInput::updateCursorPositionFromGLFW(double posX, double posY) {
-	_context->cursorPos.x = posX;
-	_context->cursorPos.y = posY;
+	_impl->cursorPos.x = posX;
+	_impl->cursorPos.y = posY;
 }
 
 void AfterglowInput::updateScrollFromGLFW(double offsetX, double offsetY) {
-	_context->wheelOffset.x = offsetX;
-	_context->wheelOffset.y = offsetY;
+	// TODO: Here glfw callback will never set offset to zero.
+	_impl->wheelOffset.x = offsetX;
+	_impl->wheelOffset.y = offsetY;
 }
 
 void AfterglowInput::updateCursorEnteredFromGLFW(int entered) {
-	_context->cursorEntered = static_cast<bool>(entered);
+	_impl->cursorEntered = static_cast<bool>(entered);
 }
 
 bool AfterglowInput::modifiedWith(MouseButton mouseButton, Modifier modifiers) const {
@@ -67,55 +69,66 @@ bool AfterglowInput::modifiedWith(Key key, Modifier modifiers) const {
 }
 
 bool AfterglowInput::pressDown(MouseButton mouseButton) const {
-	return _context->mouseButtonStates[util::EnumValue(mouseButton)] == State::PressDown;
+	return _impl->mouseButtonStates[util::EnumValue(mouseButton)] == State::PressDown 
+		&& !ImGui::IsWindowFocused(ImGuiFocusedFlags_AnyWindow);
 }
 
 bool AfterglowInput::pressDown(Key key) const {
-	return _context->keyStates[util::EnumValue(key)] == State::PressDown;
+	return _impl->keyStates[util::EnumValue(key)] == State::PressDown
+		&& !ImGui::IsAnyItemActive();
 }
 
 bool AfterglowInput::pressed(MouseButton mouseButton) const {
-	return pressed(_context->mouseButtonStates[util::EnumValue(mouseButton)]);
+	return pressed(_impl->mouseButtonStates[util::EnumValue(mouseButton)]) 
+		&& !ImGui::IsWindowFocused(ImGuiFocusedFlags_AnyWindow);
 }
 
 bool AfterglowInput::pressed(Key key) const {
-	return pressed(_context->keyStates[util::EnumValue(key)]);
+	return pressed(_impl->keyStates[util::EnumValue(key)]) 
+		&& !ImGui::IsAnyItemActive();
 }
 
 bool AfterglowInput::releaseUp(MouseButton mouseButton) const {
-	return _context->mouseButtonStates[util::EnumValue(mouseButton)] == State::ReleaseUp;
+	return _impl->mouseButtonStates[util::EnumValue(mouseButton)] == State::ReleaseUp 
+		&& !ImGui::IsWindowFocused(ImGuiFocusedFlags_AnyWindow);
 }
 
 bool AfterglowInput::releaseUp(Key key) const {
-	return _context->keyStates[util::EnumValue(key)] == State::ReleaseUp;
+	return _impl->keyStates[util::EnumValue(key)] == State::ReleaseUp
+		&& !ImGui::IsAnyItemActive();
 }
 
 bool AfterglowInput::released(MouseButton mouseButton) const {
-	return released(_context->mouseButtonStates[util::EnumValue(mouseButton)]);
+	return released(_impl->mouseButtonStates[util::EnumValue(mouseButton)]);
 }
 
 bool AfterglowInput::released(Key key) const {
-	return released(_context->keyStates[util::EnumValue(key)]);
+	return released(_impl->keyStates[util::EnumValue(key)]);
 }
 
 bool AfterglowInput::repeated(MouseButton mouseButton) const {
-	return _context->mouseButtonStates[util::EnumValue(mouseButton)] == State::Repeat;
+	return _impl->mouseButtonStates[util::EnumValue(mouseButton)] == State::Repeat
+		&& !ImGui::IsWindowFocused(ImGuiFocusedFlags_AnyWindow);
 }
 
 bool AfterglowInput::repeated(Key key) const {
-	return _context->keyStates[util::EnumValue(key)] == State::Repeat;
+	return _impl->keyStates[util::EnumValue(key)] == State::Repeat
+		&& !ImGui::IsAnyItemActive();
 }
 
 AfterglowInput::Position AfterglowInput::cursorPosition() const {
-	return _context->cursorPos;
+	return _impl->cursorPos;
 }
 
 AfterglowInput::Position AfterglowInput::wheelOffset() const {
-	return _context->wheelOffset;
+	if (ImGui::GetIO().WantCaptureMouse) {
+		_impl->wheelOffset = {};
+	}
+	return _impl->wheelOffset;
 }
 
 bool AfterglowInput::cursorEntered() const {
-	return _context->cursorEntered;
+	return _impl->cursorEntered;
 }
 
 inline bool AfterglowInput::pressed(State state) const {
@@ -146,10 +159,10 @@ inline bool AfterglowInput::modified(Modifier modifiers) const {
 void AfterglowInput::update() {
 	LockGuard lockGuard(_mutex);
 	updateUnstableIndices<Key>(
-		_context->keyStates, _context->unstableKeyIndices
+		_impl->keyStates, _impl->unstableKeyIndices
 	);
 	updateUnstableIndices<MouseButton>(
-		_context->mouseButtonStates, _context->unstableMouseButtonIndices
+		_impl->mouseButtonStates, _impl->unstableMouseButtonIndices
 	);
 }
 

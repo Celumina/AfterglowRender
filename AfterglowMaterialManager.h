@@ -1,62 +1,31 @@
 #pragma once
 
-#include <map>
-#include <unordered_set>
-#include <unordered_map>
+#include <memory>
 #include <mutex>
 
-// #include "AfterglowAssetMonitor.h"
-#include "AfterglowMaterialAssetRegistrar.h"
-#include "AfterglowMaterialAsset.h"
 
-#include "AfterglowMaterialResource.h"
-#include "AfterglowDescriptorSetWriter.h"
-#include "AfterglowDescriptorSetReferences.h"
-
-#include "AfterglowSynchronizer.h"
 #include "UniformBufferObjects.h"
+#include "AfterglowImage.h"
+#include "AfterglowUtilities.h"
+#include "AfterglowMaterialInstance.h"
+
+
+class AfterglowSynchronizer;
+class AfterglowMaterialAsset;
+class AfterglowCommandPool;
+class AfterglowGraphicsQueue;
+class AfterglowRenderPass;
+class AfterglowAssetMonitor;
+class AfterglowDevice;
+class AfterglowDescriptorPool;
+class AfterglowDescriptorSetWriter;
+class AfterglowMaterialLayout;
+class AfterglowMaterialResource;
+class AfterglowDescriptorSetReferences;
 
 class AfterglowMaterialManager : public AfterglowObject {
 public:
 	using LockGuard = std::lock_guard<std::mutex>;
-	using UniqueLock = std::unique_lock<std::mutex>;
-
-	using MaterialLayouts = std::unordered_map<std::string, AfterglowMaterialLayout>;
-	using MaterialResources = std::unordered_map<std::string, AfterglowMaterialResource>;
-
-	struct PerObjectSetContext {
-		const ubo::MeshUniform* meshUniform = nullptr;
-		std::array<AfterglowUniformBuffer::AsElement, cfg::maxFrameInFlight> inFlightBuffers;
-		// This set allocate own mesh buffer only
-		std::array<AfterglowDescriptorSets::AsElement, cfg::maxFrameInFlight> inFlightSets;
-		std::array<AfterglowDescriptorSetReferences, cfg::maxFrameInFlight> inFlightSetReferences;
-		std::array<bool, cfg::maxFrameInFlight> inFlightMaterialChangedFlags;
-		bool activated = false;
-	};
-
-	// Use to apply commands.
-	struct ComputePerObjectSetContext {
-		std::array<AfterglowDescriptorSetReferences, cfg::maxFrameInFlight> inFlightComputeSetReferences;
-	};
-
-	struct GlobalSetContext {
-		ubo::GlobalUniform globalUniform {};
-		std::vector<AfterglowMaterialResource::TextureResource> textureResources;
-		std::array<AfterglowUniformBuffer::AsElement, cfg::maxFrameInFlight> inFlightBuffers;
-		std::array<AfterglowDescriptorSets::AsElement, cfg::maxFrameInFlight> inFlightSets;
-		// For compute shader to avoid synchronization conflition.
-		std::array<AfterglowDescriptorSets::AsElement, cfg::maxFrameInFlight> inFlightComputeSets;
-	};
-
-	// One material instance support multi objects.
-	using PerObjectSetContextArray = std::vector<PerObjectSetContext>;
-	using MaterialPerObjectSetContexts = std::unordered_map<AfterglowMaterialResource*, PerObjectSetContextArray>;
-	// Compute material usually have not material instance.
-	using ComputeMaterialPerObjectSetContexts = std::unordered_map<AfterglowMaterialResource*, ComputePerObjectSetContext>;
-
-	using DatedMaterialLayouts = std::unordered_set<AfterglowMaterialLayout*>;
-	using DatedMaterialResources = std::unordered_set<AfterglowMaterialResource*>;
-	using DatedPerObjectSetContexts = std::unordered_map<AfterglowMaterialResource*, PerObjectSetContextArray*>;
 
 	AfterglowMaterialManager(
 		AfterglowCommandPool& commandPool, 
@@ -64,8 +33,9 @@ public:
 		AfterglowRenderPass& renderPass, 
 		AfterglowAssetMonitor& assetMonitor
 	);
+	~AfterglowMaterialManager();
 
-	AfterglowDevice& device();
+	AfterglowDevice& device() noexcept;
 	AfterglowDescriptorPool& descriptorPool();
 	AfterglowDescriptorSetWriter& descriptorSetWriter();
 
@@ -85,7 +55,7 @@ public:
 	*/
 	AfterglowMaterial& createMaterial(
 		const std::string& name, 
-		const AfterglowMaterial& sourceMaterial = AfterglowMaterial::emptyMaterial(), 
+		util::OptionalRef<AfterglowMaterial> sourceMaterial = std::nullopt, 
 		util::OptionalRef<AfterglowMaterialAsset> materialAsset = std::nullopt
 	);
 
@@ -158,7 +128,7 @@ public:
 
 	AfterglowMaterialResource& errorMaterialResource();
 
-	ubo::GlobalUniform& globalUniform();
+	ubo::GlobalUniform& globalUniform() noexcept;
 
 	// @brief: Per object set data.
 	AfterglowDescriptorSetReferences* descriptorSetReferences(const std::string& materialInstanceName, const ubo::MeshUniform& meshUniform);
@@ -168,56 +138,11 @@ public:
 	void applyShaders(AfterglowMaterialLayout& matLayout, const AfterglowMaterialAsset& matAsset);
 	void applyErrorShaders(AfterglowMaterialLayout& matLayout);
 
-	UniqueLock lock() const;
+	std::mutex& mutex();
 
 private:
-	inline AfterglowMaterialInstance& createMaterialInstanceWithoutLock(const std::string& name, const std::string& parentMaterialName);
-	inline bool instantializeMaterial(const std::string& name);
-
-	inline void initGlobalDescriptorSet();
-
-	// Call it when that material submit.
-	inline void reloadMaterialResources(AfterglowMaterialLayout& matLayout);
-
-	inline void applyMaterialLayout(AfterglowMaterialLayout& matLayout);
-	inline void applyMaterialResource(AfterglowMaterialResource& matResource);
-	inline void applyExternalSetContext(AfterglowMaterialResource& matResource, PerObjectSetContextArray& perObjectSetContexts);
-	inline void applyGlobalSetContext(img::WriteInfoArray& imageWriteInfos);
-
-	inline void appendGlobalSetTextureResource(shader::GlobalSetBindingIndex textureBindingIndex);
-
-	inline PerObjectSetContextArray* perObjectSetContexts(AfterglowMaterialResource* matResource);
-
-	// Static Pool Size
-	// TODO: add a new pool for dynamic pool size.
-	// Place front to make sure descriptor set destruct later than descriptor sets.
-	AfterglowDescriptorPool::AsElement _descriptorPool;
-	AfterglowSharedTexturePool _texturePool;
-
-	// TODO: Different subpass as material domain.
-	AfterglowRenderPass& _renderPass;
-
-	AfterglowMaterialAssetRegistrar _assetRegistrar;
-
-	MaterialLayouts _materialLayouts;
-	MaterialResources _materialResources;
-
-	// Global Set Layout
-	AfterglowDescriptorSetLayout::AsElement _globalDescriptorSetLayout;
-	// Global Uniform Resources
-	GlobalSetContext _globalSetContext;
-
-	// PerObject Set Layout
-	AfterglowDescriptorSetLayout::AsElement _perObjectDescriptorSetLayout;
-	// Mesh Uniform Resources
-	MaterialPerObjectSetContexts _materialPerObjectSetContexts;
-	ComputeMaterialPerObjectSetContexts _computeMaterialPerObjectSetContexts;
-
-	AfterglowDescriptorSetWriter _descriptorSetWriter;
-
-	DatedMaterialLayouts _datedMaterialLayouts;
-	DatedMaterialResources _datedMaterialResources;
-	DatedPerObjectSetContexts _datedPerObjectSetContexts;
+	struct Impl;
+	std::unique_ptr<Impl> _impl;
 
 	mutable std::mutex _mutex;
 

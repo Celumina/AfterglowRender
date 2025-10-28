@@ -14,6 +14,9 @@ namespace cfg {
 
 
 	// Vulkan Configurations
+	// Environ settings
+	constexpr static Text layerPath = "Libraries/VulkanSDK-1.3.290.0/bin";
+	
 	// Instance settings
 	constexpr static Text applicationName = "AfterglowRender";
 	constexpr static uint32_t applicationVersion = util::MakeVersion(1, 0, 0);
@@ -25,7 +28,7 @@ namespace cfg {
 	static const std::vector<const char*> validationLayers = {
 		"VK_LAYER_KHRONOS_validation"
 	};
-	constexpr static bool enableValidationLayers = false;
+	constexpr static bool enableValidationLayers = true;
 
 	// Device settings
 	static const  std::vector<const char*> deviceExtensions = {

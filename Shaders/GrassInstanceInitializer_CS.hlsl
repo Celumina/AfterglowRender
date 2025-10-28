@@ -7,23 +7,22 @@ void main(uint3 threadIDs : SV_DispatchThreadID) {
 
 	// Generate instances in plane.
 	float3 translation;
-	translation.xy = Snorm(Hash2D(float2(1.0 / index, 1.0 / index), randomSeed0));
-	translation.xy *= pow(UniformBitHash(-index), 0.45) * 8000.0;
-	translation.z = pow(distance(translation.xy, 0.0) * 0.0032, 1.85);
-	// Transfrom matrix store by row, but it is a Column-major matrix in actual.
-	InstanceBufferOut[index].transformR0.w = translation.x;
-	InstanceBufferOut[index].transformR1.w = translation.y;
-	InstanceBufferOut[index].transformR2.w = translation.z;
-	InstanceBufferOut[index].transformR3.w = 1.0;
+
+	translation.xy = Snorm(Hash2D(1.0 / float2(index, index), randomSeed0));
+	translation.xy *= pow(UniformBitHash(-index), 0.35) * 40.0;
+
+	// Uniform grid
+	// translation.x = (index % 64.0) * 1.2 - 48;
+	// translation.y = (index / 64.0) * 1.2 - 32;
+
+	translation.z = pow(length(translation.xy) * 0.024, 1.8);
+	InstanceBufferOut[index].translation = translation;
 
 	// Rotate around z-axis
-	float theta = Hash(float(index), randomSeed0) * (2 * pi);
-	float sinTheta;
-	float cosTheta;
-	sincos(theta, sinTheta, cosTheta);
-	InstanceBufferOut[index].transformR0.x = cosTheta;
-	InstanceBufferOut[index].transformR0.y = -sinTheta;
-	InstanceBufferOut[index].transformR1.x = sinTheta;
-	InstanceBufferOut[index].transformR1.y = cosTheta;
-	InstanceBufferOut[index].transformR2.z = 1.0;
+	float phi = Hash(1.0 / float(index), randomSeed1 * 2.124) * (2 * pi);
+	float sinPhi;
+	float cosPhi;
+	sincos(phi, sinPhi, cosPhi);
+	InstanceBufferOut[index].sinYaw = sinPhi;
+	InstanceBufferOut[index].cosYaw = cosPhi;
 }

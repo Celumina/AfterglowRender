@@ -8,3 +8,6 @@ public:
 	// @brief: Modifiy light direction in transformComponent.
 };
 
+INR_CLASS(AfterglowDirectionalLightComponent) {
+	INR_BASE_CLASSES<AfterglowLightComponent<AfterglowDirectionalLightComponent>>;
+};

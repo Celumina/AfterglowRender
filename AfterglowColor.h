@@ -33,6 +33,11 @@ public:
 	void setB(uint8_t b)  noexcept;
 	void setA(uint8_t a)  noexcept;
 
+	void setRGBA(uint8_t r, uint8_t g, uint8_t b, uint8_t a) noexcept;
+
+	// @brief: Range from 0 to 1.
+	void setFloatRGBA(float r, float g, float b, float a) noexcept;
+
 private:
 	uint32_t _data;
 };

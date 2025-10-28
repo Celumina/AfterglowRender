@@ -23,13 +23,13 @@ public:
 	RawDescriptorSetLayouts& rawDescriptorSetLayouts();
 	const RawDescriptorSetLayouts& rawDescriptorSetLayouts() const;
 
-	AfterglowDevice& device();
+	AfterglowDevice& device() noexcept;
 	AfterglowPipeline& pipeline();
 	AfterglowComputePipeline& computePipeline();
 	
-	bool shouldInitSSBOs();
+	bool initSSBOsInitialized();
 	// @brief: aquire shouldInitSSBOsTrigger bool flag, and then set flag to false, invoke by CommandManager. 
-	bool shouldInitSSBOsTrigger();
+	bool shouldInitFrameSSBOsTrigger();
 	AfterglowComputePipeline::Array& ssboInitComputePipelines();
 
 	AfterglowMaterial& material();
@@ -55,7 +55,7 @@ private:
 		AfterglowComputePipeline::AsElement pipeline;
 		AfterglowShaderModule::AsElement shader;
 
-		std::array<bool, cfg::maxFrameInFlight> shouldInitSSBOs = { false };
+		std::array<bool, cfg::maxFrameInFlight> inFlightShouldInitSSBOs = { false };
 		AfterglowComputePipeline::Array ssboInitPipelines;
 		AfterglowShaderModule::Array ssboInitShaders;
 	};

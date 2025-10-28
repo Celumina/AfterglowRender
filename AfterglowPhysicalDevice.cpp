@@ -2,6 +2,8 @@
 #include <map>
 #include <set>
 
+#include "AfterglowInstance.h"
+#include "AfterglowSurface.h"
 #include "Configurations.h"
 
 AfterglowPhysicalDevice::AfterglowPhysicalDevice(AfterglowInstance& instance, AfterglowSurface& surface) {
@@ -26,6 +28,9 @@ AfterglowPhysicalDevice::AfterglowPhysicalDevice(AfterglowInstance& instance, Af
 	else {
 		throw runtimeError("Failed to find a suitable GPU.");
 	}
+
+	// Properties
+	vkGetPhysicalDeviceProperties(*this, &_properties);
 	_msaaSampleCount = getMaxUsableSamleCount();
 }
 
@@ -46,10 +51,8 @@ AfterglowPhysicalDevice::SwapchainSupportDetails AfterglowPhysicalDevice::queryS
 	return querySwapchainSupport(data(), surface);
 }
 
-VkPhysicalDeviceProperties AfterglowPhysicalDevice::properties() {
-	VkPhysicalDeviceProperties properties;
-	vkGetPhysicalDeviceProperties(*this, &properties);
-	return properties;
+const VkPhysicalDeviceProperties& AfterglowPhysicalDevice::properties() const noexcept {
+	return _properties;
 }
 
 VkFormatProperties AfterglowPhysicalDevice::formatProperties(VkFormat format) {

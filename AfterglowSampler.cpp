@@ -1,4 +1,5 @@
 #include "AfterglowSampler.h"
+#include "AfterglowPhysicalDevice.h"
 
 AfterglowSampler::AfterglowSampler(AfterglowDevice& device) : 
 	_device(device) {

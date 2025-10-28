@@ -17,11 +17,11 @@ public:
 
 	AfterglowEntity();
 
-	ID id() const;
-	const std::string& name() const;
+	ID id() const noexcept;
+	const std::string& name() const noexcept;
 
-	AfterglowEntity* parent();
-	const AfterglowEntity* parent() const;
+	AfterglowEntity* parent() noexcept;
+	const AfterglowEntity* parent() const noexcept;
 
 	// @return: component pointer, if component not exist. return nullptr;
 	template<typename ComponentType>
@@ -38,6 +38,8 @@ public:
 	const ComponentType& get() const;
 
 	AfterglowComponentBase* component(std::type_index typeIndex);
+
+	Components& components() noexcept;
 
 private:
 	// @brief: This function could replace old one if it is exist.

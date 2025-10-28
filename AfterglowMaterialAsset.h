@@ -4,14 +4,15 @@
 #include <format>
 
 #include "AfterglowUtilities.h"
-#include "AfterglowMaterial.h"
 #include "AfterglowShaderAsset.h"
 #include "VertexStructs.h"
 #include "ShaderDefinitions.h"
 #include "RenderDefinitions.h"
+#include "ComputeDefinitions.h"
 #include "UniformBufferObjects.h"
 
-// TODO: Compute stage declaration.
+class AfterglowMaterial;
+class AfterglowStructLayout;
 
 class AfterglowMaterialAsset {
 public:
@@ -122,8 +123,8 @@ private:
 	template<size_t tupleIndex = 0>
 	static inline std::type_index vertexTypeIndex(uint32_t index);
 
-	struct Context;
-	std::unique_ptr<Context> _context;
+	struct Impl;
+	std::unique_ptr<Impl> _impl;
 };
 
 template<size_t index>

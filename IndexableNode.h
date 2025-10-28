@@ -21,7 +21,7 @@ public:
 	template<typename DataRawType>
 	static IndexableNode create(const TagType& tag = TagType(), std::unique_ptr<DataRawType> data = nullptr, WeakReference parent = nullptr);
 
-	static constexpr ID invalidID();
+	static constexpr ID invalidID() noexcept;
 
 	// @return new child node reference.
 	template<typename DataRawType>
@@ -35,34 +35,44 @@ public:
 	template<typename DataRawType>
 	void reset(std::unique_ptr<DataRawType>&& data);
 
-	ID id() const;
-	TagType tag() const;
+	ID id() const noexcept;
+	TagType tag() const noexcept;
 
-	WeakReference parent();
-	const WeakReference parent() const;
+	WeakReference parent() noexcept;
+	const WeakReference parent() const noexcept;
 
-	uint64_t numChildren() const;
+	uint64_t numChildren() const noexcept;
 
+	// @desc: Complexity O(n)
 	WeakReference child(ID id);
 	const WeakReference child(ID id) const;
 
-	std::type_index typeIndex() const;
+	std::type_index typeIndex() const noexcept;
 
 	template<typename DataRawType>
-	bool isType();
+	bool isType() noexcept;
 
-	Type& operator*();
-	const Type& operator*() const;
-	operator bool() const;
+	Type& operator*() noexcept;
+	const Type& operator*() const noexcept;
+	operator bool() const noexcept;
 
-	operator Type& ();
-	operator const Type& () const;
+	operator Type& () noexcept;
+	operator const Type& () const noexcept;
 
-	operator Type* ();
-	operator const Type* () const;
+	operator Type* () noexcept;
+	operator const Type* () const noexcept;
 
-	template<typename DerivedTypePointer>
-	DerivedTypePointer cast();
+	template<typename DerivedPointerType>
+	DerivedPointerType cast() noexcept;
+
+	/**
+	@param callback:
+		void(IndexableNode&, ParameterTypes ...parameters);
+		or
+		bool(IndexableNode&, ParameterTypes ...parameters); return true to break out the loop.
+	*/ 
+	template<typename FuncType, typename ...ParameterTypes>
+	void forEachChild(FuncType callback, ParameterTypes&& ...parameters);
 
 private:
 	// TODO: Multi-threads support.
@@ -90,7 +100,7 @@ inline IndexableNode<TagType, Type>::WeakReference IndexableNode<TagType, Type>:
 }
 
 template<typename TagType, typename Type>
-inline constexpr IndexableNode<TagType, Type>::ID IndexableNode<TagType, Type>::invalidID() {
+inline constexpr IndexableNode<TagType, Type>::ID IndexableNode<TagType, Type>::invalidID() noexcept {
 	return 0;
 }
 
@@ -125,33 +135,33 @@ inline void IndexableNode<TagType, Type>::reset(std::unique_ptr<DataRawType>&& d
 }
 
 template<typename TagType, typename Type>
-inline IndexableNode<TagType, Type>::ID IndexableNode<TagType, Type>::id() const {
+inline IndexableNode<TagType, Type>::ID IndexableNode<TagType, Type>::id() const noexcept {
 	return _id;
 }
 
 template<typename TagType, typename Type>
-inline TagType IndexableNode<TagType, Type>::tag() const {
+inline TagType IndexableNode<TagType, Type>::tag() const noexcept {
 	return _tag;
 }
 
 template<typename TagType, typename Type>
-inline IndexableNode<TagType, Type>::WeakReference IndexableNode<TagType, Type>::parent() {
+inline IndexableNode<TagType, Type>::WeakReference IndexableNode<TagType, Type>::parent() noexcept {
 	return _parent;
 }
 
 template<typename TagType, typename Type>
-inline const IndexableNode<TagType, Type>::WeakReference IndexableNode<TagType, Type>::parent() const {
+inline const IndexableNode<TagType, Type>::WeakReference IndexableNode<TagType, Type>::parent() const noexcept {
 	return _parent;
 }
 
 template<typename TagType, typename Type>
-inline uint64_t IndexableNode<TagType, Type>::numChildren() const {
+inline uint64_t IndexableNode<TagType, Type>::numChildren() const noexcept {
 	return _children.size();
 }
 
 template<typename TagType, typename Type>
 inline IndexableNode<TagType, Type>::WeakReference IndexableNode<TagType, Type>::child(ID id) {
-	auto  iterator = _children.find(id);
+	auto iterator = _children.find(id);
 	if (iterator != _children.end()) {
 		return *iterator;
 	}
@@ -164,42 +174,42 @@ inline const IndexableNode<TagType, Type>::WeakReference IndexableNode<TagType, 
 }
 
 template<typename TagType, typename Type>
-inline std::type_index IndexableNode<TagType, Type>::typeIndex() const {
+inline std::type_index IndexableNode<TagType, Type>::typeIndex() const noexcept {
 	return _typeIndex;
 }
 
 template<typename TagType, typename Type>
-inline Type& IndexableNode<TagType, Type>::operator*() {
+inline Type& IndexableNode<TagType, Type>::operator*() noexcept {
 	return *_data;
 }
 
 template<typename TagType, typename Type>
-inline const Type& IndexableNode<TagType, Type>::operator*() const {
+inline const Type& IndexableNode<TagType, Type>::operator*() const noexcept {
 	return *_data;
 }
 
 template<typename TagType, typename Type>
-inline IndexableNode<TagType, Type>::operator bool() const {
+inline IndexableNode<TagType, Type>::operator bool() const noexcept {
 	return _data;
 }
 
 template<typename TagType, typename Type>
-inline IndexableNode<TagType, Type>::operator Type& () {
+inline IndexableNode<TagType, Type>::operator Type& () noexcept {
 	return *_data;
 }
 
 template<typename TagType, typename Type>
-inline IndexableNode<TagType, Type>::operator const Type& () const {
+inline IndexableNode<TagType, Type>::operator const Type& () const noexcept {
 	return *_data;
 }
 
 template<typename TagType, typename Type>
-inline IndexableNode<TagType, Type>::operator Type* () {
+inline IndexableNode<TagType, Type>::operator Type* () noexcept {
 	return _data.get();
 }
 
 template<typename TagType, typename Type>
-inline IndexableNode<TagType, Type>::operator const Type* () const {
+inline IndexableNode<TagType, Type>::operator const Type* () const noexcept {
 	return _data.get();
 }
 
@@ -211,16 +221,31 @@ inline IndexableNode<TagType, Type> IndexableNode<TagType, Type>::create(const T
 
 template<typename TagType, typename Type>
 template<typename DataRawType>
-inline bool IndexableNode<TagType, Type>::isType() {
+inline bool IndexableNode<TagType, Type>::isType() noexcept {
 	return _typeIndex == std::type_index(typeid(DataRawType));
 }
 
 template<typename TagType, typename Type>
-template<typename DerivedTypePointer>
-inline DerivedTypePointer IndexableNode<TagType, Type>::cast() {
-	static_assert(std::is_pointer_v<DerivedTypePointer>, "[IndexableNode] Cast target must be a pointer.");
-	if (_typeIndex == std::type_index(typeid(std::remove_pointer_t<DerivedTypePointer>))) {
-		return reinterpret_cast<DerivedTypePointer>(_data.get());
+template<typename DerivedPointerType>
+inline DerivedPointerType IndexableNode<TagType, Type>::cast() noexcept {
+	static_assert(std::is_pointer_v<DerivedPointerType>, "[IndexableNode] Cast target must be a pointer.");
+	if (_typeIndex == std::type_index(typeid(std::remove_pointer_t<DerivedPointerType>))) {
+		return reinterpret_cast<DerivedPointerType>(_data.get());
 	}
 	return nullptr;
+}
+
+template<typename TagType, typename Type>
+template<typename FuncType, typename ...ParameterTypes>
+inline void IndexableNode<TagType, Type>::forEachChild(FuncType callback, ParameterTypes && ...parameters) {
+	for (const auto& [id, child] : _children) {
+		if constexpr (std::is_same_v<std::invoke_result_t<FuncType, IndexableNode&, ParameterTypes...>, bool>) {
+			if (callback(*child, parameters...)) {
+				break;
+			}
+		}
+		else {
+			callback(*child, parameters...);
+		}
+	}
 }

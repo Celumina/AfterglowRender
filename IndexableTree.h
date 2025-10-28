@@ -21,19 +21,29 @@ public:
 	template<typename DataRawType = Type>
 	DataRawType* get(Node::ID id);
 
-	NodeID root();
-	static constexpr NodeID invalidID();
+	NodeID root() const noexcept;
+	static constexpr NodeID invalidID() noexcept;
 
-	// @params:
-	//		callback: function type bool(Type&, std::type_index, parameters...);  
-	// @desc: 
-	// if return true, break the loop.
-	// function return type can be void, means not interrupt this loops.
+	/** 
+	* @params callback: 
+		bool(Type&, std::type_index, parameters...);  
+	* @desc:
+	*	[UNORDERED] for each, if return true, break out the loop.
+	*	function return type can be void, means it will not interrupt this loops.
+	*/
 	template<typename FuncType, typename ...ParameterTypes>
-	void forEach(FuncType callback, ParameterTypes&& ...parameters);
+	void forEach(FuncType& callback, ParameterTypes&& ...parameters);
+
+	// @brief: For each node with depth first search.
+	template<typename FuncType, typename ...ParameterTypes>
+	void forEachDFS(FuncType& callback, ParameterTypes&& ...parameters);
+
+	template<typename FuncType, typename ...ParameterTypes>
+	void forEachDFS(Node& root, FuncType& callback, ParameterTypes&& ...parameters);
 
 	std::unordered_set<NodeID> find(Node::Tag tag);
-	bool isExists(Node::ID id);
+	bool isExists(Node::ID id) const;
+	uint64_t numChildren(Node::ID id) const;
 
 	// @returns Node::ID: If append successfully, return new nodeID, else return 0.
 	template<typename DataRawType>
@@ -58,12 +68,12 @@ inline IndexableTree<TagType, Type>::IndexableTree() :
 }
 
 template<typename TagType, typename Type>
-inline IndexableTree<TagType, Type>::NodeID IndexableTree<TagType, Type>::root() {
+inline IndexableTree<TagType, Type>::NodeID IndexableTree<TagType, Type>::root() const noexcept {
 	return _root.id();
 }
 
 template<typename TagType, typename Type>
-inline constexpr IndexableTree<TagType, Type>::NodeID IndexableTree<TagType, Type>::invalidID() {
+inline constexpr IndexableTree<TagType, Type>::NodeID IndexableTree<TagType, Type>::invalidID() noexcept {
 	return Node::invalidID();
 }
 
@@ -77,11 +87,20 @@ inline std::unordered_set<typename IndexableTree<TagType, Type>::Node::ID> Index
 }
 
 template<typename TagType, typename Type>
-inline bool IndexableTree<TagType, Type>::isExists(Node::ID id) {
+inline bool IndexableTree<TagType, Type>::isExists(Node::ID id) const {
 	if (_idReferences.find(id) != _idReferences.end()) {
 		return true;
 	}
 	return false;
+}
+
+template<typename TagType, typename Type>
+inline uint64_t IndexableTree<TagType, Type>::numChildren(Node::ID id) const {
+	auto iterator = _idReferences.find(id);
+	if (iterator == _idReferences.end()) {
+		return 0;
+	}
+	return iterator->second->numChildren();
 }
 
 template<typename TagType, typename Type>
@@ -174,20 +193,45 @@ inline DataRawType* IndexableTree<TagType, Type>::get(Node::ID id) {
 
 template<typename TagType, typename Type>
 template<typename FuncType, typename ...ParameterTypes>
-inline void IndexableTree<TagType, Type>::forEach(FuncType callback, ParameterTypes&& ...parameters) {
+inline void IndexableTree<TagType, Type>::forEach(FuncType& callback, ParameterTypes&& ...parameters) {
 	for (auto& [id, node]  : _idReferences) {
 		// Skip the root node
 		if (id == root()) {
 			continue;
 		}
 		if constexpr (std::is_same_v<std::invoke_result_t<FuncType, Type&, std::type_index, ParameterTypes...>, bool>) {
-			bool shouldBreak = callback(node->operator Type&(), node->typeIndex(), parameters...);
+			bool shouldBreak = callback(**node, node->typeIndex(), std::forward<ParameterTypes>(parameters)...);
 			if (shouldBreak) {
 				break;
 			}
 		}
 		else {
-			callback(node->operator Type * (), node->typeIndex(), parameters...);
+			callback(**node, node->typeIndex(), std::forward<ParameterTypes>(parameters)...);
 		}
 	}
+}
+
+template<typename TagType, typename Type>
+template<typename FuncType, typename ...ParameterTypes>
+inline void IndexableTree<TagType, Type>::forEachDFS(FuncType& callback, ParameterTypes && ...parameters) {
+	forEachDFS(_root, callback, parameters...);
+}
+
+template<typename TagType, typename Type>
+template<typename FuncType, typename ...ParameterTypes>
+inline void IndexableTree<TagType, Type>::forEachDFS(Node& root, FuncType& callback, ParameterTypes&& ...parameters) {
+	// Skip the tree root node
+	if (&root != &_root) {
+		if constexpr (std::is_same_v<std::invoke_result_t<FuncType, Type&, std::type_index, ParameterTypes...>, bool>) {
+			if (callback(*root, root.typeIndex(), std::forward<ParameterTypes>(parameters)...)) {
+				return;
+			}
+		}
+		else {
+			callback(*root, root.typeIndex(), std::forward<ParameterTypes>(parameters)...);
+		}
+	}
+	root.forEachChild([&](Node& child) {
+		forEachDFS(child, callback, std::forward<ParameterTypes>(parameters)...);
+	});
 }

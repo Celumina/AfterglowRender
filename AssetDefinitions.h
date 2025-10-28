@@ -61,6 +61,7 @@ namespace model {
 	struct AssetInfo {
 		ImportFlag importFlags;
 		std::string path;
+		// TODO: TypeIndex Flag.
 
 		// For hash key compare
 		bool operator==(const AssetInfo& other) const;

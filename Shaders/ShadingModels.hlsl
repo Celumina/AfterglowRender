@@ -1,3 +1,4 @@
+#pragma once
 #include "BxDF.hlsl"
 #include "ColorConversion.hlsl"
 

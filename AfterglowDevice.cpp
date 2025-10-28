@@ -1,6 +1,6 @@
 #include "AfterglowDevice.h"
 #include <set>
-
+#include "AfterglowPhysicalDevice.h"
 #include "Configurations.h"
 
 AfterglowDevice::AfterglowDevice(AfterglowPhysicalDevice& physicalDevice) : 

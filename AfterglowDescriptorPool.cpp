@@ -10,7 +10,7 @@ AfterglowDescriptorPool::~AfterglowDescriptorPool() {
 	destroy(vkDestroyDescriptorPool, _device, data(), nullptr);
 }
 
-AfterglowDevice& AfterglowDescriptorPool::device() {
+AfterglowDevice& AfterglowDescriptorPool::device() noexcept {
 	return _device;
 }
 

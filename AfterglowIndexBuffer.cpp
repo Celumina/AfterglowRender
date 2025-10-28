@@ -1,5 +1,7 @@
 #include "AfterglowIndexBuffer.h"
 
+#include "AfterglowCommandPool.h"
+#include "AfterglowGraphicsQueue.h"
 #include "AfterglowStagingBuffer.h"
 
 

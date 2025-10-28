@@ -6,7 +6,7 @@ public:
 	AfterglowCommandPool(AfterglowDevice& device);
 	~AfterglowCommandPool();
 
-	AfterglowDevice& device();
+	AfterglowDevice& device() noexcept;
 
 	// Input callback func format: func(VkCommandBuffer)
 	template<typename FuncType>

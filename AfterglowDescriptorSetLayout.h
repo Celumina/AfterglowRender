@@ -10,7 +10,7 @@ public:
 	AfterglowDescriptorSetLayout(AfterglowDevice& device);
 	~AfterglowDescriptorSetLayout();
 
-	AfterglowDevice& device();
+	AfterglowDevice& device() noexcept;
 
 	// TODO: Replace as append uniform, append sampler...
 	void appendBinding(VkDescriptorType type, VkShaderStageFlags stage, uint32_t descriptorCount = 1);

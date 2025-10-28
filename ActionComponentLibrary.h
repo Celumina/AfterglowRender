@@ -7,13 +7,28 @@
 namespace acl {
 	class EntityRotator;
 	class SimpleController;
-	class ParticleSpawner;
+	class ParticleSpawner; // TODO: Remove it 
 };
 
 
 class acl::EntityRotator : public AfterglowActionComponent<EntityRotator> {
 public: 
 	void update(); 
+
+	float angularSpeed() const noexcept;
+	void setAngularSpeed(float speed) noexcept;
+
+private:
+	float _angularSpeed = 1.0f;
+};
+
+
+INR_CLASS(acl::EntityRotator) {
+	INR_BASE_CLASSES<AfterglowActionComponent<acl::EntityRotator>>;
+	INR_FUNCS(
+		INR_FUNC(angularSpeed), 
+		INR_FUNC(setAngularSpeed)
+	);
 };
 
 
@@ -24,22 +39,10 @@ public:
 private:
 	bool _fpvMode = false;
 	AfterglowTranslation _currentMoveVelocity = {0.0f, 0.0f, 0.0f};
-	AfterglowInput::Position _cursorPosLastUpdate = {0.0, 0.0};
+	glm::dvec2 _cursorPosLastUpdate = {0.0, 0.0};
 };
 
 
-class acl::ParticleSpawner : public AfterglowActionComponent<ParticleSpawner> {
-public:
-	struct Particle {
-		glm::vec3 position;
-		glm::vec3 velocity;
-		glm::vec4 color;
-	};
-	
-	void awake();
-	void update();
-
-private:
-	std::vector<Particle> _particles;
-
+INR_CLASS(acl::SimpleController) {
+	INR_BASE_CLASSES<AfterglowActionComponent<acl::SimpleController>>;
 };

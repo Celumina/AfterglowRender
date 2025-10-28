@@ -1,5 +1,13 @@
 #include "AfterglowMaterial.h"
+
+#include <mutex>
+#include <stdexcept>
+
+#include "AfterglowComputeTask.h"
+#include "AfterglowUtilities.h"
+#include "DebugUtilities.h"
 #include "VertexStructs.h"
+
 
 AfterglowMaterial::AfterglowMaterial() : 
 	_vertexTypeIndex(util::TypeIndex<vert::StandardVertex>()) {
@@ -34,6 +42,9 @@ AfterglowMaterial::AfterglowMaterial(const AfterglowMaterial& other) :
 	if (other._computeTask) {
 		_computeTask = std::make_unique<AfterglowComputeTask>(*other._computeTask);
 	}
+}
+
+AfterglowMaterial::~AfterglowMaterial() {
 }
 
 const AfterglowMaterial& AfterglowMaterial::emptyMaterial() {

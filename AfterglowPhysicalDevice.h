@@ -1,8 +1,10 @@
 #pragma once
 #include <optional>
 
-#include "AfterglowInstance.h"
-#include "AfterglowSurface.h"
+#include "AfterglowProxyObject.h"
+
+class AfterglowInstance;
+class AfterglowSurface;
 
 class AfterglowPhysicalDevice : public AfterglowProxyObject<AfterglowPhysicalDevice, VkPhysicalDevice> {
 	AFTERGLOW_PROXY_STORAGE_ONLY
@@ -29,7 +31,7 @@ public:
 	SwapchainSupportDetails querySwapchainSupport(AfterglowSurface& surface);
 
 	// Physical device properties.
-	VkPhysicalDeviceProperties properties();
+	const VkPhysicalDeviceProperties& properties() const noexcept;
 	VkFormatProperties formatProperties(VkFormat format);
 
 	// Texture supports.
@@ -47,5 +49,6 @@ private:
 
 	QueueFamilyIndices _queueFamilyIndices;
 	VkSampleCountFlagBits _msaaSampleCount;
+	VkPhysicalDeviceProperties _properties;
 };
 

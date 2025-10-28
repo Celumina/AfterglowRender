@@ -4,14 +4,14 @@
 #include <map>
 #include <unordered_map>
 #include <string>
+#include <memory>
 
 #include <glm/glm.hpp>
-
-#include "AfterglowComputeTask.h"
 #include "AssetDefinitions.h"
 #include "RenderDefinitions.h"
-#include "AfterglowUtilities.h"
-#include "DebugUtilities.h"
+#include "ShaderDefinitions.h"
+
+class AfterglowComputeTask;
 
 // TODO: custom depth write
 // TODO: Transparency domain.
@@ -44,6 +44,7 @@ public:
 	);
 
 	AfterglowMaterial(const AfterglowMaterial& other);
+	~AfterglowMaterial();
 
 	// @brief: Address based compare.
 	bool is(const AfterglowMaterial& other) const;

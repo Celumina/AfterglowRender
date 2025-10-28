@@ -58,3 +58,35 @@ private:
 	mutable AfterglowTransform _globalTransform {};
 };
 
+INR_CLASS(AfterglowTransformComponent) {
+	INR_BASE_CLASSES<AfterglowComponent<AfterglowTransformComponent>>;
+	INR_FUNCS(
+		INR_FUNC(globalTranslation),
+		INR_FUNC(globalRotation),
+		INR_FUNC(globalScaling),
+		INR_FUNC(globalTransform),
+		INR_FUNC(globalEuler),
+		INR_FUNC(globalDirection),
+		//INR_FUNC(globalForward),
+		//INR_FUNC(globalRight),
+		INR_FUNC(setGlobalTranslation),
+		INR_FUNC(setGlobalRotation),
+		INR_FUNC(setGlobalScaling),
+		INR_FUNC(setGlobalTransform),
+		INR_FUNC(setGlobalEuler),
+		INR_FUNC(globalTransformMatrix),
+		INR_FUNC(translation),
+		INR_FUNC(rotation),
+		INR_FUNC(scaling),
+		INR_FUNC(transform),
+		INR_FUNC(euler),
+		INR_FUNC(direction),
+		INR_FUNC(setTranslation),
+		INR_FUNC(setRotation),
+		INR_FUNC(setScaling),
+		INR_FUNC(setTransform),
+		INR_FUNC(setEuler),
+		INR_FUNC(transformMatrix),
+		INR_FUNC(transformChanged)
+	);
+};

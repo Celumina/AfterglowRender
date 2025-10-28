@@ -1,4 +1,5 @@
 #pragma once
+#include "AfterglowWindow.h"
 #include "AfterglowRenderer.h"
 #include "AfterglowSystem.h"
 

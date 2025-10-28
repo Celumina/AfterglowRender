@@ -6,7 +6,8 @@
 #include "AfterglowRenderPass.h"
 #include "AfterglowDescriptorSetLayout.h"
 #include "AfterglowVertexBuffer.h"
-#include "AfterglowStructLayout.h"
+
+class AfterglowStructLayout;
 
 class AfterglowPipeline : public AfterglowProxyObject<AfterglowPipeline, VkPipeline, VkGraphicsPipelineCreateInfo> {
 public:
@@ -36,7 +37,7 @@ public:
 
 	~AfterglowPipeline();
 
-	inline AfterglowDevice& device();
+	inline AfterglowDevice& device() noexcept;
 	inline AfterglowSwapchain& swapchain();
 	AfterglowRenderPass& renderPass();
 	AfterglowPipelineLayout& pipelineLayout();

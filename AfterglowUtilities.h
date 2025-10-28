@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdint>
+#include <format>
 #include <type_traits>
 #include <optional>
 #include <string>
@@ -14,6 +15,12 @@ namespace constant {
 }
 
 namespace util {
+	template<typename Type>
+	concept Formattable = requires(Type val) {
+		// { std::format("{}", val) } -> std::convertible_to<std::string>;
+		{ std::formatter<std::decay_t<Type>>{} } -> std::same_as<std::formatter<std::decay_t<Type>>>;
+	};
+
 	template<typename Type>
 	concept Trivial = std::is_trivial_v<Type>;
 

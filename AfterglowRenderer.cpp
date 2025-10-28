@@ -1,8 +1,12 @@
 #include "AfterglowRenderer.h"
 
-#include "LocalClock.h"
+#include <limits>
+#include <imgui.h>
+
 #include "Configurations.h"
 
+#include "AfterglowInstance.h"
+#include "AfterglowSurface.h"
 #include "AfterglowWindow.h"
 #include "AfterglowDebugMessenger.h"
 #include "AfterglowComputeQueue.h"
@@ -12,16 +16,26 @@
 #include "AfterglowCommandManager.h"
 #include "AfterglowMeshManager.h"
 #include "AfterglowAssetMonitor.h"
+#include "AfterglowMaterialManager.h"
+#include "AfterglowRenderStatus.h"
+#include "AfterglowRenderableContext.h"
+#include "AfterglowGUI.h"
+#include "AfterglowInput.h"
+#include "AfterglowComputeTask.h"
+#include "AfterglowPhysicalDevice.h"
 
-struct AfterglowRenderer::Context {
-	Context(AfterglowWindow& windowRef); 
+#include "AfterglowTicker.h"
+
+struct AfterglowRenderer::Impl {
+	Impl(AfterglowRenderer& rendererRef, AfterglowWindow& windowRef);
 
 	void renderLoop();
 	void draw();
 	void completeSubmission();
-
+	
 	void evaluateRenderable();
 	void evaluateComputable();
+	void evaluateUI();
 
 	void submitMeshUniforms();
 
@@ -41,9 +55,10 @@ struct AfterglowRenderer::Context {
 	std::unique_ptr<std::jthread> renderThread;
 
 	// TODO: Make it as const, or add mutex in some methods.
-	// Inputs form system, Renderer never modify it, or thread conflect would happen.
+	// Source form system, Renderer never modify it, or thread conflect would happen.
 	AfterglowRenderableContext* renderableContext = nullptr;
 
+	AfterglowTicker ticker;
 	AfterglowAssetMonitor assetMonitor;
 
 	AfterglowInstance::AsElement instance;
@@ -61,32 +76,36 @@ struct AfterglowRenderer::Context {
 	std::unique_ptr<AfterglowMeshManager> meshManager;
 	std::unique_ptr<AfterglowMaterialManager> materialManager;
 	std::unique_ptr<AfterglowSynchronizer> synchronizer;
-
-	LocalClock clock;
+	std::unique_ptr<AfterglowRenderStatus> renderStatus;
+	std::unique_ptr<AfterglowGUI> ui;
 
 	int32_t ndcMeshIndex = -1;
 };
 
 
 AfterglowRenderer::AfterglowRenderer(AfterglowWindow& window) : 
-	_context(std::make_unique<Context>(window)) {
+	_impl(std::make_unique<Impl>(*this, window)) {
 	// TODO: Init commands, e.g. Look up table.
 }
 
 AfterglowRenderer::~AfterglowRenderer() {
 }
 
-AfterglowMaterialManager& AfterglowRenderer::materialManager() {
-	return *_context->materialManager;
+AfterglowMaterialManager& AfterglowRenderer::materialManager() noexcept {
+	return *_impl->materialManager;
 }
 
-void AfterglowRenderer::bindRenderableContext(AfterglowRenderableContext& context) {
-	_context->renderableContext = &context;
+AfterglowGUI& AfterglowRenderer::ui() noexcept {
+	return *_impl->ui;
+}
+
+void AfterglowRenderer::bindRenderableContext(AfterglowRenderableContext& context)  noexcept {
+	_impl->renderableContext = &context;
 }
 
 void AfterglowRenderer::startRenderThread() {
-	if (!_context->renderThread) {
-		_context->renderThread = std::make_unique<std::jthread>([&]() { _context->renderLoop(); });
+	if (!_impl->renderThread) {
+		_impl->renderThread = std::make_unique<std::jthread>([&]() { _impl->renderLoop(); });
 	}
 }
 
@@ -94,13 +113,24 @@ void AfterglowRenderer::stopRenderThread() {
 	//_renderThread->request_stop();
 	//_renderThread->join();
 	// Reset for restart.
-	_context->renderThread.reset();
+	_impl->renderThread.reset();
 	// Operations in drawFrame() are asychronous, so we should wait for logical device to finish operations.
-	(*_context->device).waitIdle();
+	(*_impl->device).waitIdle();
 }
 
-AfterglowRenderer::Context::Context(AfterglowWindow& windowRef) :
+AfterglowTicker& AfterglowRenderer::ticker() noexcept {
+	return _impl->ticker;
+}
+
+const VkPhysicalDeviceProperties& AfterglowRenderer::physicalDeviceProperties() const noexcept {
+	return (*_impl->physicalDevice).properties();
+}
+
+AfterglowRenderer::Impl::Impl(AfterglowRenderer& rendererRef, AfterglowWindow& windowRef) :
 	window(windowRef) {
+	// Make sure the same vulkan environment is used in different devices.
+	_putenv_s("VK_LAYER_PATH", cfg::layerPath);
+
 	// Monitor render-relatived assets.
 	instance.recreate();
 
@@ -134,38 +164,57 @@ AfterglowRenderer::Context::Context(AfterglowWindow& windowRef) :
 
 	synchronizer = std::make_unique<AfterglowSynchronizer>(device);
 
+	renderStatus = std::make_unique<AfterglowRenderStatus>(rendererRef);
+	ui = std::make_unique<AfterglowGUI>(
+		window,
+		instance,
+		device,
+		swapchain,
+		*graphicsQueue,
+		materialManager->descriptorPool(),
+		renderPass
+	);
+	ui->bindRenderStatus(*renderStatus);
+	window.bindUI(*ui);
+
 	// Full screen rectangle resource.
 	ndcMeshIndex = meshManager->addShapeMesh<shape::NDCRectangle>();
 }
 
-void AfterglowRenderer::Context::renderLoop() {
+void AfterglowRenderer::Impl::renderLoop() {
 	if (!renderableContext) {
 		DEBUG_CLASS_ERROR("RenderableContext is not binded.");
 		return;
 	}
 
 	while (!window.shouldClose()) {
+		// DEBUG_INFO(std::format("FPS: {}", clock.fps()));
 		draw();
-		clock.update();
 	}
 }
 
-void AfterglowRenderer::Context::draw() {
-	// DEBUG_COST_INFO_BEGIN("ComputeWait");
-	synchronizer->wait(AfterglowSynchronizer::FenceFlag::ComputeInFlight);
+void AfterglowRenderer::Impl::draw() {
+	// DEBUG_COST_INFO_BEGIN("UIContext");
+	evaluateUI();
 	// DEBUG_COST_INFO_END;
 
 	// Wait is cost, wait it as late as possible.
-	// DEBUG_COST_INFO_BEGIN("GraphicsWait");
+	// DEBUG_COST_INFO_BEGIN("WaitGPU");
+	synchronizer->wait(AfterglowSynchronizer::FenceFlag::ComputeInFlight);
 	synchronizer->wait(AfterglowSynchronizer::FenceFlag::RenderInFlight);
 	// DEBUG_COST_INFO_END;
+
+	// DEBUG_COST_INFO_BEGIN("CompleteSubmission");
 	completeSubmission();
+	// DEBUG_COST_INFO_END;
 
 	// Compute Submission: 
+	// DEBUG_COST_INFO_BEGIN("ComputeContext");
 	evaluateComputable();
 	commandManager->applyComputeCommands();
 	synchronizer->reset(AfterglowSynchronizer::FenceFlag::ComputeInFlight);
 	computeQueue->submit(commandManager->computeCommandBuffers(), *synchronizer);
+	// DEBUG_COST_INFO_END;
 
 	// Render Submission: 
 	if (!window.drawable()) {
@@ -180,27 +229,34 @@ void AfterglowRenderer::Context::draw() {
 		computeQueue->cancelSemaphore(*synchronizer);
 		return;
 	}
-	// Lock material manager
-	auto materialManagerLock = materialManager->lock();
 
+	// DEBUG_COST_INFO_BEGIN("RenderContext");
+	// Lock material manager (System <-> Renderer)
+	/* LOCK */ std::unique_lock materialManagerLock{materialManager->mutex()};
+	// DEBUG_COST_INFO_BEGIN("Renderable");
+	// TODO: A not very large amount of entities would makes render thread slowly...
 	evaluateRenderable();
+	// DEBUG_COST_INFO_END;
+	// DEBUG_COST_INFO_BEGIN("ApplyDraw");
 	commandManager->applyDrawCommands(framebufferManager->framebuffer(imageIndex));
+	// DEBUG_COST_INFO_END;
+	/* UNLOCK */ materialManagerLock.unlock();
+	// DEBUG_COST_INFO_END;
 
+	// DEBUG_COST_INFO_BEGIN("SubmitPresent");
 	synchronizer->reset(AfterglowSynchronizer::FenceFlag::RenderInFlight);
 	graphicsQueue->submit(commandManager->drawCommandBuffers(), *synchronizer);
 	presentQueue->submit(window, *framebufferManager, *synchronizer, imageIndex);
+	// DEBUG_COST_INFO_END;
 }
 
-void AfterglowRenderer::Context::completeSubmission() {
-	assetMonitor.update(clock);
+void AfterglowRenderer::Impl::completeSubmission() {
+	assetMonitor.update(ticker.clock());
 	(*device).updateCurrentFrameIndex();
+	ticker.tick();
 }
 
-void AfterglowRenderer::Context::evaluateRenderable() {
-	// Lock component pool
-	// TODO: Find a elegant way to make sure thread safety.
-	auto commandPoolLock = renderableContext->componentPool.lock();
-
+void AfterglowRenderer::Impl::evaluateRenderable() {
 	// Camera
 	if (!renderableContext->camera) {
 		DEBUG_CLASS_ERROR("Have not camera in the RenderableContext.");
@@ -208,6 +264,7 @@ void AfterglowRenderer::Context::evaluateRenderable() {
 	}
 	// TODO: bad, thread unsafety, replace it. 
 	renderableContext->camera->setAspectRatio((*swapchain).aspectRatio());
+	renderableContext->camera->updateMatrices();
 	
 	// PostProcess
 	// TODO: Handle post process disable.
@@ -218,31 +275,47 @@ void AfterglowRenderer::Context::evaluateRenderable() {
 
 	updateGlobalUniform();
 
+	// Lock component pool
+	// TODO: Find a elegant way to make sure thread safety.
+	// TODO: Replace as a manual mutex lock. 
+	auto commandPoolLock = renderableContext->componentPool.lock();
+
 	// Update active meshes and load new meshes.
+	// DEBUG_COST_INFO_BEGIN("MeshManager");
 	meshManager->update(renderableContext->componentPool, *renderableContext->camera);
+	// DEBUG_COST_INFO_END;
 
 	// Must before the material update.
+	// DEBUG_COST_INFO_BEGIN("MeshUniform");
 	submitMeshUniforms();
+	// DEBUG_COST_INFO_END;
 
 	// Update material and submit parameters.
 	// TODO: Here cause that compute sync error, if wait over here, that the error would occur.
+	// DEBUG_COST_INFO_BEGIN("MaterialManager");
 	materialManager->update(framebufferManager->imageWriteInfos(), *synchronizer);
+	// DEBUG_COST_INFO_END;
 
 	// avg: 154 μs; -> clear multi vertex support: 112.5 μs;
 	// DEBUG_COST_INFO_BEGIN("RecordDraws");
 	recordDraws();
 	// DEBUG_COST_INFO_END;
+
+	// Unlock commandPool here, always require staticMesh. try to optimize this.
 }
 
 
-void AfterglowRenderer::Context::evaluateComputable() {
-	// Lock component pool
+void AfterglowRenderer::Impl::evaluateComputable() {
+	// Lock component pool (System <-> Render)
 	// TODO: Find a elegant way to make sure thread safety.
+	// TODO: Replace as a manual mutex lock. 
 	auto commandPoolLock = renderableContext->componentPool.lock();
 	// MeshManager just calculate mesh uniform, vertex data fill from materialManager.
 	// Append drawable mesh uniform from computes
 
 	meshManager->updateComputeMesheInfos(renderableContext->componentPool, *renderableContext->camera);
+	// TODO: Try to unlock in here.
+
 	materialManager->updateCompute();
 
 	auto& computeMeshInfos = meshManager->computeMeshInfos();
@@ -264,7 +337,12 @@ void AfterglowRenderer::Context::evaluateComputable() {
 	}
 }
 
-void AfterglowRenderer::Context::submitMeshUniforms() {
+void AfterglowRenderer::Impl::evaluateUI() {
+	commandManager->recordUIDraw(ui->update());
+
+}
+
+void AfterglowRenderer::Impl::submitMeshUniforms() {
 	auto& meshResources = meshManager->meshResources();
 	// Scene meshes
 	for (const auto& [id, meshResource] : meshResources) {
@@ -282,7 +360,7 @@ void AfterglowRenderer::Context::submitMeshUniforms() {
 	}
 }
 
-void AfterglowRenderer::Context::recordDraws() {
+void AfterglowRenderer::Impl::recordDraws() {
 	auto& meshResources = meshManager->meshResources();
 	
 	// Record scene meshes
@@ -290,7 +368,6 @@ void AfterglowRenderer::Context::recordDraws() {
 		auto& staticMesh = meshResource.staticMesh();
 		for (uint32_t index = 0; index < meshResource.indexBuffers().size(); ++index) {
 			auto& materialName = staticMesh.materialName(index);
-
 			if (!recordDraw(materialName, meshResource, index)) {
 				DEBUG_CLASS_ERROR(std::format(
 					"[Entity {}] Invalid static mesh material: \"{}\"\
@@ -336,10 +413,11 @@ void AfterglowRenderer::Context::recordDraws() {
 	}
 }
 
-inline bool AfterglowRenderer::Context::recordDraw (
+inline bool AfterglowRenderer::Impl::recordDraw (
 	const std::string& materialName, 
 	AfterglowMeshResource& meshResource, 
 	uint32_t meshIndex) {
+	
 	auto* setRefs = materialManager->descriptorSetReferences(materialName, meshResource.meshUniform());
 	auto* matResource = materialManager->materialResource(materialName);
 	if (!matResource) {
@@ -350,12 +428,13 @@ inline bool AfterglowRenderer::Context::recordDraw (
 		DEBUG_CLASS_ERROR("DescriptorSetReferences not found, make sure submit mesh uniform before record draw.");
 		return false;
 	}
+
 	uint32_t instanceCount = 1;
 	auto& material = matResource->materialLayout().material();
 	if (material.hasComputeTask()) {
 		instanceCount = material.computeTask().instanceCount();
-		// DEBUG_INFO("_________________: " + std::to_string(instanceCount));
 	}
+
 	commandManager->recordDraw(
 		*matResource, 
 		*setRefs, 
@@ -366,7 +445,7 @@ inline bool AfterglowRenderer::Context::recordDraw (
 	return true;
 }
 
-inline void AfterglowRenderer::Context::recordDispatch(const std::string& materialName, const ubo::MeshUniform& meshUniform) {
+inline void AfterglowRenderer::Impl::recordDispatch(const std::string& materialName, const ubo::MeshUniform& meshUniform) {
 	auto* setRefs = materialManager->computeDescriptorSetReferences(materialName, meshUniform);
 	if (!setRefs) {
 		DEBUG_CLASS_WARNING(std::format("Compute material set references is not found: \"{}\"", materialName));
@@ -376,19 +455,28 @@ inline void AfterglowRenderer::Context::recordDispatch(const std::string& materi
 
 	auto& computeTask = matResource->materialLayout().material().computeTask();
 	auto frequency = computeTask.dispatchFrequency();
+	auto status = computeTask.dispatchStatus();
 	if (frequency == AfterglowComputeTask::DispatchFrequency::Never) {
 		// TODO: Prove a manual method to submit compute task.
 		return;
 	}
-	else if (frequency == AfterglowComputeTask::DispatchFrequency::Once
-		// To make sure compute shader initialization was completed.
-		&& !matResource->materialLayout().shouldInitSSBOs() ) {
-		computeTask.setDispatchFrequency(AfterglowComputeTask::DispatchFrequency::Never);
+	else if (frequency == AfterglowComputeTask::DispatchFrequency::Once 
+		&& status == AfterglowComputeTask::DispatchStatus::OnceCompleted) {
+		return;
+	}
+	// To make sure compute shader initialization was completed.
+	else if (matResource->materialLayout().initSSBOsInitialized() 
+		&& status == AfterglowComputeTask::DispatchStatus::None) {
+		computeTask.setDispatchStatus(AfterglowComputeTask::DispatchStatus::Initialized);
+	}
+	else if (frequency == AfterglowComputeTask::DispatchFrequency::Once 
+		&& status == AfterglowComputeTask::DispatchStatus::Initialized) {
+		computeTask.setDispatchStatus(AfterglowComputeTask::DispatchStatus::OnceCompleted);
 	}
 	commandManager->recordCompute(*matResource, *setRefs);
 }
 
-void AfterglowRenderer::Context::updateGlobalUniform() {
+void AfterglowRenderer::Impl::updateGlobalUniform() {
 	auto& globalUniform = materialManager->globalUniform();
 
 	// Camera check was done before this function.
@@ -412,8 +500,8 @@ void AfterglowRenderer::Context::updateGlobalUniform() {
 	globalUniform.invScreenResolution = glm::vec2(1.0) / globalUniform.screenResolution;
 	globalUniform.cursorPosition = window.input().cursorPosition();
 	// Here replace as render clock instead of logic clock (For uniform shader animation).
-	globalUniform.time = static_cast<float>(clock.timeSec());
-	globalUniform.deltaTime = static_cast<float>(clock.deltaTimeSec());
+	globalUniform.time = static_cast<float>(ticker.clock().timeSec());
+	globalUniform.deltaTime = static_cast<float>(ticker.clock().deltaTimeSec());
 	globalUniform.cameraNear = renderableContext->camera->near();
 	globalUniform.cameraFar = renderableContext->camera->far();
 }

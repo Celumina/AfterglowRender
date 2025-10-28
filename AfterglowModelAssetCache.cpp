@@ -3,7 +3,7 @@
 #include <stdexcept>
 #include "DebugUtilities.h"
 
-struct AfterglowModelAssetCache::Context {
+struct AfterglowModelAssetCache::Impl {
 	// Generic
 	Mode mode;
 	FileHead fileHead;
@@ -19,13 +19,13 @@ struct AfterglowModelAssetCache::Context {
 };
 
 AfterglowModelAssetCache::AfterglowModelAssetCache(Mode mode, const std::string& path) : 
-	_context(std::make_unique<Context>()) {
-	_context->mode = mode;
-	_context->filePath = path;
+	_impl(std::make_unique<Impl>()) {
+	_impl->mode = mode;
+	_impl->filePath = path;
 	if (mode == Mode::Read) {
-		_context->inFile = std::make_unique<std::ifstream>(path, std::ios::binary);
-		auto& inFile = *_context->inFile;
-		auto& fileHead = _context->fileHead;
+		_impl->inFile = std::make_unique<std::ifstream>(path, std::ios::binary);
+		auto& inFile = *_impl->inFile;
+		auto& fileHead = _impl->fileHead;
 		if (!inFile) {
 			DEBUG_CLASS_ERROR("Failed to open cache file: " + path);
 			throw std::runtime_error("Failed to open cache file.");
@@ -35,8 +35,8 @@ AfterglowModelAssetCache::AfterglowModelAssetCache(Mode mode, const std::string&
 			DEBUG_CLASS_ERROR("Invaild file head: " + path);
 			throw std::runtime_error("Invaild file head.");
 		}
-		_context->indexedTable = std::make_unique<IndexedTable>(fileHead.indexedTableByteSize / sizeof(IndexedTableElement));
-		auto& indexedTable = *_context->indexedTable;
+		_impl->indexedTable = std::make_unique<IndexedTable>(fileHead.indexedTableByteSize / sizeof(IndexedTableElement));
+		auto& indexedTable = *_impl->indexedTable;
 		inFile.read(reinterpret_cast<char*>(indexedTable.data()), fileHead.indexedTableByteSize);
 	}
 	else if (mode == Mode::Write) {
@@ -48,26 +48,26 @@ AfterglowModelAssetCache::~AfterglowModelAssetCache() {
 }
 
 AfterglowModelAssetCache::FileHead& AfterglowModelAssetCache::fileHead() {
-	return _context->fileHead;
+	return _impl->fileHead;
 }
 
 uint32_t AfterglowModelAssetCache::numMeshes() const {
-	return _context->indexedTable->size();
+	return _impl->indexedTable->size();
 }
 
 uint32_t AfterglowModelAssetCache::numIndices(uint32_t meshIndex) const {
-	return _context->indexedTable->at(meshIndex).indexDataSize / sizeof(IndexArray::value_type);
+	return _impl->indexedTable->at(meshIndex).indexDataSize / sizeof(IndexArray::value_type);
 }
 
 uint32_t AfterglowModelAssetCache::numVertices(uint32_t meshIndex) const {
-	return _context->indexedTable->at(meshIndex).vertexDataSize / sizeof(VertexArray::value_type);
+	return _impl->indexedTable->at(meshIndex).vertexDataSize / sizeof(VertexArray::value_type);
 }
 
 void AfterglowModelAssetCache::read(uint32_t meshIndex, IndexArray& destIndexArray, VertexArray& destVertexArray) const {
 	destIndexArray.resize(numIndices(meshIndex));
 	destVertexArray.resize(numVertices(meshIndex));
-	auto& inFile = *_context->inFile;
-	auto& tableElement = _context->indexedTable->at(meshIndex);
+	auto& inFile = *_impl->inFile;
+	auto& tableElement = _impl->indexedTable->at(meshIndex);
 	inFile.seekg(tableElement.indexDataOffset, std::ios::beg);
 	inFile.read(reinterpret_cast<char*>(destIndexArray.data()), tableElement.indexDataSize);
 	inFile.seekg(tableElement.vertexDataOffset, std::ios::beg);
@@ -75,16 +75,16 @@ void AfterglowModelAssetCache::read(uint32_t meshIndex, IndexArray& destIndexArr
 }
 
 void AfterglowModelAssetCache::recordWrite(const IndexArray& indexArray, const VertexArray& vertexArray) {
-	if (_context->mode != Mode::Write) {
+	if (_impl->mode != Mode::Write) {
 		throw std::runtime_error("Mode is not Matched, recordWrite for Write only.");
 	}
-	_context->meshRefs.push_back({indexArray, vertexArray});
+	_impl->meshRefs.push_back({indexArray, vertexArray});
 }
 
 void AfterglowModelAssetCache::write(TimeStamp sourceFileModifiedTime) {
-	size_t numMeshes = _context->meshRefs.size();
+	size_t numMeshes = _impl->meshRefs.size();
 
-	auto& fileHead = _context->fileHead;
+	auto& fileHead = _impl->fileHead;
 	fileHead.indexedTableByteSize = numMeshes * sizeof(IndexedTableElement);
 	fileHead.sourceFileModifiedTime = sourceFileModifiedTime;
 
@@ -93,8 +93,8 @@ void AfterglowModelAssetCache::write(TimeStamp sourceFileModifiedTime) {
 	uint64_t currentOffset = sizeof(FileHead) + fileHead.indexedTableByteSize;
 
 	for (size_t index = 0; index < numMeshes; ++index) {
-		auto& indexArray = _context->meshRefs[index].first;
-		auto& vertexArray = _context->meshRefs[index].second;
+		auto& indexArray = _impl->meshRefs[index].first;
+		auto& vertexArray = _impl->meshRefs[index].second;
 		indexedTable[index].indexDataOffset = currentOffset;
 		indexedTable[index].indexDataSize = indexArray.size() * sizeof(IndexArray::value_type);
 		currentOffset += indexedTable[index].indexDataSize;
@@ -103,20 +103,20 @@ void AfterglowModelAssetCache::write(TimeStamp sourceFileModifiedTime) {
 		currentOffset += indexedTable[index].vertexDataSize;
 	}
 
-	std::ofstream outFile(_context->filePath, std::ios::binary);
+	std::ofstream outFile(_impl->filePath, std::ios::binary);
 	if (!outFile) {
-		DEBUG_CLASS_ERROR("Failed to write file, invalid file path: " + _context->filePath);
+		DEBUG_CLASS_ERROR("Failed to write file, invalid file path: " + _impl->filePath);
 		throw std::runtime_error("Failed to write file.");
 	}
 	outFile.write(reinterpret_cast<const char*>(&fileHead), sizeof(FileHead));
 	outFile.write(reinterpret_cast<const char*>(indexedTable.data()), fileHead.indexedTableByteSize);
 
 	for (size_t index = 0; index < numMeshes; ++index) {
-		outFile.write(reinterpret_cast<const char*>(_context->meshRefs[index].first.data()), indexedTable[index].indexDataSize);
-		outFile.write(reinterpret_cast<const char*>(_context->meshRefs[index].second.data()), indexedTable[index].vertexDataSize);
+		outFile.write(reinterpret_cast<const char*>(_impl->meshRefs[index].first.data()), indexedTable[index].indexDataSize);
+		outFile.write(reinterpret_cast<const char*>(_impl->meshRefs[index].second.data()), indexedTable[index].vertexDataSize);
 	}
 }
 
-const char* AfterglowModelAssetCache::suffix() {
+const std::string& AfterglowModelAssetCache::suffix() {
 	return _suffix;
 }

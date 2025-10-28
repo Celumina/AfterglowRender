@@ -2,10 +2,10 @@
 #include "AfterglowComponent.h"
 #include "AfterglowSystemUtilities.h"
 
-template<typename DerivedClass>
-class AfterglowActionComponent : public AfterglowComponent<DerivedClass> {
+template<typename DerivedType>
+class AfterglowActionComponent : public AfterglowComponent<DerivedType> {
 public:
-	using Component = DerivedClass;
+	using Component = DerivedType;
 
 	friend class AfterglowSystem;
 
@@ -30,70 +30,81 @@ private:
 	const AfterglowSystemUtilities* _sysUtils;
 };
 
-template<typename DerivedClass>
-inline AfterglowActionComponent<DerivedClass>::~AfterglowActionComponent() {
+template<typename DerivedType>
+inline AfterglowActionComponent<DerivedType>::~AfterglowActionComponent() {
 	onDestroy();
 }
 
-template<typename DerivedClass>
-inline void AfterglowActionComponent<DerivedClass>::enable() {
+template<typename DerivedType>
+inline void AfterglowActionComponent<DerivedType>::enable() {
 	onEnable();
 }
 
-template<typename DerivedClass>
-inline void AfterglowActionComponent<DerivedClass>::disable() {
+template<typename DerivedType>
+inline void AfterglowActionComponent<DerivedType>::disable() {
 	onDisable();
 }
 
-template<typename DerivedClass>
-inline void AfterglowActionComponent<DerivedClass>::awake() {
+template<typename DerivedType>
+inline void AfterglowActionComponent<DerivedType>::awake() {
 	if constexpr (!std::is_same_v<decltype(&Component::awake), decltype(&AfterglowActionComponent::awake)>) {
 		reinterpret_cast<Component>(*this).awake();
 	}
 }
 
-template<typename DerivedClass>
-inline void AfterglowActionComponent<DerivedClass>::onEnable() {
+template<typename DerivedType>
+inline void AfterglowActionComponent<DerivedType>::onEnable() {
 	if constexpr (!std::is_same_v<decltype(&Component::onEnable), decltype(&AfterglowActionComponent::onEnable)>) {
 		reinterpret_cast<Component>(*this).onEnable();
 	}
 }
 
-template<typename DerivedClass>
-inline void AfterglowActionComponent<DerivedClass>::update() {
+template<typename DerivedType>
+inline void AfterglowActionComponent<DerivedType>::update() {
 	if constexpr (!std::is_same_v<decltype(&Component::update), decltype(&AfterglowActionComponent::update)>) {
 		reinterpret_cast<Component>(*this).update();
 	}
 }
 
-template<typename DerivedClass>
-inline void AfterglowActionComponent<DerivedClass>::fixedUpdate() {
+template<typename DerivedType>
+inline void AfterglowActionComponent<DerivedType>::fixedUpdate() {
 	if constexpr (!std::is_same_v<decltype(&Component::fixedUpdate), decltype(&AfterglowActionComponent::fixedUpdate)>) {
 		Component::fixedUpdate();
 		reinterpret_cast<Component>(*this).fixedUpdate();
 	}
 }
 
-template<typename DerivedClass>
-inline void AfterglowActionComponent<DerivedClass>::onDisable() {
+template<typename DerivedType>
+inline void AfterglowActionComponent<DerivedType>::onDisable() {
 	if constexpr (!std::is_same_v<decltype(&Component::onDisable), decltype(&AfterglowActionComponent::onDisable)>) {
 		reinterpret_cast<Component>(*this).onDisable();
 	}
 }
 
-template<typename DerivedClass>
-inline void AfterglowActionComponent<DerivedClass>::onDestroy() {
+template<typename DerivedType>
+inline void AfterglowActionComponent<DerivedType>::onDestroy() {
 	if constexpr (!std::is_same_v<decltype(&Component::onDestroy), decltype(&AfterglowActionComponent::onDestroy)>) {
 		reinterpret_cast<Component>(*this).onDestroy();
 	}
 }
 
-template<typename DerivedClass>
-inline const AfterglowSystemUtilities& AfterglowActionComponent<DerivedClass>::sysUtils() {
+template<typename DerivedType>
+inline const AfterglowSystemUtilities& AfterglowActionComponent<DerivedType>::sysUtils() {
 	return *_sysUtils;
 }
 
-template<typename DerivedClass>
-inline void AfterglowActionComponent<DerivedClass>::bindSystemUtilities(const AfterglowSystemUtilities& sysUtils) {
+template<typename DerivedType>
+inline void AfterglowActionComponent<DerivedType>::bindSystemUtilities(const AfterglowSystemUtilities& sysUtils) {
 	_sysUtils = &sysUtils;
 }
+
+
+INR_CRTP_CLASS(AfterglowActionComponent, DerivedType) {
+	INR_BASE_CLASSES<AfterglowComponent<InreflectDerivedType>>;
+	INR_FUNCS(
+		INR_FUNC(enable),
+		INR_FUNC(disable)
+		// Don't reflect these action functions.
+	);
+};
+

@@ -47,19 +47,19 @@ inline bool AfterglowComponent<DerivedType>::enabled() const {
 	return _enabled;
 }
 
-template<typename DerivedClass>
-inline void AfterglowComponent<DerivedClass>::setEntity(AfterglowEntity& entity) {
+template<typename DerivedType>
+inline void AfterglowComponent<DerivedType>::setEntity(AfterglowEntity& entity) {
 	_entity = &entity;
 }
 
-template<typename DerivedClass>
-inline AfterglowEntity& AfterglowComponent<DerivedClass>::entity() {
+template<typename DerivedType>
+inline AfterglowEntity& AfterglowComponent<DerivedType>::entity() {
 	// System do that setEntity, so just ref it.
 	return *_entity;
 }
 
-template<typename DerivedClass>
-inline const AfterglowEntity& AfterglowComponent<DerivedClass>::entity() const {
+template<typename DerivedType>
+inline const AfterglowEntity& AfterglowComponent<DerivedType>::entity() const {
 	return *_entity;
 }
 
@@ -72,3 +72,17 @@ template<typename DerivedType>
 inline void AfterglowComponent<DerivedType>::internalDisable() {
 	_enabled = false;
 }
+
+INR_CRTP_CLASS(AfterglowComponent, DerivedType) {
+ 	INR_BASE_CLASSES<AfterglowComponentBase>;
+	INR_FUNCS(
+		// Its work! 
+		// InreflectMemberFunction<decltype(&Inreflect::InreflectDefinition::Class::enable), TEMPLATE_STR("enable"), &Inreflect::InreflectDefinition::Class::enable> {}
+		INR_FUNC(enable), 
+		INR_FUNC(disable), 
+		INR_FUNC(enabled), 
+		// InreflectDerivedType is the keyword for overloaded function in INR_CRTP_CLASS.
+		INR_OVERLOADED_FUNC(AfterglowEntity&(AfterglowComponent<InreflectDerivedType>::*)(), entity),
+		INR_OVERLOADED_FUNC(const AfterglowEntity&(AfterglowComponent<InreflectDerivedType>::*)() const, entity)
+	);
+};

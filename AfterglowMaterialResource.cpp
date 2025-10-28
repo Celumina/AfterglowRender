@@ -3,6 +3,7 @@
 #include <algorithm>
 
 #include "AfterglowSSBOInitializer.h"
+#include "AfterglowComputeTask.h"
 #include "GlobalAssets.h"
 #include "Configurations.h"
 
@@ -18,7 +19,7 @@ AfterglowMaterialResource::AfterglowMaterialResource(
 	_shouldReregisterTextures(false) {
 }
 
-AfterglowDevice& AfterglowMaterialResource::device() {
+AfterglowDevice& AfterglowMaterialResource::device() noexcept {
 	return _materialLayout.device();
 }
 

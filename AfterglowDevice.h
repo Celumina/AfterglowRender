@@ -1,5 +1,9 @@
 #pragma once
-#include "AfterglowPhysicalDevice.h"
+
+#include "AfterglowProxyObject.h"
+
+class AfterglowPhysicalDevice;
+
 class AfterglowDevice : public AfterglowProxyObject<AfterglowDevice, VkDevice, VkDeviceCreateInfo> {
 public:
 	using QueueCreateInfoArray = std::vector<VkDeviceQueueCreateInfo>;

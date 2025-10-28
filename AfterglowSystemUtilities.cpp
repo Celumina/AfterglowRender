@@ -1,85 +1,109 @@
 #include "AfterglowSystemUtilities.h"
 #include "AfterglowSystem.h"
+#include "AfterglowMaterial.h"
+#include "AfterglowWindow.h"
+#include "AfterglowMaterialManager.h"
+#include "AfterglowTicker.h"
+#include "LocalClock.h"
 
-
-struct AfterglowSystemUtilities::Context {
+struct AfterglowSystemUtilities::Impl {
 	AfterglowSystem* system = nullptr;
 };
 
 AfterglowSystemUtilities::AfterglowSystemUtilities(AfterglowSystem* system) :
-	_context(std::make_unique<AfterglowSystemUtilities::Context>()){
-	_context->system = system;
+	_impl(std::make_unique<AfterglowSystemUtilities::Impl>()){
+	_impl->system = system;
 }
 
 AfterglowSystemUtilities::~AfterglowSystemUtilities() {
 }
 
+std::weak_ptr<AfterglowScene> AfterglowSystemUtilities::scene() const noexcept {
+	return _impl->system->scene();
+}
+
 AfterglowEntity& AfterglowSystemUtilities::createEntity(const std::string& name, std::type_index componentTypeIndex, util::OptionalRef<AfterglowEntity> parent) const {
-	auto& entity = _context->system->createEntity<>(name, parent);
-	_context->system->addComponent(entity, componentTypeIndex);
+	auto& entity = _impl->system->createEntity<>(name, parent);
+	_impl->system->addComponent(entity, componentTypeIndex);
 	return entity;
 }
 
 AfterglowEntity& AfterglowSystemUtilities::createEntity(const std::string& name, const TypeIndexArray& componentTypeIndices, util::OptionalRef<AfterglowEntity> parent) const {
-	auto& entity = _context->system->createEntity<>(name, parent);
+	auto& entity = _impl->system->createEntity<>(name, parent);
 	for (const auto& componentTypeIndex : componentTypeIndices) {
-		_context->system->addComponent(entity, componentTypeIndex);
+		_impl->system->addComponent(entity, componentTypeIndex);
 	}
 	return entity;
 }
 
 bool AfterglowSystemUtilities::destroyEntity(AfterglowEntity& entity) const {
-	return _context->system->destroyEntity(entity);
+	return _impl->system->destroyEntity(entity);
 }
 
 const AfterglowInput& AfterglowSystemUtilities::input() const {
-	return _context->system->input();
+	return _impl->system->input();
 }
 
 void AfterglowSystemUtilities::lockCursor() const {
-	_context->system->window().lockCursor();
+	_impl->system->window().lockCursor();
 }
 
 void AfterglowSystemUtilities::unlockCursor() const {
-	_context->system->window().unlockCursor();
+	_impl->system->window().unlockCursor();
 }
 
 std::string AfterglowSystemUtilities::registerMaterialAsset(const std::string& materialPath) const {
-	return _context->system->materialManager().registerMaterialAsset(materialPath);
+	return _impl->system->materialManager().registerMaterialAsset(materialPath);
 }
 
 std::string AfterglowSystemUtilities::registerMaterialInstanceAsset(const std::string& materialInstancePath) const {
-	return _context->system->materialManager().registerMaterialInstanceAsset(materialInstancePath);
+	return _impl->system->materialManager().registerMaterialInstanceAsset(materialInstancePath);
 }
 
 void AfterglowSystemUtilities::unregisterMaterialAsset(const std::string& materialPath) const {
-	return _context->system->materialManager().unregisterMaterialAsset(materialPath);
+	return _impl->system->materialManager().unregisterMaterialAsset(materialPath);
 }
 
 void AfterglowSystemUtilities::unregisterMaterialInstanceAsset(const std::string& materialInstancePath) const {
-	return _context->system->materialManager().unregisterMaterialInstanceAsset(materialInstancePath);
+	return _impl->system->materialManager().unregisterMaterialInstanceAsset(materialInstancePath);
 }
 
-AfterglowMaterial& AfterglowSystemUtilities::createMaterial(const std::string& name, const AfterglowMaterial& sourceMaterial) const {
-	return _context->system->materialManager().createMaterial(name, sourceMaterial);
+AfterglowMaterial& AfterglowSystemUtilities::createMaterial(const std::string& name, util::OptionalRef<AfterglowMaterial> sourceMaterial) const {
+	return _impl->system->materialManager().createMaterial(name, sourceMaterial);
 }
 
 AfterglowMaterialInstance& AfterglowSystemUtilities::createMaterialInstance(const std::string& name, const std::string& parentMaterialName) const {
-	return _context->system->materialManager().createMaterialInstance(name, parentMaterialName);
+	return _impl->system->materialManager().createMaterialInstance(name, parentMaterialName);
 }
 
 AfterglowMaterial* AfterglowSystemUtilities::material(const std::string& name) const {
-	return _context->system->materialManager().material(name);
+	return _impl->system->materialManager().material(name);
 }
 
 AfterglowMaterialInstance* AfterglowSystemUtilities::materialInstance(const std::string& name) const {
-	return _context->system->materialManager().materialInstance(name);
+	return _impl->system->materialManager().materialInstance(name);
 }
 
-const ubo::GlobalUniform& AfterglowSystemUtilities::globalUniform() const {
-	return _context->system->materialManager().globalUniform();
+const ubo::GlobalUniform& AfterglowSystemUtilities::globalUniform() const noexcept {
+	return _impl->system->materialManager().globalUniform();
 }
 
-const LocalClock& AfterglowSystemUtilities::clock() const {
-	return _context->system->clock();
+double AfterglowSystemUtilities::fps() const noexcept {
+	return _impl->system->ticker().clock().fps();
+}
+
+double AfterglowSystemUtilities::timeSec() const noexcept {
+	return _impl->system->ticker().clock().timeSec();
+}
+
+double AfterglowSystemUtilities::deltaTimeSec() const noexcept {
+	return _impl->system->ticker().clock().deltaTimeSec();
+}
+
+float AfterglowSystemUtilities::maximumFPS() const noexcept {
+	return _impl->system->ticker().maximumFPS();
+}
+
+void AfterglowSystemUtilities::setMaximumFPS(float fps) noexcept {
+	return _impl->system->ticker().setMaximumFPS(fps);
 }

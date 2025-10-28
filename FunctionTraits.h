@@ -49,3 +49,49 @@ struct FunctionTraits<ReturnType(ClassType::* const)(ParamTypes...) const> {
 	using Return = ReturnType;
 	using ParamTuple = std::tuple<ParamTypes...>;
 };
+
+template <typename ReturnType, typename... ParamTypes>
+struct FunctionTraits<ReturnType(ParamTypes...) noexcept> {
+	using Return = ReturnType;
+	using ParamTuple = std::tuple<ParamTypes...>;
+};
+
+template <typename ReturnType, typename... ParamTypes>
+struct FunctionTraits<ReturnType(*)(ParamTypes...) noexcept> {
+	using Return = ReturnType;
+	using ParamTuple = std::tuple<ParamTypes...>;
+};
+
+template <typename ReturnType, typename... ParamTypes>
+struct FunctionTraits<ReturnType(* const)(ParamTypes...) noexcept> {
+	using Return = ReturnType;
+	using ParamTuple = std::tuple<ParamTypes...>;
+};
+
+template <typename ClassType, typename ReturnType, typename... ParamTypes>
+struct FunctionTraits<ReturnType(ClassType::*)(ParamTypes...) noexcept> {
+	using Class = ClassType;
+	using Return = ReturnType;
+	using ParamTuple = std::tuple<ParamTypes...>;
+};
+
+template <typename ClassType, typename ReturnType, typename... ParamTypes>
+struct FunctionTraits<ReturnType(ClassType::*)(ParamTypes...) const noexcept> {
+	using Class = ClassType;
+	using Return = ReturnType;
+	using ParamTuple = std::tuple<ParamTypes...>;
+};
+
+template <typename ClassType, typename ReturnType, typename... ParamTypes>
+struct FunctionTraits<ReturnType(ClassType::* const)(ParamTypes...) noexcept> {
+	using Class = ClassType;
+	using Return = ReturnType;
+	using ParamTuple = std::tuple<ParamTypes...>;
+};
+
+template <typename ClassType, typename ReturnType, typename... ParamTypes>
+struct FunctionTraits<ReturnType(ClassType::* const)(ParamTypes...) const noexcept> {
+	using Class = ClassType;
+	using Return = ReturnType;
+	using ParamTuple = std::tuple<ParamTypes...>;
+};

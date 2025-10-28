@@ -8,7 +8,7 @@ AfterglowDescriptorSetLayout::~AfterglowDescriptorSetLayout() {
 	destroy(vkDestroyDescriptorSetLayout, _device, data(), nullptr);
 }
 
-AfterglowDevice& AfterglowDescriptorSetLayout::device() {
+AfterglowDevice& AfterglowDescriptorSetLayout::device() noexcept {
 	return _device;
 }
 

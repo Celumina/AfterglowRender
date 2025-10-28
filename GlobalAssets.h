@@ -16,3 +16,6 @@ namespace shader {
 	img::AssetInfo GlobalSetBindingTextureInfo(shader::GlobalSetBindingIndex bindingIndex);
 }
 
+namespace font {
+	static constexpr const char* defaultFontPath = "Assets/Shared/Fonts/calibrib.ttf";
+}

@@ -1,6 +1,7 @@
 #include "AfterglowStructLayout.h"
 
 #include <algorithm>
+#include <stdexcept>
 #include "DebugUtilities.h"
 
 
@@ -17,7 +18,7 @@ const std::string& AfterglowStructLayout::hlslTypeName(AttributeType type) {
 }
 
 uint32_t AfterglowStructLayout::numAttributes() const {
-	return _attributes.size();
+	return static_cast<uint32_t>(_attributes.size());
 }
 
 uint32_t AfterglowStructLayout::attributeByteSize(const std::string& name) const {
@@ -100,6 +101,42 @@ void AfterglowStructLayout::forEachAttributeMember(const std::function<Attribute
 }
 
 void AfterglowStructLayout::forEachAttributeMemberWithOffset(const std::function<AttributeMemberWithOffsetCallback>& callback) const {
-	// Oh, it's weird.
+	// Oops, it's weird.
 	offset(_attributes.back().name, callback);
+}
+
+std::vector<AfterglowStructLayout::AttributeMember> AfterglowStructLayout::generateHLSLStructMembers() const {
+	std::vector<AttributeMember> members;
+	members.reserve(_attributes.size());
+
+	uint32_t size = 0;
+	uint32_t currentGroupSize = 0;
+	uint32_t paddingIndex = 0;
+
+	for (uint32_t index = 0; index < _attributes.size(); ++index) {
+		members.push_back(_attributes[index]);
+		uint32_t attributeSize = attributeByteSize(_attributes[index].type);
+
+		if (attributeSize + currentGroupSize > _structAlignment) {
+			size = util::Align(size, _structAlignment) + attributeSize;
+			currentGroupSize = util::Align(attributeSize, _structAlignment) - attributeSize;
+		}
+		else {
+			size += attributeSize;
+			currentGroupSize = currentGroupSize + attributeSize;
+		}
+
+		if (index >= _attributes.size() - 1 
+			|| attributeByteSize(_attributes[index + 1].type) + currentGroupSize > _structAlignment) {
+			appendPaddingAttributes(members, util::Align(size, _structAlignment) - size);
+		}
+	}
+	return members;
+}
+
+inline void AfterglowStructLayout::appendPaddingAttributes(std::vector<AttributeMember>& dest, int32_t paddingSize) const {
+	while (paddingSize >= attributeByteSize(AttributeType::Float)) {
+		dest.emplace_back(AttributeType::Float, std::format("__padding{}", dest.size()));
+		paddingSize -= attributeByteSize(AttributeType::Float);
+	}
 }

@@ -4,13 +4,13 @@
 #include <json.hpp>
 #include "DebugUtilities.h"
 
-struct AfterglowMaterialInstanceAsset::Context {
+struct AfterglowMaterialInstanceAsset::Impl {
 	nlohmann::json data;
 };
 
 
 AfterglowMaterialInstanceAsset::AfterglowMaterialInstanceAsset(const std::string& path) : 
-	_context(std::make_unique<Context>()) {
+	_impl(std::make_unique<Impl>()) {
 	std::ifstream file(path);
 
 	if (!file.is_open()) {
@@ -18,7 +18,7 @@ AfterglowMaterialInstanceAsset::AfterglowMaterialInstanceAsset(const std::string
 		throw std::runtime_error("[AfterglowMaterialInstanceAsset] Failed to open material instance file.");
 	}
 	try {
-		file >> _context->data;
+		file >> _impl->data;
 	}
 	catch (const nlohmann::json::parse_error& error) {
 		DEBUG_TYPE_ERROR(AfterglowMaterialInstanceAsset, "Failed to parse material instance file " + path + " to json, due to: " + error.what());
@@ -30,7 +30,7 @@ AfterglowMaterialInstanceAsset::~AfterglowMaterialInstanceAsset() {
 }
 
 std::string AfterglowMaterialInstanceAsset::materialnstanceName() const {
-	auto& data = _context->data;
+	auto& data = _impl->data;
 	if (data.contains("name") && data["name"].is_string()) {
 		return data["name"];
 	}
@@ -39,7 +39,7 @@ std::string AfterglowMaterialInstanceAsset::materialnstanceName() const {
 }
 
 std::string AfterglowMaterialInstanceAsset::parentMaterialName() const {
-	auto& data = _context->data;
+	auto& data = _impl->data;
 	if (data.contains("parentMaterialName") && data["parentMaterialName"].is_string()) {
 		return data["parentMaterialName"];
 	}
@@ -48,7 +48,7 @@ std::string AfterglowMaterialInstanceAsset::parentMaterialName() const {
 }
 
 void AfterglowMaterialInstanceAsset::fill(AfterglowMaterialInstance& destMaterialInstance) const {
-	auto& data = _context->data;
+	auto& data = _impl->data;
 	if (data.contains("scalars") && data["scalars"].is_array()) {
 		for (const auto& scalar : data["scalars"]) {
 			if (!scalar.contains("name") || !scalar["name"].is_string()

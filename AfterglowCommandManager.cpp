@@ -1,12 +1,17 @@
 #include "AfterglowCommandManager.h"
+#include <backends/imgui_impl_vulkan.h>
+
+#include "AfterglowComputeTask.h"
 
 AfterglowCommandManager::AfterglowCommandManager(AfterglowRenderPass& renderPass) :
 	_renderPass(renderPass), 
 	_commandPool(renderPass.device()), 
 	_drawCommandBuffer(_commandPool), 
 	_computeCommandBuffer(_commandPool) {
-	for (const auto& attachmentInfo : _renderPass.subpassContext().inputAttachmentInfos()) {
-		_drawRecordInfos[attachmentInfo.domain] = {};
+	for (uint32_t index = 0; index < util::EnumValue(render::Domain::EnumCount); ++index) {
+		if (renderPass.subpassContext().subpassExists(static_cast<render::Domain>(index))) {
+			_drawRecordInfos[static_cast<render::Domain>(index)] = {};
+		}
 	}
 }
 
@@ -104,6 +109,9 @@ void AfterglowCommandManager::applyDrawCommands(AfterglowFramebuffer& frameBuffe
 			}
 		}
 	}
+	// Draw UI
+	ImGui_ImplVulkan_RenderDrawData(_uiDrawData, _drawCommandBuffer.current());
+
 	_drawCommandBuffer.endRecord();
 	for (auto& [domain, pipelineSetRecordInfos] : _drawRecordInfos) {
 		pipelineSetRecordInfos.clear();
@@ -111,10 +119,10 @@ void AfterglowCommandManager::applyDrawCommands(AfterglowFramebuffer& frameBuffe
 }
 
 void AfterglowCommandManager::recordCompute(AfterglowMaterialResource& matResource, AfterglowDescriptorSetReferences& setRefs) {
-	auto& matLayout = matResource.materialLayout();\
+	auto& matLayout = matResource.materialLayout();
 
 	// SSBO initialization from compute shader.
-	if (matLayout.shouldInitSSBOsTrigger()) {
+	if (matLayout.shouldInitFrameSSBOsTrigger()) {
 		auto& ssboInitComputePipelines = matLayout.ssboInitComputePipelines();
 		for (auto& pipeline : ssboInitComputePipelines) {
 			_computeRecordInfos[&*pipeline][&setRefs].emplace_back(
@@ -154,6 +162,10 @@ void AfterglowCommandManager::applyComputeCommands() {
 	_computeRecordInfos.clear();
 }
 
+void AfterglowCommandManager::recordUIDraw(ImDrawData* uiDrawData) {
+	_uiDrawData = uiDrawData;	
+}
+
 inline AfterglowDrawCommandBuffer::RecordInfo* AfterglowCommandManager::aquireDrawRecordInfo(
 	AfterglowMaterialResource& matResource, AfterglowDescriptorSetReferences& setRefs) {
 	auto& pipeline = matResource.materialLayout().pipeline();
@@ -162,6 +174,5 @@ inline AfterglowDrawCommandBuffer::RecordInfo* AfterglowCommandManager::aquireDr
 		DEBUG_CLASS_WARNING("Failed to record the draw, due to this material domain is not declare in RenderPass.");
 		return nullptr;
 	}
-	// TODO: Try to find first.
 	return &_drawRecordInfos[domain][&pipeline][&setRefs].emplace_back();
 }

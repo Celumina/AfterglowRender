@@ -2,6 +2,9 @@
 #include "AfterglowImageView.h"
 #include "AfterglowSynchronizer.h"
 
+class AfterglowSurface;
+class AfterglowWindow;
+
 class AfterglowSwapchain : public AfterglowProxyObject<AfterglowSwapchain, VkSwapchainKHR, VkSwapchainCreateInfoKHR> {
 public:
 	using ImageArray = std::vector<VkImage>;
@@ -17,7 +20,7 @@ public:
 	const AfterglowImageView::Array& imageViews();
 	VkImage& image(uint32_t index);
 	AfterglowImageView& imageView(uint32_t index);
-	inline AfterglowDevice& device();
+	inline AfterglowDevice& device() noexcept;
 
 	void recreate();
 

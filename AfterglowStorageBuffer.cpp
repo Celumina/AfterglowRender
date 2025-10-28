@@ -1,5 +1,10 @@
 #include "AfterglowStorageBuffer.h"
 
+#include "AfterglowCommandPool.h"
+#include "AfterglowGraphicsQueue.h"
+#include "AfterglowStagingBuffer.h"
+
+
 AfterglowStorageBuffer::AfterglowStorageBuffer(AfterglowDevice& device, const void* buffer, uint64_t bufferSize) :
 	AfterglowBuffer(device), _buffer(buffer), _bufferSize(bufferSize) {
 	// TODO: Here usage vertex buffer should be optional.

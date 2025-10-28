@@ -3,6 +3,7 @@
 #include "AfterglowImageView.h"
 #include "AfterglowSampler.h"
 #include "AssetDefinitions.h"
+#include "AfterglowPhysicalDevice.h"
 
 namespace img {
 	struct WriteInfo {

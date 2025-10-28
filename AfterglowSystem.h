@@ -2,23 +2,32 @@
 
 #include <algorithm>
 #include <thread>
+#include <memory>
 
-#include "AfterglowMaterialManager.h"
 #include "AfterglowRenderableContext.h"
 #include "AfterglowScene.h"
 #include "AfterglowSystemUtilities.h"
-#include "AfterglowWindow.h"
+
+
+class AfterglowMaterialManager;
+class AfterglowWindow;
+class AfterglowTicker;
+class AfterglowGUI;
 
 // TODO: SystemThread
 class AfterglowSystem {
 public: 
-	AfterglowSystem(AfterglowWindow& window, AfterglowMaterialManager& materialManager);
+	AfterglowSystem(
+		AfterglowWindow& window, 
+		AfterglowMaterialManager& materialManager, 
+		AfterglowGUI& ui
+	);
 	~AfterglowSystem();
 
-	AfterglowScene& scene();
-	AfterglowComponentPool& componentPool();
+	std::weak_ptr<AfterglowScene> scene() noexcept;
+	AfterglowComponentPool& componentPool() noexcept;
 
-	AfterglowCameraComponent* mainCamera();
+	AfterglowCameraComponent* mainCamera() noexcept;
 
 	void startSystemThread();
 	void stopSystemThread();
@@ -50,15 +59,18 @@ public:
 	// @warning: For SystemUtilities, add component from typeIndex will never call specializedAddBehaviour automatically.
 	AfterglowComponentBase* addComponent(AfterglowEntity& destEntity, std::type_index typeIndex);
 
-	void setMainCamera(AfterglowCameraComponent& camera);
+	void setMainCamera(AfterglowCameraComponent& camera) noexcept;
 
-	AfterglowRenderableContext& renderableContext();
+	AfterglowRenderableContext& renderableContext() noexcept;
 
-	AfterglowWindow& window();
-	const AfterglowInput& input() const;
-	const LocalClock& clock() const;
+	AfterglowWindow& window() noexcept;
+	const AfterglowInput& input() const noexcept;
 
-	AfterglowMaterialManager& materialManager();
+
+	AfterglowTicker& ticker() noexcept;
+	const AfterglowTicker& ticker() const noexcept;
+
+	AfterglowMaterialManager& materialManager() noexcept;
 
 
 private:
@@ -100,23 +112,19 @@ private:
 	template<typename ComponentType>
 	void refreshRenderableContext(ComponentType* component, const std::string& varName);
 
-	std::unique_ptr<std::jthread> _systemThread;
-	bool _systemStoped;
-
-	AfterglowScene _scene;
+	// Share scene with weak ptr, to handle the scene change.
+	std::shared_ptr<AfterglowScene> _scene;
 	AfterglowComponentPool _componentPool;
 	AfterglowRenderableContext _renderableContext;
 	AfterglowSystemUtilities _utilities;
 
-	AfterglowWindow& _window;
-	AfterglowMaterialManager& _materialManager;
-
-	LocalClock _clock;
+	struct Impl;
+	std::unique_ptr<Impl> _impl;
 };
 
 template<typename ...ComponentTypes>
 inline AfterglowEntity& AfterglowSystem::createEntity(const std::string& name, util::OptionalRef<AfterglowEntity> parent) {
-	auto& entity = _scene.createEntity(name, parent);
+	auto& entity = _scene->createEntity(name, parent);
 	// Every scene entity need a tranform info, for able to put it in the world.
 	addComponent<AfterglowTransformComponent>(entity);
 	if constexpr (sizeof ...(ComponentTypes) != 0) {

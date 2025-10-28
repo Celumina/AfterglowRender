@@ -76,6 +76,17 @@ VkSubpassDependency AfterglowSubpassContext::fragmentRWColorRDepthDependency(uin
 	return dependency;
 }
 
+VkSubpassDependency AfterglowSubpassContext::fragmentWColorDependency(uint32_t srcSubpassIndex, uint32_t destSubpassIndex) {
+	return VkSubpassDependency{
+		.srcSubpass = srcSubpassIndex, 
+		.dstSubpass = destSubpassIndex, 
+		.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, // SrcSupass attachment {srcStageMask} is outputted, then
+		.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, // DestSubpass {dstStageMask} attachment is able to write.
+		.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,    // SrcSupass access {srcAccessMask} is completed, then
+		.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT     // DestSubpass is able to access {dstAccessMask}
+	};
+}
+
 VkSubpassDescription& AfterglowSubpassContext::appendSubpass(render::Domain domain) {
 	auto iterator = _attachmentInfos.find(domain);
 	// If subpasss exists: 
@@ -228,8 +239,10 @@ VkClearValue& AfterglowSubpassContext::clearValue(uint32_t index) {
 	return _clearValues[index];
 }
 
-const AfterglowSubpassContext::SubpassDescriptionArray& AfterglowSubpassContext::subpasses(){
-	updateSubpassAttachmentReferences();
+const AfterglowSubpassContext::SubpassDescriptionArray& AfterglowSubpassContext::subpasses(bool updateAttachmentRefs){
+	if (updateAttachmentRefs) {
+		updateSubpassAttachmentReferences();
+	}
 	return _subpasses;
 }
 

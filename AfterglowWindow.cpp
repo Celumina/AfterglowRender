@@ -2,24 +2,28 @@
 
 #include <algorithm>
 
-
 #include "AfterglowInput.h"
+#include "AfterglowGUI.h"
 #include "Configurations.h"
 
-struct AfterglowWindow::Context {
-	Context(GLFWwindow* glfwWindow);
+struct AfterglowWindow::Impl {
+	Impl(GLFWwindow* glfwWindow);
 
 	void updateCursor();
-
-	static void framebufferResizeCallback(GLFWwindow* glfwWindow, int width, int height);
+	
+	static void windowResizeCallback(GLFWwindow* glfwWindow, int width, int height);
 	static void keyCallback(GLFWwindow* glfwWindow, int key, int scancode, int action, int mods);
 	static void mouseButtonCallback(GLFWwindow* glfwWindow, int button, int action, int mods);
 	static void cursorPosCallback(GLFWwindow* glfwWindow, double posX, double posY);
 	static void scrollCallback(GLFWwindow* glfwWindow, double offsetX, double offsetY);
 	static void cursorEnterCallback(GLFWwindow* glfwWindow, int entered);
+	static void charCallback(GLFWwindow* glfwWindow, unsigned int chr);
 
 	GLFWwindow* window;
+	int32_t windowWidth;
+	int32_t windowHeight;
 	AfterglowInput input;
+
 	bool shouldLockCursor = false;
 	bool shouldUnlockCursor = false;
 };
@@ -33,7 +37,7 @@ AfterglowWindow::AfterglowWindow() {
 	linkData(glfwCreateWindow(cfg::windowWidth, cfg::windowHeight, cfg::windowTitle, nullptr,nullptr));
 	glfwSetWindowUserPointer(data(), this);
 
-	_context = std::make_unique<Context>(data());
+	_impl = std::make_unique<Impl>(data());
 }
 
 AfterglowWindow::~AfterglowWindow() {
@@ -41,12 +45,12 @@ AfterglowWindow::~AfterglowWindow() {
 	glfwTerminate();
 }
 
-void AfterglowWindow::update() {
+void AfterglowWindow::update() {	
 	glfwPollEvents();
 	// This function will block main thread if window is minimization.
 	// Saving resource but block logic.
 	waitIdle();
-	_context->updateCursor();
+	_impl->updateCursor();
 }
 
 bool AfterglowWindow::shouldClose() {
@@ -67,15 +71,22 @@ void AfterglowWindow::waitIdle() {
 	waitIdle(nullptr);
 }
 
-VkExtent2D AfterglowWindow::framebufferSize() {
+VkExtent2D AfterglowWindow::framebufferSize() const {
 	int width, height;
 	// Get true pixel resolution , instead of screen coordinate.
 	// If screen has high DPI, screen coordinate will differ to pixel resolution;
-	glfwGetFramebufferSize(*this, &width, &height);
+	glfwGetFramebufferSize(_impl->window, &width, &height);
 
 	return VkExtent2D {
 		static_cast<uint32_t>(width),
-		static_cast<uint32_t>(height),
+		static_cast<uint32_t>(height)
+	};
+}
+
+VkExtent2D AfterglowWindow::windowSize() const {
+	return VkExtent2D {
+		static_cast<uint32_t>(_impl->windowWidth),
+		static_cast<uint32_t>(_impl->windowHeight)
 	};
 }
 
@@ -97,34 +108,45 @@ std::vector<const char*> AfterglowWindow::getRequiredExtensions() {
 }
 
 AfterglowInput& AfterglowWindow::input() {
-	return _context->input;
+	return _impl->input;
 }
 
 const AfterglowInput& AfterglowWindow::input() const {
-	return _context->input;
+	return _impl->input;
 }
+
+//void AfterglowWindow::setPresented(bool presented) {
+//	_presented = presented;
+//}
 
 void AfterglowWindow::lockCursor() {
 	// Store lock status and update it in this->update(), 
 	// due to these two functions (Lock / UnlockCursor) would be used in other threads.
-	_context->shouldLockCursor = true;
+	_impl->shouldLockCursor = true;
 }
 
 void AfterglowWindow::unlockCursor() {
-	_context->shouldUnlockCursor = true;
+	_impl->shouldUnlockCursor = true;
 }
 
-AfterglowWindow::Context::Context(GLFWwindow* glfwWindow) : window(glfwWindow) {
-	glfwSetWindowSizeCallback(window, framebufferResizeCallback);
+void AfterglowWindow::bindUI(AfterglowGUI& ui) {
+	_ui = &ui;
+}
+
+AfterglowWindow::Impl::Impl(GLFWwindow* glfwWindow) : window(glfwWindow) {
+	glfwSetWindowSizeCallback(window, windowResizeCallback);
 
 	glfwSetKeyCallback(window, keyCallback);
 	glfwSetMouseButtonCallback(window, mouseButtonCallback);
 	glfwSetCursorPosCallback(window, cursorPosCallback);
 	glfwSetScrollCallback(window, scrollCallback);
 	glfwSetCursorEnterCallback(window, cursorEnterCallback);
+	glfwSetCharCallback(window, charCallback);
+
+	glfwGetWindowSize(window, &windowWidth, &windowHeight);
 }
 
-void AfterglowWindow::Context::updateCursor() {
+void AfterglowWindow::Impl::updateCursor() {
 if (shouldLockCursor) {
 		glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 		shouldLockCursor = false;
@@ -135,32 +157,46 @@ if (shouldLockCursor) {
 	}
 }
 
-void AfterglowWindow::Context::framebufferResizeCallback(GLFWwindow* glfwWindow, int width, int height) {
+void AfterglowWindow::Impl::windowResizeCallback(GLFWwindow* glfwWindow, int width, int height) {
 	AfterglowWindow* window = reinterpret_cast<AfterglowWindow*>(glfwGetWindowUserPointer(glfwWindow));
+	glfwGetWindowSize(glfwWindow, &window->_impl->windowWidth, &window->_impl->windowHeight);	
 	window->_resized = true;
+
+	// Wait until present submit successfully, see AfterglowPresentQueue.cpp
+	// while (!window->_presented) {}
 }
 
-void AfterglowWindow::Context::keyCallback(GLFWwindow* glfwWindow, int key, int scancode, int action, int mods) {
+void AfterglowWindow::Impl::keyCallback(GLFWwindow* glfwWindow, int key, int scancode, int action, int mods) {
 	AfterglowWindow* window = reinterpret_cast<AfterglowWindow*>(glfwGetWindowUserPointer(glfwWindow));
-	window->_context->input.updateKeyFromGLFW(key, action);
+	window->_impl->input.updateKeyFromGLFW(key, action);
+	window->_ui->keyCallback(key, scancode, action, mods);
 }
 
-void AfterglowWindow::Context::mouseButtonCallback(GLFWwindow* glfwWindow, int button, int action, int mods) {
+void AfterglowWindow::Impl::mouseButtonCallback(GLFWwindow* glfwWindow, int button, int action, int mods) {
 	AfterglowWindow* window = reinterpret_cast<AfterglowWindow*>(glfwGetWindowUserPointer(glfwWindow));
-	window->_context->input.updateMouseButtonFromGLFW(button, action);
+	window->_impl->input.updateMouseButtonFromGLFW(button, action);
+	window->_ui->mouseButtonCallback(button, action, mods);
 }
 
-void AfterglowWindow::Context::cursorPosCallback(GLFWwindow* glfwWindow, double posX, double posY) {
+void AfterglowWindow::Impl::cursorPosCallback(GLFWwindow* glfwWindow, double posX, double posY) {
 	AfterglowWindow* window = reinterpret_cast<AfterglowWindow*>(glfwGetWindowUserPointer(glfwWindow));
-	window->_context->input.updateCursorPositionFromGLFW(posX, posY);
+	window->_impl->input.updateCursorPositionFromGLFW(posX, posY);
+	window->_ui->cursorPosCallback(posX, posY);
 }
 
-void AfterglowWindow::Context::scrollCallback(GLFWwindow* glfwWindow, double offsetX, double offsetY) {
+void AfterglowWindow::Impl::scrollCallback(GLFWwindow* glfwWindow, double offsetX, double offsetY) {
 	AfterglowWindow* window = reinterpret_cast<AfterglowWindow*>(glfwGetWindowUserPointer(glfwWindow));
-	window->_context->input.updateScrollFromGLFW(offsetX, offsetY);
+	window->_impl->input.updateScrollFromGLFW(offsetX, offsetY);
+	window->_ui->scrollCallback(offsetX, offsetY);
 }
 
-void AfterglowWindow::Context::cursorEnterCallback(GLFWwindow* glfwWindow, int entered) {
+void AfterglowWindow::Impl::cursorEnterCallback(GLFWwindow* glfwWindow, int entered) {
 	AfterglowWindow* window = reinterpret_cast<AfterglowWindow*>(glfwGetWindowUserPointer(glfwWindow));
-	window->_context->input.updateCursorEnteredFromGLFW(entered);
+	window->_impl->input.updateCursorEnteredFromGLFW(entered);
+	window->_ui->cursorEnterCallback(entered);
+}
+
+void AfterglowWindow::Impl::charCallback(GLFWwindow* glfwWindow, unsigned int chr) {
+	AfterglowWindow* window = reinterpret_cast<AfterglowWindow*>(glfwGetWindowUserPointer(glfwWindow));
+	window->_ui->charCallback(chr);
 }

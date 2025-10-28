@@ -1,7 +1,9 @@
 #include "AfterglowPresentQueue.h"
 #include <stdexcept>
 
+#include "AfterglowFramebufferManager.h"
 #include "AfterglowWindow.h"
+#include "AfterglowPhysicalDevice.h"
 
 AfterglowPresentQueue::AfterglowPresentQueue(AfterglowDevice& device) : 
 	AfterglowQueue(device, device.physicalDevice().presentFamilyIndex()) {
@@ -22,12 +24,17 @@ void AfterglowPresentQueue::submit(AfterglowWindow& window, AfterglowFramebuffer
 	presentInfo.pResults = nullptr;
 
 	// Finally we submit the request to present an image to the swap chain!
+	// DEBUG_COST_INFO_BEGIN("PresentSubmit");
 	VkResult result = vkQueuePresentKHR(_queue, &presentInfo);
 	if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || window.resized()) {
 		window.waitIdle([&framebufferManager](){ framebufferManager.recreate(); });
 	}
 	else if (result != VK_SUCCESS) {
-		throw std::runtime_error("[AfterglowPresentQueue] Failed to present swap chain image.");
+		throw std::runtime_error("[AfterglowPresentQueue] Failed to present swapchain image.");
 	}
+	//else {
+	//	window.setPresented(true);
+	//}
+	// DEBUG_COST_INFO_END;
 }
 

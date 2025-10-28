@@ -2,21 +2,25 @@
 
 #include "AfterglowMaterialManager.h"
 #include "AfterglowAssetMonitor.h"
+#include "AfterglowMaterialAsset.h"
 #include "AfterglowMaterialInstanceAsset.h"
+#include "AfterglowMaterialLayout.h"
+#include "AfterglowMaterialResource.h"
+#include "AfterglowComputeTask.h"
 
 
 // TODO: Remove build files from SVN
 
-struct AfterglowMaterialAssetRegistrar::Context {
-	using UpdateShaderAssetReferencesFunc = void(Context::*)(const std::string&, const std::string&);
+struct AfterglowMaterialAssetRegistrar::Impl {
+	using UpdateShaderAssetReferencesFunc = void(Impl::*)(const std::string&, const std::string&);
 
-	Context(AfterglowMaterialManager& materialManagerRef, AfterglowAssetMonitor& assetMonitorRef);
+	Impl(AfterglowMaterialManager& materialManagerRef, AfterglowAssetMonitor& assetMonitorRef);
 
 	inline void initAssetMonitorCallbacks();
 
-	static void modifiedMateiralAssetCallback(Context& context, const std::string& modifiedPath, AfterglowAssetMonitor::TagInfos& tagInfos);
-	static void modifiedMateiralInstanceAssetCallback(Context& context, const std::string& modifiedPath, AfterglowAssetMonitor::TagInfos& tagInfos);
-	static void modifiedShaderAssetCallback(Context& context, const std::string& modifiedPath, AfterglowAssetMonitor::TagInfos& tagInfos);
+	static void modifiedMateiralAssetCallback(Impl& context, const std::string& modifiedPath, AfterglowAssetMonitor::TagInfos& tagInfos);
+	static void modifiedMateiralInstanceAssetCallback(Impl& context, const std::string& modifiedPath, AfterglowAssetMonitor::TagInfos& tagInfos);
+	static void modifiedShaderAssetCallback(Impl& context, const std::string& modifiedPath, AfterglowAssetMonitor::TagInfos& tagInfos);
 
 	inline void createMaterialFromAsset(const AfterglowMaterialAsset& materialAsset);
 
@@ -35,7 +39,7 @@ struct AfterglowMaterialAssetRegistrar::Context {
 
 
 AfterglowMaterialAssetRegistrar::AfterglowMaterialAssetRegistrar(AfterglowMaterialManager& materialManager, AfterglowAssetMonitor& assetMonitor) :
-	_context(std::make_unique<Context>(materialManager, assetMonitor)) {
+	_impl(std::make_unique<Impl>(materialManager, assetMonitor)) {
 }
 
 AfterglowMaterialAssetRegistrar::~AfterglowMaterialAssetRegistrar() {
@@ -43,23 +47,23 @@ AfterglowMaterialAssetRegistrar::~AfterglowMaterialAssetRegistrar() {
 }
 
 std::string AfterglowMaterialAssetRegistrar::registerMaterialAsset(const std::string& materialPath) {
-	std::string materialName = _context->materialManager.errorMaterialName();
+	std::string materialName = _impl->materialManager.errorMaterialName();
 	try {
 		AfterglowMaterialAsset materialAsset(materialPath);
 		materialName = materialAsset.materialName();
-		_context->assetMonitor.registerAsset(
+		_impl->assetMonitor.registerAsset(
 			AfterglowAssetMonitor::AssetType::Material,
 			materialPath,
-			{ {Context::materialNameTag, materialName } }
+			{ {Impl::materialNameTag, materialName } }
 		);
-		_context->createMaterialFromAsset(materialAsset);
+		_impl->createMaterialFromAsset(materialAsset);
 	}
 	catch (const std::runtime_error& error) {
 		// Handle initialize failed.
-		_context->assetMonitor.registerAsset(
+		_impl->assetMonitor.registerAsset(
 			AfterglowAssetMonitor::AssetType::Material,
 			materialPath,
-			{ {Context::materialNameTag, materialPath} }
+			{ {Impl::materialNameTag, materialPath} }
 		);
 		DEBUG_CLASS_ERROR(std::format(
 			"Material path: {}\n Some errors were occurred when creating material asset: {}",
@@ -70,17 +74,17 @@ std::string AfterglowMaterialAssetRegistrar::registerMaterialAsset(const std::st
 }
 
 std::string AfterglowMaterialAssetRegistrar::registerMaterialInstanceAsset(const std::string& materialInstancePath) {
-	auto& materialManager = _context->materialManager;
+	auto& materialManager = _impl->materialManager;
 	std::string materialInstanceName = materialManager.errorMaterialInstanceName();
 	std::string parentMaterialName = materialManager.errorMaterialName();
 	try {
 		AfterglowMaterialInstanceAsset materialInstanceAsset(materialInstancePath);
 		materialInstanceName = materialInstanceAsset.materialnstanceName();
 		parentMaterialName = materialInstanceAsset.parentMaterialName();
-		_context->assetMonitor.registerAsset(
+		_impl->assetMonitor.registerAsset(
 			AfterglowAssetMonitor::AssetType::MaterialInstance,
 			materialInstancePath,
-			{ {"materialInstanceName", materialInstanceName}, {Context::materialNameTag, parentMaterialName } }
+			{ {"materialInstanceName", materialInstanceName}, {Impl::materialNameTag, parentMaterialName } }
 		);
 		auto* materialLayout = materialManager.materialLayout(parentMaterialName);
 		if (!materialLayout) {
@@ -99,26 +103,26 @@ std::string AfterglowMaterialAssetRegistrar::registerMaterialInstanceAsset(const
 }
 
 void AfterglowMaterialAssetRegistrar::unregisterMaterialAsset(const std::string& materialPath) {
-	_context->assetMonitor.unregisterAsset(materialPath);
+	_impl->assetMonitor.unregisterAsset(materialPath);
 	// Try to clear relative material layout from manager
 	try {
 		AfterglowMaterialAsset materialAsset(materialPath);
 		std::string materialName = materialAsset.materialName();
 		auto& material = materialAsset.material();
 		// unregister relative shaders
-		_context->decreaseShaderAssetReference(material.fragmentShaderPath(), materialName);
-		_context->decreaseShaderAssetReference(material.vertexShaderPath(), materialName);
+		_impl->decreaseShaderAssetReference(material.fragmentShaderPath(), materialName);
+		_impl->decreaseShaderAssetReference(material.vertexShaderPath(), materialName);
 		if (material.hasComputeTask()) {
-			_context->decreaseShaderAssetReference(material.computeTask().computeShaderPath(), materialName);
+			_impl->decreaseShaderAssetReference(material.computeTask().computeShaderPath(), materialName);
 			// Unregister initComputeShader assets.
 			for (const auto& ssboInfo : material.computeTask().ssboInfos()) {
 				if (ssboInfo.initMode != compute::SSBOInitMode::ComputeShader) {
 					continue;
 				}
-				_context->decreaseShaderAssetReference(ssboInfo.initResource, materialName);
+				_impl->decreaseShaderAssetReference(ssboInfo.initResource, materialName);
 			}
 		}
-		_context->materialManager.removeMaterial(materialAsset.materialName());
+		_impl->materialManager.removeMaterial(materialAsset.materialName());
 		// Here relatived material instance assets are remained. Until unregisterMaterialInstance() is invoked manually.
 	}
 	catch (const std::exception& assetException) { 
@@ -127,22 +131,22 @@ void AfterglowMaterialAssetRegistrar::unregisterMaterialAsset(const std::string&
 }
 
 void AfterglowMaterialAssetRegistrar::unregisterMaterialInstanceAsset(const std::string& materialInstancePath) {
-	_context->assetMonitor.unregisterAsset(materialInstancePath);
+	_impl->assetMonitor.unregisterAsset(materialInstancePath);
 	try {
 		AfterglowMaterialInstanceAsset materialInstanceAsset(materialInstancePath);
-		_context->materialManager.removeMaterialInstance(materialInstanceAsset.materialnstanceName());
+		_impl->materialManager.removeMaterialInstance(materialInstanceAsset.materialnstanceName());
 	}
 	catch (const std::exception& assetException) {
 		DEBUG_CLASS_ERROR(std::string("Some errors occurred when unregistering the material instance asset: \n") + assetException.what());
 	}
 }
 
-AfterglowMaterialAssetRegistrar::Context::Context(AfterglowMaterialManager& materialManagerRef, AfterglowAssetMonitor& assetMonitorRef) : 
+AfterglowMaterialAssetRegistrar::Impl::Impl(AfterglowMaterialManager& materialManagerRef, AfterglowAssetMonitor& assetMonitorRef) : 
 	materialManager(materialManagerRef), assetMonitor(assetMonitorRef) {
 	initAssetMonitorCallbacks();
 }
 
-inline void AfterglowMaterialAssetRegistrar::Context::initAssetMonitorCallbacks() {
+inline void AfterglowMaterialAssetRegistrar::Impl::initAssetMonitorCallbacks() {
 	// Catch error, print a debug info , don't let exception leave.
 	assetMonitor.registerModifiedCallback(
 		AfterglowAssetMonitor::AssetType::Material,
@@ -166,15 +170,15 @@ inline void AfterglowMaterialAssetRegistrar::Context::initAssetMonitorCallbacks(
 	);
 }
 
-inline void AfterglowMaterialAssetRegistrar::Context::createMaterialFromAsset(const AfterglowMaterialAsset& materialAsset) {
+inline void AfterglowMaterialAssetRegistrar::Impl::createMaterialFromAsset(const AfterglowMaterialAsset& materialAsset) {
 	std::string materialName = materialAsset.materialName();
 	materialManager.createMaterial(materialName, materialAsset.material(), materialAsset);
 	auto& materialLayout = *materialManager.materialLayout(materialName);
 	auto& material = materialLayout.material();
-	updateShaderAssetReferences(&Context::increaseShaderAssetReference, material, materialName);
+	updateShaderAssetReferences(&Impl::increaseShaderAssetReference, material, materialName);
 }
 
-void AfterglowMaterialAssetRegistrar::Context::modifiedMateiralAssetCallback(Context& context, const std::string& modifiedPath, AfterglowAssetMonitor::TagInfos& tagInfos) {
+void AfterglowMaterialAssetRegistrar::Impl::modifiedMateiralAssetCallback(Impl& context, const std::string& modifiedPath, AfterglowAssetMonitor::TagInfos& tagInfos) {
 	try {
 		AfterglowMaterialAsset materialAsset(modifiedPath);
 		std::string newMaterialName = materialAsset.materialName();
@@ -183,7 +187,7 @@ void AfterglowMaterialAssetRegistrar::Context::modifiedMateiralAssetCallback(Con
 		auto& oldMaterialName = tagInfos[materialNameTag];
 		auto* oldMaterial = context.materialManager.material(oldMaterialName);
 		if (oldMaterial) {
-			context.updateShaderAssetReferences(&Context::decreaseShaderAssetReference, *oldMaterial, oldMaterialName);
+			context.updateShaderAssetReferences(&Impl::decreaseShaderAssetReference, *oldMaterial, oldMaterialName);
 		}
 
 		// If material name was changed, remove old material.
@@ -194,13 +198,13 @@ void AfterglowMaterialAssetRegistrar::Context::modifiedMateiralAssetCallback(Con
 		context.createMaterialFromAsset(materialAsset);
 	}
 	catch (const std::exception& assetException) {
-		DEBUG_TYPE_ERROR(Context, std::format(
+		DEBUG_TYPE_ERROR(Impl, std::format(
 			"Some errors were occurred when creating material asset: {} \n", assetException.what()
 		));
 	}
 }
 
-void AfterglowMaterialAssetRegistrar::Context::modifiedMateiralInstanceAssetCallback(Context& context, const std::string& modifiedPath, AfterglowAssetMonitor::TagInfos& tagInfos) {
+void AfterglowMaterialAssetRegistrar::Impl::modifiedMateiralInstanceAssetCallback(Impl& context, const std::string& modifiedPath, AfterglowAssetMonitor::TagInfos& tagInfos) {
 	auto& materialManager = context.materialManager;
 	try {
 		AfterglowMaterialInstanceAsset materialInstanceAsset(modifiedPath);
@@ -223,7 +227,7 @@ void AfterglowMaterialAssetRegistrar::Context::modifiedMateiralInstanceAssetCall
 				tagInfos[materialNameTag] = newMaterialName;
 			}
 			else {
-				DEBUG_TYPE_ERROR(Context, std::format(
+				DEBUG_TYPE_ERROR(Impl, std::format(
 					"Failed to recreate material instance from asset, due to it's parent material name is not found: {}\n", newMaterialName
 				));
 			}
@@ -241,18 +245,18 @@ void AfterglowMaterialAssetRegistrar::Context::modifiedMateiralInstanceAssetCall
 		materialManager.submitMaterialInstance(newMaterialInstanceName);
 	}
 	catch (const std::exception& assetException) {
-		DEBUG_TYPE_ERROR(Context, std::format(
+		DEBUG_TYPE_ERROR(Impl, std::format(
 			"Some errors occurred when creating material instance asset: {}\n", assetException.what())
 		);
 	}
 }
 
-void AfterglowMaterialAssetRegistrar::Context::modifiedShaderAssetCallback(Context& context, const std::string& modifiedPath, AfterglowAssetMonitor::TagInfos& tagInfos) {
+void AfterglowMaterialAssetRegistrar::Impl::modifiedShaderAssetCallback(Impl& context, const std::string& modifiedPath, AfterglowAssetMonitor::TagInfos& tagInfos) {
 	auto& materialManager = context.materialManager;
 	// Copy the tagInfos due to shader tagInfos will be changed by decreaseShaderAssetReference().
 	AfterglowAssetMonitor::TagInfos copiedTagInfos = tagInfos;
 	for (const auto& [materialName, verificationInfo] : copiedTagInfos) {
-		if (verificationInfo != Context::materialNameTag) {
+		if (verificationInfo != Impl::materialNameTag) {
 			continue;
 		}
 		auto* matLayout = materialManager.materialLayout(materialName);
@@ -286,7 +290,7 @@ void AfterglowMaterialAssetRegistrar::Context::modifiedShaderAssetCallback(Conte
 		catch (std::runtime_error& error) {
 			// If failed to compile shaders, use error material instead.
 			materialManager.applyErrorShaders(*matLayout);
-			DEBUG_TYPE_ERROR(Context, std::format(
+			DEBUG_TYPE_ERROR(Impl, std::format(
 				"Failed to update material, some shader compilation errors were occurred: {}", error.what()
 			));
 		}
@@ -297,7 +301,7 @@ void AfterglowMaterialAssetRegistrar::Context::modifiedShaderAssetCallback(Conte
 	}
 }
 
-inline void AfterglowMaterialAssetRegistrar::Context::increaseShaderAssetReference(const std::string& assetPath, const std::string& materialName) {
+inline void AfterglowMaterialAssetRegistrar::Impl::increaseShaderAssetReference(const std::string& assetPath, const std::string& materialName) {
 	auto* assetInfo = assetMonitor.registeredAssetInfo(assetPath);
 	if (!assetInfo) {
 		assetInfo = assetMonitor.registerAsset(AfterglowAssetMonitor::AssetType::Shader, assetPath);
@@ -309,7 +313,7 @@ inline void AfterglowMaterialAssetRegistrar::Context::increaseShaderAssetReferen
 	assetInfo->tagInfos[materialName] = materialNameTag;
 }
 
-inline void AfterglowMaterialAssetRegistrar::Context::decreaseShaderAssetReference(const std::string& assetPath, const std::string& materialName) {
+inline void AfterglowMaterialAssetRegistrar::Impl::decreaseShaderAssetReference(const std::string& assetPath, const std::string& materialName) {
 	auto* assetInfo = assetMonitor.registeredAssetInfo(assetPath);
 	if (!assetInfo) {
 		DEBUG_CLASS_WARNING("The shader asset was not registered.");
@@ -326,7 +330,7 @@ inline void AfterglowMaterialAssetRegistrar::Context::decreaseShaderAssetReferen
 	}
 }
 
-inline void AfterglowMaterialAssetRegistrar::Context::updateShaderAssetReferences(UpdateShaderAssetReferencesFunc func, AfterglowMaterial& material, const std::string& materialName) {
+inline void AfterglowMaterialAssetRegistrar::Impl::updateShaderAssetReferences(UpdateShaderAssetReferencesFunc func, AfterglowMaterial& material, const std::string& materialName) {
 	(this->*func)(material.vertexShaderPath(), materialName);
 	(this->*func)(material.fragmentShaderPath(), materialName);
 	if (material.hasComputeTask()) {

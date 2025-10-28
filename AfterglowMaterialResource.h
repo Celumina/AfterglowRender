@@ -40,7 +40,7 @@ public:
 		AfterglowSharedTexturePool& texturePool
 	);
 
-	AfterglowDevice& device();
+	AfterglowDevice& device() noexcept;
 
 	void setMateiralInstance(const AfterglowMaterialInstance& materialInstance);
 

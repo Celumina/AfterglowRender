@@ -1,10 +1,16 @@
 #pragma once
 #include "AfterglowObject.h"
-
-#include "AfterglowComponentPool.h"
 #include "AfterglowSharedMeshPool.h"
 #include "AfterglowMeshResource.h"
 #include "AfterglowShape.h"
+
+#include "AfterglowComponentBase.h"
+
+class AfterglowCommponentPool;
+class AfterglowTransformComponent;
+class AfterglowComputeComponent;
+class AfterglowCameraComponent;
+class AfterglowStaticMeshComponent;
 
 class AfterglowMeshManager : public AfterglowObject {
 public:
@@ -21,10 +27,10 @@ public:
 		ubo::MeshUniform uniform;
 	};
 
-	using MeshResources = std::unordered_map<AfterglowStaticMeshComponent::ID, AfterglowMeshResource>;
+	using MeshResources = std::unordered_map<AfterglowComponentBase::ID, AfterglowMeshResource>;
 	// Use for draw mesh from code directly, instead of load from asset.
 	using ShapeMeshes = std::vector<ShapeMesh>;
-	using ComputeMeshInfos = std::unordered_map<AfterglowComputeComponent::ID, ComputeMeshInfo>;
+	using ComputeMeshInfos = std::unordered_map<AfterglowComponentBase::ID, ComputeMeshInfo>;
 
 	AfterglowMeshManager(AfterglowCommandPool& commandPool, AfterglowGraphicsQueue& graphicsQueue);
 
@@ -34,7 +40,7 @@ public:
 
 	ShapeMesh& shapeMesh(uint32_t index);
 
-	AfterglowDevice& device();
+	AfterglowDevice& device() noexcept;
 	MeshResources& meshResources();
 	ShapeMeshes& shapeMeshes();
 
@@ -48,10 +54,10 @@ private:
 	// @brief: register a mesh buffer, if buffer exists, return it.
 	// @desc: call this function every frame is the static mesh is exists.
 	// @return:  activate successfully.
-	bool activateStaticMesh(const AfterglowStaticMeshComponent& staticMesh);
+	bool activateStaticMesh(AfterglowStaticMeshComponent& staticMesh);
 
 	// @brief: unregister a mesh buffer from manager.
-	void removeStaticMesh(AfterglowStaticMeshComponent::ID id);
+	void removeStaticMesh(AfterglowComponentBase::ID id);
 
 	void calculateMeshUniform(
 		const AfterglowTransformComponent& transform,

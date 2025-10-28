@@ -2,6 +2,11 @@
 #include <cmath>
 
 
+#include "AfterglowCommandPool.h"
+#include "AfterglowGraphicsQueue.h"
+#include "AfterglowStagingBuffer.h"
+
+
 AfterglowTextureImage::AfterglowTextureImage(AfterglowDevice& device) : 
 	AfterglowImage(device), _mipLevels(1) {
 }

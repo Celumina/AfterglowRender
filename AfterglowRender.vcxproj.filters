@@ -37,6 +37,18 @@
     <Filter Include="Source Files\Definitions">
       <UniqueIdentifier>{44a2756f-4c62-4262-9355-d4f6bb482fff}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\ImGui">
+      <UniqueIdentifier>{54af422e-42c2-450f-a49c-27711cc15c7c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\ImGui">
+      <UniqueIdentifier>{d980fd95-d5c5-47d6-809d-855c94403464}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Panels">
+      <UniqueIdentifier>{33197d15-e918-4f5c-b60f-067c94b59a09}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Panels">
+      <UniqueIdentifier>{cedfc1a4-fc23-417d-8aa1-cb039f4d64b1}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Main.cpp">
@@ -365,6 +377,54 @@
     </ClCompile>
     <ClCompile Include="AfterglowMaterialAssetRegistrar.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Libraries\imgui-1.92.3\imgui.cpp">
+      <Filter>Source Files\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="Libraries\imgui-1.92.3\imgui_demo.cpp">
+      <Filter>Source Files\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="Libraries\imgui-1.92.3\imgui_draw.cpp">
+      <Filter>Source Files\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="Libraries\imgui-1.92.3\imgui_tables.cpp">
+      <Filter>Source Files\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="Libraries\imgui-1.92.3\imgui_widgets.cpp">
+      <Filter>Source Files\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="Libraries\imgui-1.92.3\backends\imgui_impl_glfw.cpp">
+      <Filter>Source Files\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="Libraries\imgui-1.92.3\backends\imgui_impl_vulkan.cpp">
+      <Filter>Source Files\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="AfterglowPanel.cpp">
+      <Filter>Source Files\Panels</Filter>
+    </ClCompile>
+    <ClCompile Include="AfterglowRenderPanel.cpp">
+      <Filter>Source Files\Panels</Filter>
+    </ClCompile>
+    <ClCompile Include="AfterglowGUI.cpp">
+      <Filter>Source Files\Panels</Filter>
+    </ClCompile>
+    <ClCompile Include="AfterglowRenderStatus.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="AfterglowTicker.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="AfterglowConsolePanel.cpp">
+      <Filter>Source Files\Panels</Filter>
+    </ClCompile>
+    <ClCompile Include="AfterglowSystemPanel.cpp">
+      <Filter>Source Files\Panels</Filter>
+    </ClCompile>
+    <ClCompile Include="AfterglowFPSCarousel.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="AfterglowScenePanel.cpp">
+      <Filter>Source Files\Panels</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -715,6 +775,60 @@
     </ClInclude>
     <ClInclude Include="AfterglowMaterialAssetRegistrar.h">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Libraries\imgui-1.92.3\imconfig.h">
+      <Filter>Header Files\ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="Libraries\imgui-1.92.3\imgui.h">
+      <Filter>Header Files\ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="Libraries\imgui-1.92.3\imgui_internal.h">
+      <Filter>Header Files\ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="Libraries\imgui-1.92.3\imstb_rectpack.h">
+      <Filter>Header Files\ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="Libraries\imgui-1.92.3\imstb_textedit.h">
+      <Filter>Header Files\ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="Libraries\imgui-1.92.3\imstb_truetype.h">
+      <Filter>Header Files\ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="Libraries\imgui-1.92.3\backends\imgui_impl_glfw.h">
+      <Filter>Header Files\ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="Libraries\imgui-1.92.3\backends\imgui_impl_vulkan.h">
+      <Filter>Header Files\ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="AfterglowPanel.h">
+      <Filter>Header Files\Panels</Filter>
+    </ClInclude>
+    <ClInclude Include="AfterglowRenderPanel.h">
+      <Filter>Header Files\Panels</Filter>
+    </ClInclude>
+    <ClInclude Include="AfterglowGUI.h">
+      <Filter>Header Files\Panels</Filter>
+    </ClInclude>
+    <ClInclude Include="AfterglowRenderStatus.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Carousel.h">
+      <Filter>Header Files\Shared</Filter>
+    </ClInclude>
+    <ClInclude Include="AfterglowTicker.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="AfterglowConsolePanel.h">
+      <Filter>Header Files\Panels</Filter>
+    </ClInclude>
+    <ClInclude Include="AfterglowSystemPanel.h">
+      <Filter>Header Files\Panels</Filter>
+    </ClInclude>
+    <ClInclude Include="AfterglowFPSCarousel.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="AfterglowScenePanel.h">
+      <Filter>Header Files\Panels</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

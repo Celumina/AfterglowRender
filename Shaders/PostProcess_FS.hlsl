@@ -4,6 +4,7 @@
 
 #include "ColorConversion.hlsl"
 #include "Random.hlsl"
+#include "PostEffects.hlsl"
 
 struct VSOutput {
 	[[vk::location(0)]] float4 position : SV_POSITION;
@@ -26,30 +27,6 @@ PSOutput main(VSOutput input) {
 
 	float4 testTexColor = testTex.Sample(testTexSampler, uniformUV);
 	testTexColor *= testTexColor.w;
-	
-
-	float depthWeight = max(0.0, (depth - 0.999) * 1000.0);
-	// float focuWeight = pow(abs(depthWeight - 0.1), 2.0) + Pow4(0.8 - depthWeight);
-	float focuWeight = saturate(Pow5(depthWeight) + Pow5(100.0 * (1.0 - depth)));
-	// output.color = lerp(output.color, Grayscale(output.color), depthWeight);
-	
-	// Average blur
-	float4 avgBlur = 0.0;
-	int kernelWidth = int(12.0 * focuWeight) * 2 + 2;
-	// static const int kernelWidth = 24;
-	static const int loadInterval = 4;
-	for (int indexX = -kernelWidth / 2 + 1; indexX < kernelWidth / 2; ++indexX) {
-		for (int indexY = -kernelWidth / 2 + 1; indexY < kernelWidth / 2; ++indexY) {
-			// Box Filter
-			float boxWeight = (1.0 / float(kernelWidth * kernelWidth));
-			// Tent Filter
-			float2 tent = float2(kernelWidth - abs(int2(indexX, indexY))) / (float(kernelWidth) - 0.5);
-			float tentWeight = tent.x * tent.y * boxWeight * 2;
-			// float interestingWeight = (((kernelWidth / 4) - abs(indexX))) * (((kernelWidth / 4) - abs(indexY))) * boxWeight;
-			avgBlur += sceneColorTexture.Load(uint3(screenPos + loadInterval * int2(indexX, indexY), 0)) * tentWeight;
-
-		}
-	}
 
 	// // Hash blur
 	// float2 hashValue = (float2(
@@ -95,8 +72,9 @@ PSOutput main(VSOutput input) {
 	// Note that here output color was encoded to sRGB by swapchain, so color in screenShot will never be 0.5.
 	// Linear render result will be encoded to sRGB by swapchain automatically.
 	// output.color.xyz = 0.5;
-	output.color = color;
+	output.color = color; //Grayscale(color);
 	// output.color.xyz = edge.xyz;
+	// output.color.xyz = SceneColorLinearBlur(input.texCoord0, depth);
 
 	// Cursor test.
 	output.color += saturate(0.05 - distance(float2(screenResolution.x * invScreenResolution.y, 1.0) * cursorPosition * invScreenResolution, uniformUV));

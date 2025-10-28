@@ -9,7 +9,7 @@ public:
 	AfterglowDescriptorPool(AfterglowDevice& device);
 	~AfterglowDescriptorPool();
 
-	AfterglowDevice& device();
+	AfterglowDevice& device() noexcept;
 
 	bool isCreated();
 

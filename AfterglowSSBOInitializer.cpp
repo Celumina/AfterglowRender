@@ -1,4 +1,6 @@
 #include "AfterglowSSBOInitializer.h"
+#include "AfterglowStructuredData.h"
+#include "AfterglowSSBOInfo.h"
 
 #include <random>
 #include <glm/glm.hpp>
@@ -27,6 +29,9 @@ AfterglowSSBOInitializer::AfterglowSSBOInitializer(const AfterglowSSBOInfo& ssbo
 		throw std::runtime_error("[AfterglowSSBOInitializer] Unsupported init mode.");
 	}
 
+}
+
+AfterglowSSBOInitializer::~AfterglowSSBOInitializer() {
 }
 
 const char* AfterglowSSBOInitializer::data() const {

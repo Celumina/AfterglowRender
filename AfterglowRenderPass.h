@@ -18,7 +18,7 @@ public:
 	AfterglowRenderPass(AfterglowSwapchain& swapchain);
 	~AfterglowRenderPass();
  
-	inline AfterglowDevice& device();
+	inline AfterglowDevice& device() noexcept;
 	AfterglowSwapchain& swapchain();
 
 	AfterglowSubpassContext& subpassContext();

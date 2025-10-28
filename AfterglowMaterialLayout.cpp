@@ -1,6 +1,7 @@
 #include "AfterglowMaterialLayout.h"
 
 #include "AfterglowMaterialAsset.h"
+#include "AfterglowComputeTask.h"
 #include "DebugUtilities.h"
 
 AfterglowMaterialLayout::AfterglowMaterialLayout(AfterglowRenderPass& renderPass, const AfterglowMaterial& refMaterial) :
@@ -23,7 +24,7 @@ const AfterglowMaterialLayout::RawDescriptorSetLayouts& AfterglowMaterialLayout:
 	return _rawDescriptorSetLayouts;
 }
 
-AfterglowDevice& AfterglowMaterialLayout::device() {
+AfterglowDevice& AfterglowMaterialLayout::device() noexcept {
 	return _renderPass.device();
 }
 
@@ -39,15 +40,19 @@ AfterglowComputePipeline& AfterglowMaterialLayout::computePipeline() {
 	return _computeLayout->pipeline;
 }
 
-bool AfterglowMaterialLayout::shouldInitSSBOs() {
-	return _computeLayout->shouldInitSSBOs[device().currentFrameIndex()];
+bool AfterglowMaterialLayout::initSSBOsInitialized() {
+	for (bool shouldInit : _computeLayout->inFlightShouldInitSSBOs) {
+		if (shouldInit) {
+			return false;
+		}
+	}
+	return true;
 }
 
-bool AfterglowMaterialLayout::shouldInitSSBOsTrigger() {
-	verifyComputeTask();
+bool AfterglowMaterialLayout::shouldInitFrameSSBOsTrigger() {
 	// TODO: Here read only ssbo will also initialize twice, bad performance.
-	bool shouldInitSSBOs = _computeLayout->shouldInitSSBOs[device().currentFrameIndex()];
-	_computeLayout->shouldInitSSBOs[device().currentFrameIndex()] = false;
+	bool shouldInitSSBOs = _computeLayout->inFlightShouldInitSSBOs[device().currentFrameIndex()];
+	_computeLayout->inFlightShouldInitSSBOs[device().currentFrameIndex()] = false;
 	return shouldInitSSBOs;
 }
 
@@ -178,14 +183,15 @@ void AfterglowMaterialLayout::updateComputePipeline() {
 	computePipeline.setComputeShader(_computeLayout->shader);
 
 	// SSBO Initialization compute pipelines
-	auto computeShaderInitSSBOInfoRefs = _material.computeTask().computeShaderInitSSBOInfos();
+	auto& computeTask = _material.computeTask();
+	AfterglowComputeTask::SSBOInfoRefs computeShaderInitSSBOInfoRefs = computeTask.computeShaderInitSSBOInfos();
 	if (computeShaderInitSSBOInfoRefs.empty()) {
 		return;
 	}
 	if (!materialAsset) {
 		materialAsset = std::make_unique<AfterglowMaterialAsset>(_material);
 	}
-	std::fill(_computeLayout->shouldInitSSBOs.begin(), _computeLayout->shouldInitSSBOs.end(), true);
+	std::fill(_computeLayout->inFlightShouldInitSSBOs.begin(), _computeLayout->inFlightShouldInitSSBOs.end(), true);
 
 	_computeLayout->ssboInitPipelines.clear();
 	_computeLayout->ssboInitShaders.clear();
@@ -211,9 +217,11 @@ void AfterglowMaterialLayout::updateComputePipeline() {
 				_material.computeTask().computeShaderPath()
 			);
 		}
-		catch (std::runtime_error& error) {
-			DEBUG_CLASS_ERROR(std::format("Failed to compile SSBO initializer compute shader: {}", ssboInfo->initResource));
-			std::fill(_computeLayout->shouldInitSSBOs.begin(), _computeLayout->shouldInitSSBOs.end(), false);
+		catch (const std::runtime_error& error) {
+			DEBUG_CLASS_ERROR(std::format(
+				"Failed to compile SSBO initializer compute shader: {}, due to: {}", ssboInfo->initResource, error.what()
+			));
+			std::fill(_computeLayout->inFlightShouldInitSSBOs.begin(), _computeLayout->inFlightShouldInitSSBOs.end(), false);
 			break;
 		}
 
@@ -221,6 +229,8 @@ void AfterglowMaterialLayout::updateComputePipeline() {
 		// Comment out the code to reinitialize buffers when other shaders are modified.
 		// ssboInfo->initMode = compute::SSBOInitMode::Zero;
 	}
+	// When the compute pipeline is updated, dispatch once frequecy task again.
+	computeTask.setDispatchStatus(AfterglowComputeTask::DispatchStatus::None);
 }
 
 void AfterglowMaterialLayout::updatePipelines() {

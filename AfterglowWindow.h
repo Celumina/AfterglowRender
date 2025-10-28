@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include <mutex>
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
@@ -8,6 +9,7 @@
 
 
 class AfterglowInput;
+class AfterglowGUI;
 
 class AfterglowWindow : public AfterglowProxyObject<AfterglowWindow, GLFWwindow*> {
 	AFTERGLOW_PROXY_STORAGE_ONLY
@@ -27,20 +29,29 @@ public:
 	template<typename FuncType>
 	void waitIdle(FuncType&& callback);
 
-	VkExtent2D framebufferSize();
+	VkExtent2D framebufferSize() const;
+	VkExtent2D windowSize() const;
 
 	std::vector<const char*> getRequiredExtensions();
 
 	AfterglowInput& input();
 	const AfterglowInput& input() const;
 
+	// void setPresented(bool presented);
+
 	void lockCursor();
 	void unlockCursor();
 
+	void bindUI(AfterglowGUI& ui);
+
 private:
-	struct Context;
-	std::unique_ptr<Context> _context;
+	struct Impl;
+	std::unique_ptr<Impl> _impl;
+	AfterglowGUI* _ui = nullptr;
+
 	bool _resized = false;
+	// TODO: Not good, try to find a more effective way to keep rendering when the window size is changed.
+	// bool _presented = true;
 };
 
 template<typename FuncType>
@@ -49,7 +60,7 @@ inline void AfterglowWindow::waitIdle(FuncType&& callback) {
 	if (!_resized) {
 		return;
 	}
-
+	// _presented = false;
 	int width = 0;
 	int height = 0;
 	glfwGetFramebufferSize(data(), &width, &height);

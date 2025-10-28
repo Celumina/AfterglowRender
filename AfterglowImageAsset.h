@@ -15,7 +15,7 @@ private:
 	static void freeImageData(void* data);
 
 	void initImage();
-	struct Context;
-	std::unique_ptr<Context> _context;
+	struct Impl;
+	std::unique_ptr<Impl> _impl;
 };
 

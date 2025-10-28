@@ -2,6 +2,7 @@
 
 #include <string>
 #include "AfterglowDeviceMemory.h"
+#include "AfterglowPhysicalDevice.h"
 
 namespace buffer {
 	template<typename Type>

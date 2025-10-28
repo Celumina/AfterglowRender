@@ -5,14 +5,13 @@
 #include "VertexStructs.h"
 #include "AssetDefinitions.h"
 
-// TODO: Custom vertex layout.
-
 class AfterglowModelAsset {
 public:
 	using IndexArray = std::vector<vert::StandardIndex>;
 	using VertexArray = std::vector<vert::StandardVertex>;
 
 	AfterglowModelAsset(const std::string& path);
+	// TODO: Custom vertex layout support from here.
 	AfterglowModelAsset(const model::AssetInfo& assetInfo);
 	// Necessary, because pImpl unique_ptr require a explicit destructor.
 	~AfterglowModelAsset();
@@ -27,7 +26,7 @@ private:
 	inline void initialize();
 
 	// pImpl method.
-	struct Context;
-	std::unique_ptr<Context> _context;
+	struct Impl;
+	std::unique_ptr<Impl> _impl;
 };
 

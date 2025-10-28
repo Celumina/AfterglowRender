@@ -5,15 +5,15 @@ AfterglowFramebufferManager::AfterglowFramebufferManager(AfterglowRenderPass& re
 	initFramebuffers();
 }
 
-inline AfterglowDevice& AfterglowFramebufferManager::device() {
+inline AfterglowDevice& AfterglowFramebufferManager::device() noexcept {
 	return _renderPass.device();
 }
 
-inline AfterglowSwapchain& AfterglowFramebufferManager::swapchain() {
+inline AfterglowSwapchain& AfterglowFramebufferManager::swapchain() noexcept {
 	return _renderPass.swapchain();
 }
 
-inline AfterglowRenderPass& AfterglowFramebufferManager::renderPass() {
+inline AfterglowRenderPass& AfterglowFramebufferManager::renderPass() noexcept {
 	return _renderPass;
 };
 
@@ -27,7 +27,6 @@ void AfterglowFramebufferManager::recreate() {
 
 int AfterglowFramebufferManager::acquireNextImage(AfterglowSynchronizer& synchronizer) {
 	// Obstruct automatically and reset fence if acquire imageIndex successfully.
-	//synchronizer.wait();
 	uint32_t imageIndex;
 	VkResult state = vkAcquireNextImageKHR(
 		_renderPass.device(), 
@@ -103,7 +102,6 @@ void AfterglowFramebufferManager::initFramebuffers() {
 		framebuffer->height = swapchain().extent().height;
 		framebuffer->layers = 1;
 
-		// TODO: ...
 		// [Order dependency] These attachments coresponding to renderPass's attachments
 		for (int32_t attachmentIndex = 0; attachmentIndex < subpassContext.attachmentCount(); ++attachmentIndex) {
 			if (subpassContext.isDepthAttachmentIndex(attachmentIndex)) {

@@ -1,6 +1,7 @@
 #include "AfterglowScene.h"
 
-AfterglowScene::AfterglowScene() {
+AfterglowScene::AfterglowScene(const std::string& sceneName) : 
+	_sceneName(sceneName) {
 }
 
 AfterglowEntity& AfterglowScene::createEntity(const std::string& name, util::OptionalRef<AfterglowEntity> parent) {
@@ -17,7 +18,6 @@ AfterglowEntity& AfterglowScene::createEntity(const std::string& name, util::Opt
 	entity.rename(name);
 	entity.setParent(*_entities.get<AfterglowEntity>(parentID));
 
-	// entity.initSceneContext(_sceneContext);
 	return entity;
 }
 
@@ -38,6 +38,18 @@ std::vector<AfterglowEntity*> AfterglowScene::findEntities(const std::string nam
 	return entities;
 }
 
-bool AfterglowScene::isExists(AfterglowEntity& entity) {
+bool AfterglowScene::isExists(AfterglowEntity& entity) const {
 	return _entities.isExists(entity.id());
+}
+
+bool AfterglowScene::hasChild(AfterglowEntity& entity) const {
+	return _entities.numChildren(entity.id());
+}
+
+const std::string& AfterglowScene::sceneName() const noexcept {
+	return _sceneName;
+}
+
+void AfterglowScene::setSceneName(const std::string& sceneName) noexcept {
+	_sceneName = sceneName;
 }

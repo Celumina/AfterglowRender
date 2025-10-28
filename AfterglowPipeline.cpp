@@ -1,4 +1,6 @@
 #include "AfterglowPipeline.h"
+
+#include "AfterglowStructLayout.h"
 #include "Configurations.h"
 
 AfterglowPipeline::AfterglowPipeline(AfterglowRenderPass& renderPass, render::Domain subpassDomain, std::type_index vertexTypeIndex) :
@@ -37,7 +39,7 @@ AfterglowPipeline::~AfterglowPipeline() {
 	destroy(vkDestroyPipeline, device(), data(), nullptr);
 }
 
-inline AfterglowDevice& AfterglowPipeline::device() {
+inline AfterglowDevice& AfterglowPipeline::device() noexcept {
 	return _renderPass.device();
 }
 

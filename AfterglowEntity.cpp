@@ -4,19 +4,19 @@ AfterglowEntity::AfterglowEntity() :
 	_id(0), _parent(nullptr) {
 }
 
-AfterglowEntity::ID AfterglowEntity::id() const {
+AfterglowEntity::ID AfterglowEntity::id() const noexcept {
 	return _id;
 }
 
-const std::string& AfterglowEntity::name() const {
+const std::string& AfterglowEntity::name() const noexcept {
 	return _name;
 }
 
-AfterglowEntity* AfterglowEntity::parent() {
+AfterglowEntity* AfterglowEntity::parent() noexcept {
 	return _parent;
 }
 
-const AfterglowEntity* AfterglowEntity::parent() const {
+const AfterglowEntity* AfterglowEntity::parent() const noexcept {
 	return _parent;
 }
 
@@ -25,6 +25,10 @@ AfterglowComponentBase* AfterglowEntity::component(std::type_index typeIndex) {
 		return _components[typeIndex];
 	}
 	return nullptr;
+}
+
+AfterglowEntity::Components& AfterglowEntity::components() noexcept {
+	return _components;
 }
 
 bool AfterglowEntity::initID(ID id) {

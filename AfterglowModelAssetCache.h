@@ -5,7 +5,7 @@
 #include <memory>
 #include "VertexStructs.h"
 
-// TODO: FileHead: VersionInfo, AABB.
+// TODO: FileHead: VersionInfo, AABB, VertexTypeIndex.
 
 // Fbx parse is too slow, so store them as cache file.
 class AfterglowModelAssetCache {
@@ -51,13 +51,12 @@ public:
 	void recordWrite(const IndexArray& indexArray, const VertexArray& vertexArray);
 	void write(TimeStamp sourceFileModifiedTime);
 
-	static const char* suffix();
+	static const std::string& suffix();
 
 private:
 	static inline const char* _fileHeadFlag = "amc";
-	static inline const char* _suffix = ".cache";
+	static inline std::string _suffix = ".cache";
 
-	struct Context;
-	std::unique_ptr<Context> _context;
+	struct Impl;
+	std::unique_ptr<Impl> _impl;
 };
-

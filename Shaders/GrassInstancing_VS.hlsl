@@ -1,4 +1,6 @@
-#include "Common.hlsl"
+
+#include "Random.hlsl"
+#include "Constants.hlsl"
 
 struct VSOutput {
 	[[vk::location(0)]] float4 position : SV_POSITION; // Screen Space Position
@@ -11,24 +13,25 @@ struct VSOutput {
 
 VSOutput main(VSInput input) {
 	VSOutput output;
+	
 	InstanceBufferStruct instanceInfo = InstanceBufferIn[input.instanceID];
-	float4x4 instanceTransform = {
-		instanceInfo.transformR0, 
-		instanceInfo.transformR1, 
-		instanceInfo.transformR2, 
-		instanceInfo.transformR3, 
-	};
-	// Not scaling for better performance.
-	float4x4 invTransInstanceModel = mul(transpose(InverseRigidTransform(instanceTransform)), invTransModel);
-	float4 worldPosition = mul(model, float4(input.position, 1.0));
 
-	// Shaking
-	worldPosition.xy += sin(time + worldPosition.xy * 0.03) * 10.0 * input.color;
+	float4 worldPosition = mul(instanceInfo.model, float4(input.position, 1.0));
+	output.worldPosition = worldPosition.xyz;
 
-	worldPosition = mul(instanceTransform, worldPosition);
+	// disort
+	float3 vertexOffset = 0.0;
+	float2 distortionFrequency = float2(2.0, 1.45) * (input.color.x + 250.0) * 0.004;
+	float randonSpeedFactor = (10.0 + UniformBitHash(input.instanceID)) * 0.2;
+	float amplitude = 0.2;
+	vertexOffset.xy = sin((time * distortionFrequency * randonSpeedFactor + worldPosition.xy * 0.01) * amplitude) * 20.0;
+	// Mask
+	vertexOffset *= input.color;
+
+	worldPosition.xyz += vertexOffset;
+
 	output.position = mul(projection, mul(view, worldPosition));
-	output.worldPosition = worldPosition;
-	output.worldNormal = normalize(mul(invTransInstanceModel, float4(input.normal, 0.0)).xyz);
+	output.worldNormal = normalize(mul(instanceInfo.invTransModel, float4(input.normal, 0.0)).xyz);
 	output.color = input.color;
 	output.objectID = objectID; 
 	output.texCoord0 = input.texCoord0 * float2(1.0, -1.0);

@@ -1,47 +1,72 @@
 #include "AfterglowSystem.h"
-#include "LocalClock.h"
+#include "AfterglowInput.h"
+#include "AfterglowTicker.h"
+#include "AfterglowMaterialManager.h"
+#include "AfterglowWindow.h"
+#include "AfterglowGUI.h"
 
-AfterglowSystem::AfterglowSystem(AfterglowWindow& window, AfterglowMaterialManager& materialManager) :
-	_systemStoped(false), 
-	_renderableContext({ _componentPool, nullptr}),
+struct AfterglowSystem::Impl {
+	Impl(AfterglowWindow& windowRef, AfterglowMaterialManager& materialManagerRef);
+
+	AfterglowWindow& window;
+	AfterglowMaterialManager& materialManager;
+
+	// TODO: Replace as ticker
+	AfterglowTicker ticker;
+
+	std::unique_ptr<std::jthread> systemThread;
+	bool systemStoped = false;
+
+};
+
+AfterglowSystem::Impl::Impl(AfterglowWindow& windowRef, AfterglowMaterialManager& materialManagerRef) : 
+	window(windowRef), materialManager(materialManagerRef) {
+
+}
+
+AfterglowSystem::AfterglowSystem(
+	AfterglowWindow& window, 
+	AfterglowMaterialManager& materialManager, 
+	AfterglowGUI& ui) :
+	_scene(std::make_shared<AfterglowScene>()), 
+	_renderableContext({ _componentPool, nullptr }),
 	_utilities(this), 
-	_window(window), 
-	_materialManager(materialManager) {
+	_impl(std::make_unique<Impl>(window, materialManager)) {
+	ui.bindSystemUtilities(_utilities);
 }
 
 AfterglowSystem::~AfterglowSystem() {
-	_systemStoped = false;
 }
 
-AfterglowScene& AfterglowSystem::scene() {
+std::weak_ptr<AfterglowScene> AfterglowSystem::scene() noexcept {
 	return _scene;
 }
 
-AfterglowComponentPool& AfterglowSystem::componentPool() {
+AfterglowComponentPool& AfterglowSystem::componentPool() noexcept {
 	return _componentPool;
 }
 
-AfterglowCameraComponent* AfterglowSystem::mainCamera() {
+AfterglowCameraComponent* AfterglowSystem::mainCamera() noexcept {
 	return _renderableContext.camera;
 }
 
 void AfterglowSystem::startSystemThread() {
-	if (!_systemThread) {
-		_systemThread = std::make_unique<std::jthread>([&]() {systemLoop();  });
+	if (!_impl->systemThread) {
+		_impl->systemThread = std::make_unique<std::jthread>([&]() {systemLoop();  });
 	}
 }
 
 void AfterglowSystem::stopSystemThread() {
-	_systemStoped = true;
-	_systemThread.reset();
+	_impl->systemStoped = true;
+	_impl->systemThread.reset();
 }
 
 bool AfterglowSystem::destroyEntity(AfterglowEntity& entity) {
-	if (!_scene.isExists(entity)) {
+	if (!_scene->isExists(entity)) {
 		return false;
 	}
 	removeComponents<reg::RegisteredComponentTypes>(entity);
-	_scene.destroyEntity(entity);
+	_scene->destroyEntity(entity);
 	return true;
 }
 
@@ -49,35 +74,40 @@ AfterglowComponentBase* AfterglowSystem::addComponent(AfterglowEntity& destEntit
 	return _componentPool.create(destEntity, typeIndex, [this](auto& component){ specializedAddBehaviour(component); });
 }
 
-void AfterglowSystem::setMainCamera(AfterglowCameraComponent& camera) {
+void AfterglowSystem::setMainCamera(AfterglowCameraComponent& camera) noexcept {
 	_renderableContext.camera = &camera;
 }
 
-AfterglowRenderableContext& AfterglowSystem::renderableContext() {
+AfterglowRenderableContext& AfterglowSystem::renderableContext() noexcept {
 	return _renderableContext;
 }
 
 void AfterglowSystem::systemLoop() {
 	// TODO: Stop system automatically?
-	while (!_systemStoped) {
-		_clock.update();
-		_window.input().update();
+	while (!_impl->systemStoped) {
+		_impl->ticker.tick();
+		_impl->window.input().update();
 		updateComponents<reg::RegisteredComponentTypes>();
 	}
 }
 
-AfterglowWindow& AfterglowSystem::window() {
-	return _window;
+AfterglowWindow& AfterglowSystem::window() noexcept {
+	return _impl->window;
 }
 
-const AfterglowInput& AfterglowSystem::input() const {
-	return _window.input();
+const AfterglowInput& AfterglowSystem::input() const  noexcept {
+	return _impl->window.input();
 }
 
-const LocalClock& AfterglowSystem::clock() const {
-	return _clock;
+AfterglowTicker& AfterglowSystem::ticker() noexcept {
+	return _impl->ticker;
 }
 
-AfterglowMaterialManager& AfterglowSystem::materialManager() {
-	return _materialManager;
+const AfterglowTicker& AfterglowSystem::ticker() const noexcept {
+	return _impl->ticker;
 }
+
+AfterglowMaterialManager& AfterglowSystem::materialManager() noexcept {
+	return _impl->materialManager;
+}
+

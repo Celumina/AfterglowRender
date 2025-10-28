@@ -27,8 +27,9 @@ public:
 	using InFlightFences = std::array<AfterglowFences::AsElement, cfg::maxFrameInFlight>;
 	AfterglowSynchronizer(AfterglowDevice& device);
 
-	// Wait for responsive from GPU.
+	// Waiting for response from GPU.
 	void wait(FenceFlag fenceFlag);
+	VkResult fenceStatus(FenceFlag fenceFlag);
 
 	// After waiting, reset fences manually.
 	void reset(FenceFlag fenceFlag);
@@ -36,7 +37,7 @@ public:
 	VkSemaphore& semaphore(SemaphoreFlag semaphoreFlag);
 	VkFence& fence(FenceFlag fenceFlag);
 
-	AfterglowDevice& device();
+	AfterglowDevice& device() noexcept;
 
 private:
 	InFlightSemaphores _inFlightSemaphores;

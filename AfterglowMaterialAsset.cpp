@@ -3,11 +3,13 @@
 #include <mutex>
 #include <json.hpp>
 
+#include "AfterglowMaterial.h"
+#include "AfterglowComputeTask.h"
 #include "GlobalAssets.h"
 #include "Configurations.h"
 #include "DebugUtilities.h"
 
-struct AfterglowMaterialAsset::Context {
+struct AfterglowMaterialAsset::Impl {
 	AfterglowMaterial material;
 	ShaderDeclarations shaderDeclarations;
 	ShaderAssets shaderAssets;
@@ -15,7 +17,7 @@ struct AfterglowMaterialAsset::Context {
 };
 
 AfterglowMaterialAsset::AfterglowMaterialAsset(const std::string& path):
-	_context(std::make_unique<Context>()) {
+	_impl(std::make_unique<Impl>()) {
 
 	std::ifstream file(path);
 
@@ -24,7 +26,7 @@ AfterglowMaterialAsset::AfterglowMaterialAsset(const std::string& path):
 		throw std::runtime_error("[AfterglowMaterialAsset] Failed to open material file.");
 	}
 	try {
-		file >> _context->data;
+		file >> _impl->data;
 	}
 	catch (const nlohmann::json::parse_error& error) {
 		DEBUG_CLASS_ERROR("Failed to parse material file " + path + " to json, due to: " + error.what());
@@ -38,13 +40,13 @@ AfterglowMaterialAsset::AfterglowMaterialAsset(const std::string& path):
 }
 
 AfterglowMaterialAsset::AfterglowMaterialAsset(AfterglowMaterialAsset&& rval)  noexcept  :
-	_context(std::move(rval._context)) {
+	_impl(std::move(rval._impl)) {
 
 }
 
 AfterglowMaterialAsset::AfterglowMaterialAsset(const AfterglowMaterial& material) noexcept : 
-	_context(std::make_unique<Context>()) {
-	_context->material = material;
+	_impl(std::make_unique<Impl>()) {
+	_impl->material = material;
 	parseShaderDeclarations();
 	loadShaderAssets();
 }
@@ -53,11 +55,11 @@ AfterglowMaterialAsset::~AfterglowMaterialAsset()  noexcept  {
 }
 
 const AfterglowMaterial& AfterglowMaterialAsset::material() const {
-	return _context->material;
+	return _impl->material;
 }
 
 std::string AfterglowMaterialAsset::materialName() const {
-	auto& data = _context->data;
+	auto& data = _impl->data;
 	if (data.contains("name") &&data["name"].is_string()) {
 		return data["name"];
 	}
@@ -66,8 +68,8 @@ std::string AfterglowMaterialAsset::materialName() const {
 }
 
 const std::string& AfterglowMaterialAsset::shaderDeclaration(shader::Stage shaderStage) const {
-	auto iterator = _context->shaderDeclarations.find(shaderStage);
-	if (iterator == _context->shaderDeclarations.end()) {
+	auto iterator = _impl->shaderDeclarations.find(shaderStage);
+	if (iterator == _impl->shaderDeclarations.end()) {
 		return "";
 	}
 	return iterator->second;
@@ -76,8 +78,8 @@ const std::string& AfterglowMaterialAsset::shaderDeclaration(shader::Stage shade
 std::string AfterglowMaterialAsset::generateShaderCode(
 	shader::Stage shaderStage, 
 	util::OptionalRef<render::InputAttachmentInfos> inputAttachmentInfos) const {
-	if (_context->shaderDeclarations.find(shaderStage) == _context->shaderDeclarations.end() 
-		|| _context->shaderAssets.find(shaderStage) == _context->shaderAssets.end()) {
+	if (_impl->shaderDeclarations.find(shaderStage) == _impl->shaderDeclarations.end() 
+		|| _impl->shaderAssets.find(shaderStage) == _impl->shaderAssets.end()) {
 		throw std::runtime_error("[AfterglowMaterialAsset] Shader declaration or code is not exist.");
 	}
 	std::string inputAttachmentDeclaration;
@@ -86,15 +88,15 @@ std::string AfterglowMaterialAsset::generateShaderCode(
 		inputAttachmentDeclaration = makeInputAttachmentDeclaration(*inputAttachmentInfos);
 	}
 	return std::string(
-	_context->shaderDeclarations.at(shaderStage)
+	_impl->shaderDeclarations.at(shaderStage)
 	+ inputAttachmentDeclaration
-	+ _context->shaderAssets.at(shaderStage).code()
+	+ _impl->shaderAssets.at(shaderStage).code()
 	);
 }
 
 void AfterglowMaterialAsset::initMaterial() {
-	auto& data = _context->data;
-	auto& material = _context->material;
+	auto& data = _impl->data;
+	auto& material = _impl->material;
 	if (data.contains("vertexShaderPath") && data["vertexShaderPath"].is_string()) {
 		material.setVertexShader(data["vertexShaderPath"]);
 	}
@@ -157,14 +159,14 @@ void AfterglowMaterialAsset::initMaterial() {
 }
 
 void AfterglowMaterialAsset::initMaterialComputeTask() {
-	auto& data = _context->data;
+	auto& data = _impl->data;
 
 	if (!data.contains("computeTask") || !data["computeTask"].is_object()) {
 		return;
 	}
 
 	auto& computeTaskData = data["computeTask"];
-	auto& computeTask = _context->material.initComputeTask();
+	auto& computeTask = _impl->material.initComputeTask();
 
 	if (computeTaskData.contains("computeOnly") && computeTaskData["computeOnly"].is_boolean()) {
 		computeTask.setComputeOnly(computeTaskData["computeOnly"]);
@@ -247,6 +249,13 @@ void AfterglowMaterialAsset::parseShaderDeclarations() {
 		util::EnumValue(shader::GlobalSetBindingIndex::GlobalUniform)
 	);
 
+	std::string perObjectUniformStructDeclaration = makeUniformStructDeclaration(
+		"PerObjectUniform",
+		makeUniformMemberDeclarationContext<ubo::MeshUniform>(),
+		shader::SetIndex::PerObject,
+		util::EnumValue(shader::PerObjectSetBindingIndex::MeshUniform)
+	);
+
 	// Shared uniform struct declaration.
 	std::string sharedUniformStructDeclaration = makeUniformStructDeclaration(
 		"MaterialSharedUniform",
@@ -256,16 +265,11 @@ void AfterglowMaterialAsset::parseShaderDeclarations() {
 	);
 
 	// Vertex Shader
-	std::string& vertexShaderDeclaration = _context->shaderDeclarations[shader::Stage::Vertex];
+	std::string& vertexShaderDeclaration = _impl->shaderDeclarations[shader::Stage::Vertex];
 	// Vertex Shader: global uniform
 	vertexShaderDeclaration += globalUniformStructDeclaration;
 	// Vertex Shader: Mesh uniform	
-	vertexShaderDeclaration += makeUniformStructDeclaration(
-		"PerObjectUniform", 
-		makeUniformMemberDeclarationContext<ubo::MeshUniform>(),
-		shader::SetIndex::PerObject, 
-		util::EnumValue(shader::PerObjectSetBindingIndex::MeshUniform)
-	);
+	vertexShaderDeclaration += perObjectUniformStructDeclaration;
 	// Vertex Shader: Vertex stage uniform declaration.
 	vertexShaderDeclaration += makeUniformStructDeclaration(
 		"MaterialVertexUniform", 
@@ -279,7 +283,7 @@ void AfterglowMaterialAsset::parseShaderDeclarations() {
 	vertexShaderDeclaration += textureDeclarations[shader::Stage::Vertex].declaration;
 	vertexShaderDeclaration += textureDeclarations[shader::Stage::Shared].declaration;
 	// Vertex Shader: Vertex input struct declaration.
-	auto& material = _context->material;
+	auto& material = _impl->material;
 	if (!material.hasComputeTask() || !material.computeTask().vertexInputSSBO()) {
 		vertexShaderDeclaration += vertexInputStructDeclaration(material.vertexTypeIndex());
 	}
@@ -289,7 +293,7 @@ void AfterglowMaterialAsset::parseShaderDeclarations() {
 	}
 	
 	// Fragment Shader
-	std::string& fragmentShaderDeclaration = _context->shaderDeclarations[shader::Stage::Fragment];
+	std::string& fragmentShaderDeclaration = _impl->shaderDeclarations[shader::Stage::Fragment];
 	// Fragment Shader: global uniform
 	fragmentShaderDeclaration += globalUniformStructDeclaration;
 	// Fragment Shader: global textures
@@ -307,15 +311,16 @@ void AfterglowMaterialAsset::parseShaderDeclarations() {
 	fragmentShaderDeclaration += textureDeclarations[shader::Stage::Fragment].declaration;
 	fragmentShaderDeclaration += textureDeclarations[shader::Stage::Shared].declaration;
 
-	if (_context->material.hasComputeTask()) {
+	if (_impl->material.hasComputeTask()) {
 		// Storage buffer will be filled after textures, so stage beginBindingIndices are aquire from textures.
 		StageDeclarations<StorageBufferDeclaration> storageBufferDeclarations;
 		fillStorageBufferDeclarations(storageBufferDeclarations, textureDeclarations);
 
 		std::string storageBufferStructDeclaration = makeStorageBufferStructDeclarations();
 		// Compute Shader
-		std::string& computeShaderDeclaration = _context->shaderDeclarations[shader::Stage::Compute];
+		std::string& computeShaderDeclaration = _impl->shaderDeclarations[shader::Stage::Compute];
 		computeShaderDeclaration += globalUniformStructDeclaration;
+		computeShaderDeclaration += perObjectUniformStructDeclaration;
 		computeShaderDeclaration += storageBufferStructDeclaration;
 		computeShaderDeclaration += storageBufferDeclarations[shader::Stage::Compute].declaration;
 		computeShaderDeclaration += storageBufferDeclarations[shader::Stage::ComputeVertex].declaration;
@@ -332,8 +337,8 @@ void AfterglowMaterialAsset::parseShaderDeclarations() {
 }
 
 void AfterglowMaterialAsset::loadShaderAssets() {
-	auto& material = _context->material;
-	auto& shaderAsset = _context->shaderAssets;
+	auto& material = _impl->material;
+	auto& shaderAsset = _impl->shaderAssets;
 	// We just assume that shader is exists, ShaderAsset weill throw a error, just let them go.
 	shaderAsset.emplace(shader::Stage::Vertex, material.vertexShaderPath());
 	shaderAsset.emplace(shader::Stage::Fragment, material.fragmentShaderPath());
@@ -343,7 +348,7 @@ void AfterglowMaterialAsset::loadShaderAssets() {
 }
 
 void AfterglowMaterialAsset::fillUniformMemberDeclarations(StageDeclarations<UniformMemberDeclaration>& destMemberDeclarations) {
-	const auto& material = _context->material;
+	const auto& material = _impl->material;
 	
 	for (const auto& [stage, scalarParams] : material.scalars()) {
 		auto& memberDeclaration = destMemberDeclarations[stage];
@@ -372,7 +377,7 @@ void AfterglowMaterialAsset::fillUniformMemberDeclarations(StageDeclarations<Uni
 }
 
 inline void AfterglowMaterialAsset::fillTextureDeclarations(StageDeclarations<TextureDeclaration>& destTextureDeclarations) {
-	const auto& material = _context->material;
+	const auto& material = _impl->material;
 	for (const auto& [stage, textureParams] : material.textures()) {
 		auto& textureDeclaration = destTextureDeclarations[stage];
 		// First binding is uniform, skip it.
@@ -393,7 +398,7 @@ inline void AfterglowMaterialAsset::fillTextureDeclarations(StageDeclarations<Te
 inline void AfterglowMaterialAsset::fillStorageBufferDeclarations(
 	StageDeclarations<StorageBufferDeclaration>& destStorageBufferDeclarations,
 	const StageDeclarations<TextureDeclaration>& textureDeclarations) {
-	const auto& material = _context->material;
+	const auto& material = _impl->material;
 	auto& computeTask = material.computeTask();
 
 	/* Multiple SSBOs for Frame in Flight
@@ -529,12 +534,14 @@ inline std::string AfterglowMaterialAsset::makeStorageBufferDeclaration(uint32_t
 
 inline std::string AfterglowMaterialAsset::makeStorageBufferStructDeclarations() {
 	std::string declarations;
-	auto& ssboInfos = _context->material.computeTask().ssboInfos();
+	auto& ssboInfos = _impl->material.computeTask().ssboInfos();
 	 for (const auto& ssboInfo : ssboInfos) {
 		declarations += std::format("struct {} {{\n", ssboInfo.name + "Struct");
-		ssboInfo.elementLayout.forEachAttributeMember([&declarations](const AfterglowStructLayout::AttributeMember& member) {
+		auto attributeMembers = ssboInfo.elementLayout.generateHLSLStructMembers();
+		for (const auto& member : attributeMembers) {
 			declarations += std::format("{} {};\n", AfterglowStructLayout::hlslTypeName(member.type), member.name);
-		});
+		}
+		// TODO: Padding attributes.
 		 declarations += "};\n";
 	 }
 	 return declarations;
@@ -544,23 +551,24 @@ inline std::string AfterglowMaterialAsset::vertexInputStructDeclaration(const Af
 	std::string declaration;
 	uint32_t location = 0;
 	declaration += "struct VSInput {\n";
-	structLayout.forEachAttributeMember([&declaration, &location](const AfterglowStructLayout::AttributeMember& attribute){
+	auto attributeMembers = structLayout.generateHLSLStructMembers();
+	for (const auto& member : attributeMembers) {
 		declaration += std::format(
 			"[[vk::location({})]] {} {} : {};\n",
 			location,
-			AfterglowStructLayout::hlslTypeName(attribute.type),
-			attribute.name,
-			util::UpperCase(attribute.name)
+			AfterglowStructLayout::hlslTypeName(member.type),
+			member.name,
+			util::UpperCase(member.name)
 		);
 		++location;
-	});
+	}
 	declaration += "};\n";
 	return declaration;
 }
 
 inline std::string AfterglowMaterialAsset::makeInputAttachmentDeclaration(const render::InputAttachmentInfos& inputAttachmentInfos) const {
 	std::string declaration;
-	auto domain = _context->material.domain();
+	auto domain = _impl->material.domain();
 	uint32_t bindingIndex = util::EnumValue(shader::GlobalSetBindingIndex::EnumCount);
 	for (const auto& info : inputAttachmentInfos) {
 		if (info.domain == domain) {
