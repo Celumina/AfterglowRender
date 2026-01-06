@@ -1,1 +1,0 @@
-#include "AfterglowComponent.h"
