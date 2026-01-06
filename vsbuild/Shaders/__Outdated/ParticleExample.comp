@@ -1,0 +1,44 @@
+#version 450
+
+layout (binding = 0) uniform GlobalUniform {
+	float deltaTime;
+	// Generate automatically
+} globalUniform;
+
+struct Particle {
+	vec3 position;
+	vec3 velocity;
+	vec4 color;
+};
+
+layout(std140, binding = 1) readonly buffer ParticleSSBOInput {
+	Particle particlesIn[ ];
+};
+
+layout(std140, binding = 2) buffer ParticleSSBOOutputs {
+	Particle particlesOut[ ];
+};
+
+// Kernel 
+layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
+
+void main() {
+	uint index = gl_GlobalInvocationID.x;
+
+	Particle particleIn = particlesIn[index];
+
+	particlesOut[index].position = particleIn.position + particleIn.velocity.xyz * globalUniform.deltaTime;
+	particlesOut[index].velocity = particleIn.velocity;
+
+	// Flip movement at box border
+	// bool any(boo3); one of them true, return true;
+	if (particlesOut[index].position.x < -1000.0 || particlesOut[index].position.x > 1000.0) {  
+		particlesOut[index].velocity.x = -particlesOut[index].velocity.x;
+	}
+	if (particlesOut[index].position.y < -1000.0 || particlesOut[index].position.y > 1000.0) {  
+		particlesOut[index].velocity.y = -particlesOut[index].velocity.y;
+	}
+	if (particlesOut[index].position.z < -1000.0 || particlesOut[index].position.z > 1000.0) {  
+		particlesOut[index].velocity.z = -particlesOut[index].velocity.z;
+	}
+}

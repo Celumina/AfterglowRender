@@ -1,0 +1,180 @@
+#ifndef ACES_COMMON_HLSL
+#define ACES_COMMON_HLSL
+
+// Matices from ACESCommon.ush, Unreal Engine.
+static const float3x3 AP0ToXYZMat = {
+	0.9525523959, 0.0000000000, 0.0000936786,
+	0.3439664498, 0.7281660966,-0.0721325464,
+	0.0000000000, 0.0000000000, 1.0088251844,
+};
+
+static const float3x3 XYZToAP0Mat = {
+	 1.0498110175, 0.0000000000,-0.0000974845,
+	-0.4959030231, 1.3733130458, 0.0982400361,
+	 0.0000000000, 0.0000000000, 0.9912520182,
+};
+
+static const float3x3 AP1ToXYZMat = {
+	 0.6624541811, 0.1340042065, 0.1561876870,
+	 0.2722287168, 0.6740817658, 0.0536895174,
+	-0.0055746495, 0.0040607335, 1.0103391003,
+};
+
+static const float3x3 XYZToAP1Mat = {
+	 1.6410233797, -0.3248032942, -0.2364246952,
+	-0.6636628587,  1.6153315917,  0.0167563477,
+	 0.0117218943, -0.0082844420,  0.9883948585,
+};
+
+//mul( AP0ToXYZMat, XYZToAP1Mat );
+static const float3x3 AP0ToAP1Mat = {
+	 1.4514393161, -0.2365107469, -0.2149285693,
+	-0.0765537734,  1.1762296998, -0.0996759264,
+	 0.0083161484, -0.0060324498,  0.9977163014,
+};
+
+//mul( AP1ToXYZMat, XYZToAP0Mat );
+static const float3x3 AP1ToAP0Mat = {
+	 0.6954522414,  0.1406786965,  0.1638690622,
+	 0.0447945634,  0.8596711185,  0.0955343182,
+	-0.0055258826,  0.0040252103,  1.0015006723,
+};
+
+// REC 709 primaries
+static const float3x3 XYZToSRGBMat = {
+	 3.2409699419, -1.5373831776, -0.4986107603,
+	-0.9692436363,  1.8759675015,  0.0415550574,
+	 0.0556300797, -0.2039769589,  1.0569715142,
+};
+
+static const float3x3 sRGBToXYZMat = {
+	0.4123907993, 0.3575843394, 0.1804807884,
+	0.2126390059, 0.7151686788, 0.0721923154,
+	0.0193308187, 0.1191947798, 0.9505321522,
+};
+
+// REC 2020 primaries
+static const float3x3 XYZToRec2020Mat = {
+	 1.7166511880, -0.3556707838, -0.2533662814,
+	-0.6666843518,  1.6164812366,  0.0157685458,
+	 0.0176398574, -0.0427706133,  0.9421031212,
+};
+
+static const float3x3 Rec2020ToXYZMat = {
+	0.6369580483, 0.1446169036, 0.1688809752,
+	0.2627002120, 0.6779980715, 0.0593017165,
+	0.0000000000, 0.0280726930, 1.0609850577,
+};
+
+// P3, D65 primaries
+static const float3x3 XYZToP3D65Mat = {
+	 2.4934969119, -0.9313836179, -0.4027107845,
+	-0.8294889696,  1.7626640603,  0.0236246858,
+	 0.0358458302, -0.0761723893,  0.9568845240,
+};
+
+static const float3x3 P3D65ToXYZMat = {
+	0.4865709486, 0.2656676932, 0.1982172852,
+	0.2289745641, 0.6917385218, 0.0792869141,
+	0.0000000000, 0.0451133819, 1.0439443689,
+};
+
+// CAT: Chromatic Adaptation Transform
+// Bradford chromatic adaptation transforms between ACES white point (D60) and sRGB white point (D65)
+static const float3x3 D65ToD60CAT = {
+	 1.0130349146, 0.0061052578, -0.0149709436,
+	 0.0076982301, 0.9981633521, -0.0050320385,
+	-0.0028413174, 0.0046851567,  0.9245061375,
+};
+
+static const float3x3 D60ToD65CAT = {
+	 0.9872240087, -0.0061132286, 0.0159532883,
+	-0.0075983718,  1.0018614847, 0.0053300358,
+	 0.0030725771, -0.0050959615, 1.0816806031,
+};
+
+// CAM16 (Color Appearance Model 2016) 
+static const float3x3 CAM16ToXYZMat = {
+	 2.0512756811, -1.1400313439,  0.0887556628,
+	 0.4269389763,  0.7005835277, -0.1275225040,
+	-0.0174712779, -0.0384725929,  1.0589468739
+};
+
+static const float3x3 XYZToCAM16Mat = {
+	 0.3640744835,  0.5947008156, 0.04110127349,
+	-0.2222450987,  1.0738554823, 0.14794533610,
+	-0.0020676190,  0.0488260453, 0.95038755696
+};
+
+// TODO: RGB to xyz mat for JMhParams...
+
+
+/**
+* @brief: Chromaticity Coordinates Struct
+* ..primary.x = CIE_X / (CIE_X + CIE_Y + CIE_Z)
+* ..primary.y = CIE_Y / (CIE_X + CIE_Y + CIE_Z)
+*/ 
+
+struct Chromaticities {
+	float2 redPrimary;
+	float2 greenPrimary;
+	float2 bluePrimary;
+	float2 whitePoint;
+};
+
+
+struct JMhParams {
+	// Pre-computed conversion matrices and constants for conversions to/from JMh
+	float3x3 RGBToCAM16c;
+	float3x3 CAM16cToRGB;
+	float3x3 ConeResponseToAab;
+	float3x3 AabToConeResponse;
+	float F_L_n; // F_L normalised
+	float cz;
+	float inv_cz; // 1/cz
+	float A_w_J;
+	float inv_A_w_J; // 1/A_w_J
+};
+
+struct OutputTransformParams {
+	float peakLuminance;
+
+	// Tonescale // Set via TSParams structure
+	float n_r; // normalized white in nits (what 1.0 should be)
+	float g;   // surround / contrast
+	float t_1; // shadow toe or flare/glare compensation
+	float c_t;
+	float s_2;
+	float u_2;
+	float m_2;
+
+	// Chroma Compression
+	float limitJmax;
+	float midJ;
+	float modelGamma;
+	float sat;
+	float sat_thr;
+	float compr;
+	float chromaCompressScale;
+
+	float focusDist;
+
+	// Limit
+	float3x3 limitRGBToXYZ;
+	float3x3 limitXYZToRGB;
+	float3 limitWhiteXYZ;
+
+	// Output
+	float3x3 outputRGBToXYZ;
+	float3x3 outputXYZToRGB;
+	float3 outputWhiteXYZ;
+
+	float lowerHullGamma;
+
+	Texture1D<float> reachMTable;
+	Texture1D<float> upperHullGammaTable;
+	Texture1D<float4> gamutCuspsTable;
+};
+
+
+#endif
