@@ -12,7 +12,7 @@ VSOutput main(VSInput input) {
 	float2 globalOffset = floor(cameraPosition.xy * (1 / terrainMeshInterval)) * terrainMeshInterval;
 	input.position.xy += globalOffset;
 
-	input.position.z = LoadTerrain(TerrainHeight, input.position.xy);
+	input.position.z = LoadTerrain(TerrainHeight, input.position.xy).x;
 
 	output.worldPosition = mul(model, float4(input.position, 1.0));
 	output.position = mul(viewProjection, output.worldPosition);

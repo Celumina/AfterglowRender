@@ -7,6 +7,8 @@
 #include "AfterglowRenderableContext.h"
 #include "AfterglowScene.h"
 #include "AfterglowSystemUtilities.h"
+#include "AfterglowCullingUtilities.h"
+#include "ExceptionUtilities.h"
 
 
 class AfterglowMaterialManager;
@@ -91,10 +93,13 @@ private:
 	template<>
 	void updateTypeComponents<AfterglowCameraComponent>();
 
+	template<>
+	void updateTypeComponents<AfterglowStaticMeshComponent>();
+
 	template<typename TupleType, size_t Index = 0>
 	void updateComponents();
 
-	void systemLoop();
+	void systemLoop(std::stop_token stopToken);
 
 	template<typename ComponentType>
 	void specializedAddBehaviour(ComponentType& component);
@@ -108,8 +113,8 @@ private:
 	template<>
 	void specializedAddBehaviour<>(AfterglowDirectionalLightComponent& component);
 
-	template<>
-	void specializedAddBehaviour<>(AfterglowPostProcessComponent& component);
+	//template<>
+	//void specializedAddBehaviour<>(AfterglowPostProcessComponent& component);
 
 	template<typename ComponentType>
 	void specializedRemoveBehaviour(ComponentType* component);
@@ -120,13 +125,15 @@ private:
 	template<>
 	void specializedRemoveBehaviour<>(AfterglowDirectionalLightComponent* component);
 
-	template<>
-	void specializedRemoveBehaviour<>(AfterglowPostProcessComponent* component);
+	//template<>
+	//void specializedRemoveBehaviour<>(AfterglowPostProcessComponent* component);
 
 	template<typename ComponentType>
 	void refreshRenderableContext(ComponentType* component, const std::string& varName);
 
 	//inline void applyDestroyEntityCache();
+	// @brief: global uniform form material manager.
+	ubo::GlobalUniform& globalUniform() const;
 
 	struct Impl;
 	std::unique_ptr<Impl> _impl;
@@ -236,6 +243,32 @@ inline void AfterglowSystem::updateTypeComponents<AfterglowCameraComponent>() {
 	}
 }
 
+template<>
+inline void AfterglowSystem::updateTypeComponents<AfterglowStaticMeshComponent>() {
+	auto& components = _componentPool.components<AfterglowStaticMeshComponent>();
+	for (auto& component : components) {
+		if (!component.enabled() || !component.meshResource()) {
+			continue;
+		}
+		if (!component.property(renderable::Property::DynamicCulling)) {
+			continue;
+		}
+		//DEBUG_COST_BEGIN("Update static mesh visibility");
+		// Update static mesh visibility
+		auto* aabb = component.meshResource()->aabb();
+		if (!aabb) {
+			continue;
+		}
+		auto& transformComponent = component.entity().get<AfterglowTransformComponent>();
+		model::AABB aabbWorld = util::NonshearTransformAABB(*aabb, transformComponent.globalTransformMatrix());
+		component.setProperty(
+			renderable::Property::VisibleCache, 
+			!util::FrustumCulling(globalUniform(), aabbWorld)
+		);
+		//DEBUG_COST_END;
+	}
+}
+
 template<typename TupleType, size_t Index>
 inline void AfterglowSystem::updateComponents() {
 	updateTypeComponents<std::tuple_element_t<Index, TupleType>>();
@@ -267,10 +300,10 @@ inline void AfterglowSystem::specializedAddBehaviour(AfterglowDirectionalLightCo
 	_renderableContext.diectionalLight = &component;
 }
 
-template<>
-inline void AfterglowSystem::specializedAddBehaviour(AfterglowPostProcessComponent& component) {
-	_renderableContext.postProcess = &component;
-}
+//template<>
+//inline void AfterglowSystem::specializedAddBehaviour(AfterglowPostProcessComponent& component) {
+//	_renderableContext.postProcess = &component;
+//}
 
 template<typename ComponentType>
 inline void AfterglowSystem::specializedRemoveBehaviour(ComponentType* component) {
@@ -286,18 +319,17 @@ inline void AfterglowSystem::specializedRemoveBehaviour(AfterglowDirectionalLigh
 	refreshRenderableContext(component, "directionalLight");
 }
 
-template<>
-inline void AfterglowSystem::specializedRemoveBehaviour(AfterglowPostProcessComponent* component) {
-	refreshRenderableContext(component, "postProcess");
-}
+//template<>
+//inline void AfterglowSystem::specializedRemoveBehaviour(AfterglowPostProcessComponent* component) {
+//	refreshRenderableContext(component, "postProcess");
+//}
 
 template<typename ComponentType>
 inline void AfterglowSystem::refreshRenderableContext(ComponentType* component, const std::string& varName) {
 	// ComponentType**
 	auto var = Inreflect<AfterglowRenderableContext>::attribute<ComponentType*>(_renderableContext, varName);
 	if (!var) {
-		DEBUG_CLASS_ERROR("Invalid renderable context variable name: " +  varName);
-		throw std::runtime_error("Invalid renderable context variable name.");
+		EXCEPT_CLASS_RUNTIME("Invalid renderable context variable name: " +  varName);
 	}
 	if (*var == component) {
 		auto& components = _componentPool.components<ComponentType>();

@@ -1,4 +1,5 @@
 #include "AfterglowMaterialUtilities.h"
+#include "AfterglowMaterialAsset.h"
 #include "AfterglowMaterial.h"
 
 

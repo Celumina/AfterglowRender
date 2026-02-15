@@ -14,13 +14,17 @@ public:
 	void enable();
 	void disable();
 
-	// CRTP Partten
+	// CRTP callbacks [System Thread]
 	void awake();
 	void onEnable();
 	void update();
 	void fixedUpdate();
 	void onDisable();
 	void onDestroy();
+
+	// CRTP callbacks [Render Thread]
+	// For custom subpass register, see AfterglowRenderer::lateInitialize.
+	void onRenderBegin();
 
 protected:
 	const AfterglowSystemUtilities& sysUtils();
@@ -48,43 +52,49 @@ inline void AfterglowActionComponent<DerivedType>::disable() {
 template<typename DerivedType>
 inline void AfterglowActionComponent<DerivedType>::awake() {
 	if constexpr (!std::is_same_v<decltype(&Component::awake), decltype(&AfterglowActionComponent::awake)>) {
-		reinterpret_cast<Component>(*this).awake();
+		reinterpret_cast<Component*>(this)->awake();
 	}
 }
 
 template<typename DerivedType>
 inline void AfterglowActionComponent<DerivedType>::onEnable() {
 	if constexpr (!std::is_same_v<decltype(&Component::onEnable), decltype(&AfterglowActionComponent::onEnable)>) {
-		reinterpret_cast<Component>(*this).onEnable();
+		reinterpret_cast<Component*>(this)->onEnable();
 	}
 }
 
 template<typename DerivedType>
 inline void AfterglowActionComponent<DerivedType>::update() {
 	if constexpr (!std::is_same_v<decltype(&Component::update), decltype(&AfterglowActionComponent::update)>) {
-		reinterpret_cast<Component>(*this).update();
+		reinterpret_cast<Component*>(this)->update();
 	}
 }
 
 template<typename DerivedType>
 inline void AfterglowActionComponent<DerivedType>::fixedUpdate() {
 	if constexpr (!std::is_same_v<decltype(&Component::fixedUpdate), decltype(&AfterglowActionComponent::fixedUpdate)>) {
-		Component::fixedUpdate();
-		reinterpret_cast<Component>(*this).fixedUpdate();
+		reinterpret_cast<Component*>(this)->fixedUpdate();
 	}
 }
 
 template<typename DerivedType>
 inline void AfterglowActionComponent<DerivedType>::onDisable() {
 	if constexpr (!std::is_same_v<decltype(&Component::onDisable), decltype(&AfterglowActionComponent::onDisable)>) {
-		reinterpret_cast<Component>(*this).onDisable();
+		reinterpret_cast<Component*>(this)->onDisable();
 	}
 }
 
 template<typename DerivedType>
 inline void AfterglowActionComponent<DerivedType>::onDestroy() {
 	if constexpr (!std::is_same_v<decltype(&Component::onDestroy), decltype(&AfterglowActionComponent::onDestroy)>) {
-		reinterpret_cast<Component>(*this).onDestroy();
+		reinterpret_cast<Component*>(this)->onDestroy();
+	}
+}
+
+template<typename DerivedType>
+inline void AfterglowActionComponent<DerivedType>::onRenderBegin() {
+	if constexpr (!std::is_same_v<decltype(&Component::onRenderBegin), decltype(&AfterglowActionComponent::onRenderBegin)>) {
+		reinterpret_cast<Component*>(this)->onRenderBegin();
 	}
 }
 
@@ -102,8 +112,11 @@ inline void AfterglowActionComponent<DerivedType>::bindSystemUtilities(const Aft
 INR_CRTP_CLASS(AfterglowActionComponent, DerivedType) {
 	INR_BASE_CLASSES<AfterglowComponent<InreflectDerivedType>>;
 	INR_FUNCS(
-		INR_FUNC(enable),
-		INR_FUNC(disable)
+		// In CRTP, do not invoke derived methods from derived class directly, and never invoke base class method form derived method (inf loop)
+		// e.g. Good: AfterglowComponent<Derived>::enable();
+		//       Bad: AfterglowActionComponent<...>::enable(); (Base class impl will be ignored.)
+		// INR_FUNC(enable),
+		// INR_FUNC(disable)
 		// Don't reflect these action functions.
 	);
 };

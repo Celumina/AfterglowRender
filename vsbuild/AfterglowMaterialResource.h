@@ -17,7 +17,12 @@ public:
 	using InFlightDescriptorSets = std::array<AfterglowDescriptorSets::AsElement, cfg::maxFrameInFlight>;
 	// If texture is not longer exists in material instance, then clear its texture buffer. 
 	struct TextureResource {
+		TextureResource() = default;
+		TextureResource(uint32_t inBindingIndex, std::unique_ptr<AfterglowTextureReference>&& inTextureRef) : 
+			bindingIndex(inBindingIndex), textureRef(std::forward<std::unique_ptr<AfterglowTextureReference>>(inTextureRef)) {}
+
 		uint32_t bindingIndex = 0;
+		std::array<bool, cfg::maxFrameInFlight> inFlightModifiedFlags{};
 		std::unique_ptr<AfterglowTextureReference> textureRef;
 	};
 
@@ -82,7 +87,8 @@ public:
 	const AfterglowStorageBuffer* indirectStorageBuffer() const noexcept;
 
 	// @brief: Reload resources, costly, less call.
-	void update();
+	// @deprecated: sepreated into updateUniforms(), updateTextures() and submit.
+	// void update(uint32_t frameIndex);
 
 	// @brief: If material layout was changed, call this function.
 	void reloadMaterialLayout();
@@ -93,17 +99,19 @@ public:
 	*/
 	StorageBufferResource* findStorageBufferResource(const std::string& ssboName, uint32_t frameIndex, uint32_t ssboIndex);
 
+	void updateUniforms(uint32_t frameIndex);
+	void updateTextures(uint32_t frameIndex);
+	void submitDescriptorSets(uint32_t frameIndex);
+
 private:
 	inline TextureResource* aquireTextureResource(shader::Stage stage, const std::string name);
 
-	inline void submitUniforms();
-	inline void submitTextures();
 	inline void submitStorageBuffers();
 
 	inline void synchronizeTextures();
 	// When the material layout reloaded, do it.
 	inline void reregisterUnmodifiedTextures();
-	inline void reloadModifiedTextures();
+	inline void reloadModifiedTextures(uint32_t frameIndex);
 
 	inline void synchronizeStorageBuffers();
 	inline void registerFrameStorageBuffers(

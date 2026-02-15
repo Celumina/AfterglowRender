@@ -1,12 +1,15 @@
 #pragma once
 #include "AfterglowCommandBuffer.h"
 
+class AfterglowPipeline;
+class AfterglowPassInterface;
+class AfterglowDescriptorSetReferences;
+
 class AfterglowDrawCommandBuffer : public AfterglowCommandBuffer<AfterglowDrawCommandBuffer> {
 public:
-	struct BeginInfo {
-		BeginInfo();
+	struct PassBeginInfo {
+		PassBeginInfo();
 
-		VkCommandBufferBeginInfo commandBufferBegin{};
 		VkRenderPassBeginInfo renderPassBegin{};
 
 		// Viewport
@@ -29,19 +32,22 @@ public:
 		// Vertex Info
 		uint32_t indexCount = 0;
 		uint32_t vertexCount = 0;
-		uint32_t instanceCount = 0;
+		uint32_t instanceCount = 1;
 	};
 
 	AfterglowDrawCommandBuffer(AfterglowCommandPool& commandPool);
 
 	// Call layers example: 
-	// begin 
+	// beginRecord
+	//	beginRenderPass
 	//		-> setupPipeline 
 	//			-> setupDescriptorSets 
 	//				-> record 
 	//				-> ... 
 	//			-> setupDescriptorSet 
 	//				-> record 
+	//	endRenderPass
+	// 	beginRenderPass
 	//		-> setupPipeline 
 	//			-> setupDescriptorSet 
 	//				-> record 
@@ -50,17 +56,33 @@ public:
 	//			-> setupDescriptorSets 
 	//				-> record 
 	//				-> ... 
-	// end
-	void beginRecord(BeginInfo& beginInfo);
+	//	endRenderPass
+	// endRecord
+	void beginRecord();
+	void beginRenderPass(PassBeginInfo& beginInfo);
+	/**
+	* @brief: Create pass begin info from pass automatically.
+	* @param imageIndex: for multiple framebuffers case.
+	*/
+	// 
+	void beginRenderPass(AfterglowPassInterface& pass, uint32_t imageIndex = 0);
 	void setResolution(float width, float height);
 	// Relative with material.
 	void setupPipeline(AfterglowPipeline& pipeline);
 	// Relative with material instance.
 	void setupDescriptorSets(const AfterglowDescriptorSetReferences& setRefs);
 	// Relative with drawcall mesh.
-	void dispatch(const RecordInfo& recordInfo);
-	void nextSubpassRecord();
+	void draw(const RecordInfo& recordInfo);
+	void nextSubpass();
+	void endRenderPass();
 	void endRecord();
+
+	void barrier(
+		const std::vector<VkImageMemoryBarrier>* barriers, 
+		VkPipelineStageFlags srcPipelineStage, 
+		VkPipelineStageFlags destPipelineStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT
+	);
+	void barrier(AfterglowPassInterface& pass);
 
 private:
 	AfterglowPipeline* _currentPipeline = nullptr;

@@ -6,6 +6,7 @@
 #include "AfterglowWindow.h"
 #include "AfterglowInstance.h"
 #include "AfterglowRenderPass.h"
+#include "AfterglowSwapchain.h"
 #include "AfterglowGraphicsQueue.h"
 #include "AfterglowDescriptorPool.h"
 #include "AfterglowPhysicalDevice.h"
@@ -42,61 +43,7 @@ void AfterglowGUI::Impl::showConsolePanel() {
 	consolePanel.show();
 }
 
-AfterglowGUI::AfterglowGUI(
-	AfterglowWindow& window,
-	AfterglowInstance& instance,
-	AfterglowDevice& device,
-	AfterglowSwapchain& swapchain,
-	AfterglowGraphicsQueue& graphicsQueue,
-	AfterglowDescriptorPool& descriptorPool, 
-	AfterglowRenderPass& renderPass) : 
-	_impl(std::make_unique<Impl>(ImGui_ImplVulkan_InitInfo{
-		.ApiVersion = cfg::apiVersion, 
-		.Instance = instance, 
-		.PhysicalDevice = device.physicalDevice(),
-		.Device = device, 
-		.QueueFamily = device.physicalDevice().graphicsFamilyIndex(), 
-		.Queue = graphicsQueue, 
-		.DescriptorPool = descriptorPool, 
-		.MinImageCount = cfg::maxFrameInFlight, 
-		.ImageCount = static_cast<uint32_t>(swapchain.images().size()),
-		.RenderPass = renderPass, 
-		.Subpass = renderPass.subpassContext().subpassIndex(render::Domain::UserInterface), 
-		.MSAASamples = VK_SAMPLE_COUNT_1_BIT // In UserInterface domain, attachment had been resolved.
-	})), 
-	_window(window) {
-
-	ImGui::CreateContext();
-	ImGuiIO& io = ImGui::GetIO();
-	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
-	io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
-
-	// Modify UI style here:
-	ImGuiStyle& style = ImGui::GetStyle();
-	ImGui::StyleColorsLight();
-	style.ScaleAllSizes(1.2f);
-	style.Colors[ImGuiCol_WindowBg] = {1.0f, 1.0f, 1.0f, 0.8f};
-	style.WindowPadding = {16.0f, 16.0f};
-	style.WindowRounding = 16.0f;
-	style.WindowTitleAlign = { 0.5f, 0.5f };
-	style.ChildRounding = 12.0f;
-	style.PopupRounding = 16.0f;
-	style.FramePadding = { 8.0f, 5.0f };
-	style.FrameRounding = 16.0f;
-	style.GrabRounding = 12.0f;
-
-	// Default font
-	ImFont* font = io.Fonts->AddFontFromFileTTF(
-		font::defaultFontPath,
-		14.0f,
-		&_impl->fontConfig,
-		0
-	);
-	if (font) {
-		io.FontDefault = font;
-	}
-	ImGui_ImplGlfw_InitForVulkan(window, false);
-	ImGui_ImplVulkan_Init(&_impl->vulkanInitInfo);
+AfterglowGUI::AfterglowGUI(AfterglowWindow& window) : _window(window) {
 }
 
 AfterglowGUI::~AfterglowGUI() {
@@ -123,12 +70,73 @@ ImDrawData* AfterglowGUI::update() {
 	return ImGui::GetDrawData();
 }
 
-void AfterglowGUI::bindRenderStatus(AfterglowRenderStatus& renderStatus) noexcept {
+void AfterglowGUI::bindRenderContext(
+	AfterglowInstance& instance, 
+	AfterglowDevice& device, 
+	AfterglowSwapchain& swapchain, 
+	AfterglowGraphicsQueue& graphicsQueue, 
+	AfterglowDescriptorPool& descriptorPool, 
+	AfterglowRenderPass& renderPass, 
+	AfterglowRenderStatus& renderStatus
+) {
+	_impl = std::make_unique<Impl>(ImGui_ImplVulkan_InitInfo{
+		.ApiVersion = cfg::apiVersion,
+		.Instance = instance,
+		.PhysicalDevice = device.physicalDevice(),
+		.Device = device,
+		.QueueFamily = device.physicalDevice().graphicsFamilyIndex(),
+		.Queue = graphicsQueue,
+		.DescriptorPool = descriptorPool,
+		.MinImageCount = cfg::maxFrameInFlight,
+		.ImageCount = static_cast<uint32_t>(swapchain.images().size()),
+		.RenderPass = renderPass,
+		.Subpass = renderPass.subpassContext().subpassIndex(std::string(inreflect::EnumName(render::Domain::UserInterface))),
+		.MSAASamples = VK_SAMPLE_COUNT_1_BIT // In UserInterface domain, attachment had been resolved.
+	});
 	_impl->consolePanel.bindRenderStatus(renderStatus);
+	if (_sysUtils) {
+		_impl->consolePanel.bindSystemUtilities(*_sysUtils);
+	}
+
+	// Initialize ImGUI
+	ImGui::CreateContext();
+	ImGuiIO& io = ImGui::GetIO();
+	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+	io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
+
+	// Modify UI style here:
+	ImGuiStyle& style = ImGui::GetStyle();
+	ImGui::StyleColorsLight();
+	style.ScaleAllSizes(1.2f);
+	style.Colors[ImGuiCol_WindowBg] = { 1.0f, 1.0f, 1.0f, 0.8f };
+	style.WindowPadding = { 16.0f, 16.0f };
+	style.WindowRounding = 16.0f;
+	style.WindowTitleAlign = { 0.5f, 0.5f };
+	style.ChildRounding = 12.0f;
+	style.PopupRounding = 16.0f;
+	style.FramePadding = { 8.0f, 5.0f };
+	style.FrameRounding = 16.0f;
+	style.GrabRounding = 12.0f;
+
+	// Default font
+	ImFont* font = io.Fonts->AddFontFromFileTTF(
+		font::defaultFontPath,
+		14.0f,
+		&_impl->fontConfig,
+		0
+	);
+	if (font) {
+		io.FontDefault = font;
+	}
+	ImGui_ImplGlfw_InitForVulkan(_window, false);
+	ImGui_ImplVulkan_Init(&_impl->vulkanInitInfo);
 }
 
 void AfterglowGUI::bindSystemUtilities(AfterglowSystemUtilities& sysUtils) noexcept {
-	_impl->consolePanel.bindSystemUtilities(sysUtils);
+	_sysUtils = &sysUtils;
+	if (_impl) {
+		_impl->consolePanel.bindSystemUtilities(sysUtils);
+	}
 }
 
 void AfterglowGUI::keyCallback(int keycode, int scancode, int action, int mods) {

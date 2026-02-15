@@ -1,36 +1,45 @@
 #include "AfterglowSubpassContext.h"
-
-#include <stdexcept>
-
 #include "AfterglowUtilities.h"
+#include "RenderDefinitions.h"
+#include "ExceptionUtilities.h"
 #include "RenderConfigurations.h"
-#include "DebugUtilities.h"
 
-VkAttachmentDescription AfterglowSubpassContext::transferAttachment(VkFormat format, VkSampleCountFlagBits sampleCount) {
+VkAttachmentDescription AfterglowSubpassContext::transferAttachment(VkFormat format, PassUsage usage, VkSampleCountFlagBits sampleCount) {
 	auto attachment = emptyAttachment(format, sampleCount);
 	// This allows tilers to completely avoid writing out the multisampled attachment to memory,
 	// a considerable performance and bandwidth improvement
-	attachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE; // VK_ATTACHMENT_STORE_OP_STORE;
+	// attachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE; // VK_ATTACHMENT_STORE_OP_STORE;
+	modifyAttachmentByPassUsage(usage, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, attachment);
 	attachment.finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 	return attachment;
 }
 
-VkAttachmentDescription AfterglowSubpassContext::nonTransferAttachment(VkFormat format, VkSampleCountFlagBits sampleCount) {
+VkAttachmentDescription AfterglowSubpassContext::nonTransferAttachment(VkFormat format, PassUsage usage, VkSampleCountFlagBits sampleCount) {
 	auto attachment = emptyAttachment(format, sampleCount);
+	modifyAttachmentByPassUsage(usage, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, attachment);
 	attachment.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 	return attachment;
 }
 
-VkAttachmentDescription AfterglowSubpassContext::depthAttachment(VkFormat format, VkSampleCountFlagBits sampleCount) {
+VkAttachmentDescription AfterglowSubpassContext::depthAttachment(VkFormat format, PassUsage usage, VkSampleCountFlagBits sampleCount) {
 	auto attachment = emptyAttachment(format, sampleCount);
-	attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-	attachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE; //VK_ATTACHMENT_STORE_OP_STORE;
+	modifyAttachmentByPassUsage(usage, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, attachment);
+	
+	// Make sure depth image be initialized when the first pass begin.
+	if (attachment.loadOp == VK_ATTACHMENT_LOAD_OP_DONT_CARE) {
+		attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+	}
+	if (attachment.stencilLoadOp == VK_ATTACHMENT_LOAD_OP_DONT_CARE) {
+		attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+	}
+
 	attachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 	return attachment;
 }
 
-VkAttachmentDescription AfterglowSubpassContext::presentAttachment(VkFormat format) {
+VkAttachmentDescription AfterglowSubpassContext::presentAttachment(VkFormat format, PassUsage usage) {
 	auto attachment = emptyAttachment(format, VK_SAMPLE_COUNT_1_BIT);
+	modifyAttachmentByPassUsage(usage, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, attachment);
 	attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 	attachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 	return attachment;
@@ -79,101 +88,102 @@ VkSubpassDependency AfterglowSubpassContext::fragmentRWColorRDepthDependency(uin
 	return dependency;
 }
 
+VkSubpassDependency AfterglowSubpassContext::fragmentRColorDependency(uint32_t srcSubpassIndex, uint32_t destSubpassIndex) {
+	return VkSubpassDependency{
+		.srcSubpass = srcSubpassIndex,
+		.dstSubpass = destSubpassIndex,
+		.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, 
+		.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT ,
+		.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, 
+		.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT 
+	};
+}
+
 VkSubpassDependency AfterglowSubpassContext::fragmentWColorDependency(uint32_t srcSubpassIndex, uint32_t destSubpassIndex) {
 	return VkSubpassDependency{
 		.srcSubpass = srcSubpassIndex, 
 		.dstSubpass = destSubpassIndex, 
 		.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, // SrcSupass attachment {srcStageMask} is outputted, then
-		.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, // DestSubpass {dstStageMask} attachment is able to write.
+		.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT , // DestSubpass {dstStageMask} attachment is able to write.
 		.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,    // SrcSupass access {srcAccessMask} is completed, then
 		.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT     // DestSubpass is able to access {dstAccessMask}
 	};
 }
 
-VkSubpassDescription& AfterglowSubpassContext::appendSubpass(render::Domain domain) {
-	auto iterator = _attachmentInfos.find(domain);
-	// If subpasss exists: 
-	if (iterator != _attachmentInfos.end()) {
-		auto& attachmentInfo = iterator->second;
-		return _subpasses[attachmentInfo.subpassIndex];
+VkSubpassDescription& AfterglowSubpassContext::appendSubpass(const std::string& subpassName) {
+	auto iterator = _subpassAttachmentInfos.find(subpassName);
+	// If subpass exists, return existed subpass directly. 
+	if (iterator != _subpassAttachmentInfos.end()) {
+		return _subpasses[iterator->second.subpassIndex];
 	}
-	// Subpass not exists:
-	// Initialize attachment info
-	// Initialize subpass description
-
-	// Force subpass in order of Domain.
-	if (util::EnumValue(domain) <= util::EnumValue(_lastAppendedDomain)) {
-		DEBUG_CLASS_FATAL("Make sure append subpass in domain order.");
-		throw std::runtime_error("Make sure append subpass in domain order.");
-	}
-	_lastAppendedDomain = domain;
+	_subpassAttachmentInfos.emplace(subpassName, SubpassAttachmentInfo{ .subpassIndex = subpassCount() });
 
 	auto& subpass = _subpasses.emplace_back();
-	_attachmentInfos.emplace(domain, SubpassAttachmentInfo{ .subpassIndex = subpassCount() - 1});
-
 	// Default Settings
 	subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-
 	return subpass;
 }
 
-uint32_t AfterglowSubpassContext::subpassIndex(render::Domain domain) {
-	auto* info = attachmentInfo(domain);
+uint32_t AfterglowSubpassContext::subpassIndex(const std::string& subpassName) {
+	auto* info = subpassAttachmentInfo(subpassName);
 	if (!info) {
-		throw std::runtime_error("[AfterglowSubpassContext] Can not aquire subpass, due to subpass of this domain have not been created.");
+		EXCEPT_CLASS_RUNTIME("Subpass not found.");
 	}
 	return info->subpassIndex;
 }
 
-bool AfterglowSubpassContext::bindInputAttachment(render::Domain domain, uint32_t attachmentIndex, const std::string& attachmentName, VkImageLayout imageLayout) {
-	if (!bindAttachment(AttachmentReferenceArrayID::Input, domain, attachmentIndex, imageLayout)) {
+bool AfterglowSubpassContext::bindInputAttachment(const std::string& subpassName, uint32_t attachmentIndex, const std::string& attachmentName, VkImageLayout imageLayout) {
+	if (!bindAttachment(AttachmentReferenceArrayID::Input, subpassName, attachmentIndex, imageLayout)) {
 		return false;
 	}
 
-	auto inputAttachmentType = render::InputAttachmentType::Color;
+	auto inputAttachmentType = render::AttachmentType::Color;
 	bool isMultiSample = false;
+	// TODO: DepthStencil support.
 	if (isDepthAttachmentIndex(attachmentIndex)) {
-		inputAttachmentType = render::InputAttachmentType::Depth;
+		inputAttachmentType = render::AttachmentType::Depth;
 	}
 	if (attachment(attachmentIndex).samples != VK_SAMPLE_COUNT_1_BIT) {
 		isMultiSample = true;
 	}
+
 	_inputAttachmentInfos.emplace_back(
-		domain, attachmentIndex, inputAttachmentType, isMultiSample, attachmentName
+		attachmentIndex, inputAttachmentType, isMultiSample, attachmentName
 	);
+
 	return true;
 }
 
-bool AfterglowSubpassContext::bindInputDepthAttachment(render::Domain domain, uint32_t attachmentIndex, const std::string& attachmentName) {
-	return bindInputAttachment(domain, attachmentIndex, attachmentName, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL);
+bool AfterglowSubpassContext::bindInputDepthAttachment(const std::string& subpassName, uint32_t attachmentIndex, const std::string& attachmentName) {
+	return bindInputAttachment(subpassName, attachmentIndex, attachmentName, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL);
 }
 
-bool AfterglowSubpassContext::bindColorAttachment(render::Domain domain, uint32_t attachmentIndex) {
+bool AfterglowSubpassContext::bindColorAttachment(const std::string& subpassName, uint32_t attachmentIndex) {
 	bool bindSuccessfully = bindAttachment(
 		AttachmentReferenceArrayID::Color,
-		domain,
+		subpassName,
 		attachmentIndex,
 		VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
 	);
 	return bindSuccessfully;
 }
 
-bool AfterglowSubpassContext::bindResolveAttachment(render::Domain domain, uint32_t attachmentIndex) {
+bool AfterglowSubpassContext::bindResolveAttachment(const std::string& subpassName, uint32_t attachmentIndex) {
 	if (isDepthAttachmentIndex(attachmentIndex)) {
 		DEBUG_CLASS_WARNING("Can not resolve a depth attachment.");
 		return false;
 	}
 	bool bindSuccessfully = bindAttachment(
-		AttachmentReferenceArrayID::Resolve, 
-		domain, 
-		attachmentIndex, 
+		AttachmentReferenceArrayID::Resolve,
+		subpassName,
+		attachmentIndex,
 		VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
 	);
 	return bindSuccessfully;
 }
 
-bool AfterglowSubpassContext::bindDepthAttachment(render::Domain domain, uint32_t attachmentIndex) {
-	auto* info = attachmentInfo(domain);
+bool AfterglowSubpassContext::bindDepthAttachment(const std::string& subpassName, uint32_t attachmentIndex) {
+	auto* info = subpassAttachmentInfo(subpassName);
 	if (!isDepthAttachmentIndex(attachmentIndex) || !info) {
 		DEBUG_CLASS_WARNING("Depth attachment or subpass was not initialized.");
 		return false;
@@ -204,32 +214,38 @@ uint32_t AfterglowSubpassContext::appendDepthAttachment(VkAttachmentDescription&
 	return index;
 }
 
-int32_t AfterglowSubpassContext::isDepthAttachmentIndex(uint32_t index) {
+int32_t AfterglowSubpassContext::isDepthAttachmentIndex(uint32_t index) const {
 	return _depthAttachmentIndices.find(index) != _depthAttachmentIndices.end();
 }
 
-VkSubpassDependency& AfterglowSubpassContext::makeDependency(render::Domain srcSubpass, render::Domain destSubpass, DependencyPresetFunc dependencyPreset) {
-	auto srcSubpassInfoInterator = _attachmentInfos.find(srcSubpass);
-	auto destSubpassInfoIterator = _attachmentInfos.find(destSubpass);
-	if ((srcSubpass != render::Domain::Undefined && srcSubpassInfoInterator == _attachmentInfos.end())
-		|| (destSubpassInfoIterator == _attachmentInfos.end())) {
-		throw std::runtime_error("[AfterglowSubpassContext] Failed to make dependency, due to srcSubpass or destSubpass is not exists.");
+VkSubpassDependency& AfterglowSubpassContext::makeDependency(const std::string& srcSubpass, const std::string& destSubpass, DependencyPresetFunc dependencyPreset) {
+	if (destSubpass.empty()) {
+		EXCEPT_CLASS_RUNTIME("Failed to make dependency, due to dest subpass is undefined.");
 	}
-	if (destSubpass == render::Domain::Undefined) {
-		throw std::runtime_error("[AfterglowSubpassContext] Failed to make dependency, due to dest subpass is undefined.");
+
+	SubpassAttachmentInfo* srcSubpassInfo = nullptr;
+	if (!srcSubpass.empty()) {
+		srcSubpassInfo = subpassAttachmentInfo(srcSubpass);
+	}
+
+	SubpassAttachmentInfo* destSubpassInfo = subpassAttachmentInfo(destSubpass);
+
+	bool srcSubpassValid = srcSubpass.empty() || srcSubpassInfo;
+
+	if (!srcSubpassValid || !destSubpassInfo) {
+		EXCEPT_CLASS_RUNTIME("Failed to make dependency, due to srcSubpass or destSubpass is not exists.");
 	}
 
 	auto& dependency = _dependencies.emplace_back();
-	auto& destSubpassInfo = destSubpassInfoIterator->second;
-	if (srcSubpass == render::Domain::Undefined) {
-		dependency = firstDependency(destSubpassInfo.subpassIndex);
+	if (!srcSubpassInfo) {
+		dependency = firstDependency(destSubpassInfo->subpassIndex);
 	}
 	else if (dependencyPreset) {
-		dependency = dependencyPreset(srcSubpassInfoInterator->second.subpassIndex, destSubpassInfo.subpassIndex);
+		dependency = dependencyPreset(srcSubpassInfo->subpassIndex, destSubpassInfo->subpassIndex);
 	}
 	else {
-		dependency.srcSubpass = srcSubpassInfoInterator->second.subpassIndex;
-		dependency.dstSubpass = destSubpassInfo.subpassIndex;
+		dependency.srcSubpass = srcSubpassInfo->subpassIndex;
+		dependency.dstSubpass = destSubpassInfo->subpassIndex;
 	}
 	return dependency;
 }
@@ -238,8 +254,8 @@ VkAttachmentDescription& AfterglowSubpassContext::attachment(uint32_t index) {
 	return _attachments[index];
 }
 
-VkClearValue& AfterglowSubpassContext::clearValue(uint32_t index) {
-	return _clearValues[index];
+void AfterglowSubpassContext::setClearValue(uint32_t index, const VkClearValue& clearValue) {
+	_clearValues[index] = clearValue;
 }
 
 const AfterglowSubpassContext::SubpassDescriptionArray& AfterglowSubpassContext::subpasses(bool updateAttachmentRefs){
@@ -249,7 +265,7 @@ const AfterglowSubpassContext::SubpassDescriptionArray& AfterglowSubpassContext:
 	return _subpasses;
 }
 
-const AfterglowSubpassContext::SubpassDependencyArray& AfterglowSubpassContext::dependencies() {
+const AfterglowSubpassContext::SubpassDependencyArray& AfterglowSubpassContext::dependencies() const noexcept {
 	return _dependencies;
 }
 
@@ -269,16 +285,16 @@ uint32_t AfterglowSubpassContext::clearValueCount() const {
 	return _clearValues.size();
 }
 
-bool AfterglowSubpassContext::subpassExists(render::Domain domain) const {
-	return _attachmentInfos.find(domain) != _attachmentInfos.end();
+bool AfterglowSubpassContext::subpassExists(const std::string& subpassName) const {
+	return _subpassAttachmentInfos.find(subpassName) != _subpassAttachmentInfos.end();
 }
 
 const render::InputAttachmentInfos& AfterglowSubpassContext::inputAttachmentInfos() const {
 	return _inputAttachmentInfos;
 }
 
-VkSampleCountFlagBits AfterglowSubpassContext::rasterizationSampleCount(render::Domain domain) const {
-	auto* info = attachmentInfo(domain);
+VkSampleCountFlagBits AfterglowSubpassContext::rasterizationSampleCount(const std::string& subpassName) const {
+	auto* info = subpassAttachmentInfo(subpassName);
 	if (!info) {
 		DEBUG_CLASS_WARNING("Domain attachment info was not found, return a default value.");
 		return VK_SAMPLE_COUNT_1_BIT;
@@ -292,34 +308,59 @@ VkSampleCountFlagBits AfterglowSubpassContext::rasterizationSampleCount(render::
 	return VK_SAMPLE_COUNT_1_BIT;
 }
 
-const AfterglowSubpassContext::AttachmentDescriptionArray& AfterglowSubpassContext::attachments() {
+const std::string& AfterglowSubpassContext::firstSubpassName() const {
+	for (const auto& [name, info] : _subpassAttachmentInfos) {
+		if (info.subpassIndex == 0) {
+			return name;
+		}
+	}
+	EXCEPT_CLASS_RUNTIME("No valid subpass be found.");
+}
+
+inline void AfterglowSubpassContext::modifyAttachmentByPassUsage(
+	PassUsage usage,
+	VkImageLayout importAttachmentLayout,
+	VkAttachmentDescription& destAttachment
+) {
+	destAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	destAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	destAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	destAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+
+	if (util::EnumValue(usage) & util::EnumValue(PassUsage::Import)) {
+		destAttachment.initialLayout = importAttachmentLayout;
+		destAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+		destAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+	}
+	if (util::EnumValue(usage) & util::EnumValue(PassUsage::Export)) {
+		destAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+		destAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_STORE;
+	}
+}
+
+const AfterglowSubpassContext::AttachmentDescriptionArray& AfterglowSubpassContext::attachments() const noexcept {
 	return _attachments;
 }
 
-const AfterglowSubpassContext::ClearValueArray& AfterglowSubpassContext::clearValues() {
+const AfterglowSubpassContext::ClearValueArray& AfterglowSubpassContext::clearValues() const noexcept {
 	return _clearValues;
 }
 
-inline AfterglowSubpassContext::SubpassAttachmentInfo* AfterglowSubpassContext::attachmentInfo(render::Domain domain) {
-	auto iterator = _attachmentInfos.find(domain);
-	if (iterator == _attachmentInfos.end()) {
-		DEBUG_CLASS_WARNING("Subpass of target domain not found, try to appendSubpass() before append attachemnt.");
+inline AfterglowSubpassContext::SubpassAttachmentInfo* AfterglowSubpassContext::subpassAttachmentInfo(const std::string& subpassName) {
+	auto iterator = _subpassAttachmentInfos.find(subpassName);
+	if (iterator == _subpassAttachmentInfos.end()) {
+		DEBUG_CLASS_WARNING("Custom subpass not found, try to appendSubpass() before append attachemnt.");
 		return nullptr;
 	}
 	return &iterator->second;
 }
 
-inline const AfterglowSubpassContext::SubpassAttachmentInfo* AfterglowSubpassContext::attachmentInfo(render::Domain domain) const {
-	return const_cast<AfterglowSubpassContext*>(this)->attachmentInfo(domain);
+inline AfterglowSubpassContext::SubpassAttachmentInfo* AfterglowSubpassContext::subpassAttachmentInfo(const std::string& subpassName) const {
+	return const_cast<AfterglowSubpassContext*>(this)->subpassAttachmentInfo(subpassName);
 }
 
-inline bool AfterglowSubpassContext::bindAttachment(
-	AttachmentReferenceArrayID referenceID, 
-	render::Domain domain, 
-	uint32_t attachmentIndex, 
-	VkImageLayout layout
-	) {
-	auto* info = attachmentInfo(domain);
+inline bool AfterglowSubpassContext::bindAttachment(AttachmentReferenceArrayID referenceID, const std::string& subpassName, uint32_t attachmentIndex, VkImageLayout layout) {
+	auto* info = subpassAttachmentInfo(subpassName);
 	if (!info || attachmentIndex >= _attachments.size() || attachmentIndex < 0) {
 		DEBUG_CLASS_WARNING("Subpass have not been created, or attachment index out of range.");
 		return false;
@@ -331,7 +372,7 @@ inline bool AfterglowSubpassContext::bindAttachment(
 }
 
 inline void AfterglowSubpassContext::updateSubpassAttachmentReferences() {
-	for (auto& [domain, attachmentInfo] : _attachmentInfos) {
+	for (auto& [key, attachmentInfo] : _subpassAttachmentInfos) {
 		auto& subpass = _subpasses[attachmentInfo.subpassIndex];
 		auto& inputAttachmentRefs =
 			attachmentInfo.attachmentRefs[util::EnumValue(AttachmentReferenceArrayID::Input)];
@@ -341,11 +382,11 @@ inline void AfterglowSubpassContext::updateSubpassAttachmentReferences() {
 			attachmentInfo.attachmentRefs[util::EnumValue(AttachmentReferenceArrayID::Resolve)];
 		if (inputAttachmentRefs.size() > 0) {
 			subpass.pInputAttachments = inputAttachmentRefs.data();
-			subpass.inputAttachmentCount = inputAttachmentRefs.size();
+			subpass.inputAttachmentCount = static_cast<uint32_t>(inputAttachmentRefs.size());
 		}
 		if (colorAttachmentRefs.size() > 0) {
 			subpass.pColorAttachments = colorAttachmentRefs.data();
-			subpass.colorAttachmentCount = colorAttachmentRefs.size();
+			subpass.colorAttachmentCount = static_cast<uint32_t>(colorAttachmentRefs.size());
 		}
 		if (resolveAttachmentRefs.size() > 0) {
 			subpass.pResolveAttachments = resolveAttachmentRefs.data();

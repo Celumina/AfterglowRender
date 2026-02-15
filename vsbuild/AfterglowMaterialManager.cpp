@@ -8,22 +8,25 @@
 #include "GlobalAssets.h"
 #include "AfterglowMaterialUtilities.h"
 #include "AfterglowSynchronizer.h"
+#include "AfterglowMaterialAsset.h"
 #include "AfterglowMaterialAssetRegistrar.h"
 #include "AfterglowMaterialResource.h"
 #include "AfterglowDescriptorSetWriter.h"
 #include "AfterglowDescriptorSetReferences.h"
 #include "AfterglowComputeTask.h"
+#include "AfterglowPassManager.h"
 
 
 struct AfterglowMaterialManager::Impl {
 	using MaterialLayouts = std::unordered_map<std::string, AfterglowMaterialLayout>;
 	using MaterialResources = std::unordered_map<std::string, AfterglowMaterialResource>;
+	using InFlightDescriptorSets = std::array<AfterglowDescriptorSets::AsElement, cfg::maxFrameInFlight>;
 
 	struct PerObjectSetContext {
 		const ubo::MeshUniform* meshUniform = nullptr;
-		std::array<AfterglowUniformBuffer::AsElement, cfg::maxFrameInFlight> inFlightBuffers;
+		std::array<AfterglowUniformBuffer::AsElement, cfg::maxFrameInFlight> inFlightUniformBuffers;
 		// This set allocate own mesh buffer only
-		std::array<AfterglowDescriptorSets::AsElement, cfg::maxFrameInFlight> inFlightSets;
+		InFlightDescriptorSets inFlightSets;
 		std::array<AfterglowDescriptorSetReferences, cfg::maxFrameInFlight> inFlightSetReferences;
 		std::array<bool, cfg::maxFrameInFlight> inFlightMaterialChangedFlags;
 		bool activated = false;
@@ -31,9 +34,20 @@ struct AfterglowMaterialManager::Impl {
 
 	struct GlobalSetContext {
 		ubo::GlobalUniform globalUniform{};
-		std::vector<AfterglowMaterialResource::TextureResource> textureResources;
-		std::array<AfterglowUniformBuffer::AsElement, cfg::maxFrameInFlight> inFlightBuffers;
-		std::array<AfterglowDescriptorSets::AsElement, cfg::maxFrameInFlight> inFlightSets;
+		std::array<AfterglowUniformBuffer::AsElement, cfg::maxFrameInFlight> inFlightUniformBuffers;
+		// Global texture assets from GlobalAsset.h
+		std::vector<AfterglowMaterialResource::TextureResource> globalTextureResources;
+		InFlightDescriptorSets globalInFlightSets; // Uniform binding and global texture bindings.
+		render::PassUnorderedMap<InFlightDescriptorSets> allPassInFlightSets; // Pass import and input attachment bindings.
+	};
+
+	enum class MaterialResourceUpdateFlag {
+		None = 0, 
+		Uniform = 1 << 0, 
+		Texture = 1 << 1, 
+		UniformTexture = Uniform | Texture, 
+
+		EnumCount
 	};
 
 	// One material instance support multi objects.
@@ -41,14 +55,14 @@ struct AfterglowMaterialManager::Impl {
 	using MaterialPerObjectSetContexts = std::unordered_map<AfterglowMaterialResource*, PerObjectSetContextArray>;
 
 	using DatedMaterialLayouts = std::unordered_set<AfterglowMaterialLayout*>;
-	using DatedMaterialResources = std::unordered_set<AfterglowMaterialResource*>;
+	using DatedMaterialResources = std::array<std::unordered_map<AfterglowMaterialResource*, MaterialResourceUpdateFlag>, cfg::maxFrameInFlight>;
 	// TODO: Here refs from container are DANGEROUS due to PerObjectSetContextArray use std::vector.
 	using DatedPerObjectSetContexts = std::unordered_map<AfterglowMaterialResource*, PerObjectSetContextArray*>;
 
 	// ComputeTask external ssbo context
 	struct ComputeExternalSSBOContext {
 		AfterglowDescriptorSetLayout::AsElement setLayout;
-		std::array<AfterglowDescriptorSets::AsElement, cfg::maxFrameInFlight> inflightSets;
+		InFlightDescriptorSets inflightSets;
 		// <ssboName, assosicatedMaterialResource>
 		std::vector<AfterglowMaterialResource*> associatedMaterialResources;
 		AfterglowComputeTask::SSBOInfoRefs associatedSSBOInfos;
@@ -56,11 +70,12 @@ struct AfterglowMaterialManager::Impl {
 	using ComputeExternalSSBOContexts = std::unordered_map<AfterglowMaterialLayout*, ComputeExternalSSBOContext>;
 
 	Impl(
-		AfterglowMaterialManager& managerRef, 
-		AfterglowCommandPool& CommandPoolRef,
-		AfterglowGraphicsQueue& graphicsQueueRef,
-		AfterglowRenderPass& renderPassRef,
-		AfterglowAssetMonitor& assetMonitorRef
+		AfterglowMaterialManager& inManager, 
+		AfterglowCommandPool& inCommandPool,
+		AfterglowGraphicsQueue& inGraphicsQueue,
+		AfterglowPassManager& inPassManager,
+		AfterglowAssetMonitor& inAssetMonitor, 
+		AfterglowSynchronizer& inSynchronizer
 	);
 
 	inline AfterglowMaterialInstance& createMaterialInstanceWithoutLock(const std::string& name, const std::string& parentMaterialName);
@@ -70,15 +85,21 @@ struct AfterglowMaterialManager::Impl {
 
 	inline bool instantializeMaterial(const std::string& name);
 
-	inline void initGlobalDescriptorSet();
+	inline void initGlobalDescriptorSets(render::PassUnorderedMap<img::ImageReferences>& allPassImages);
+	inline void initPassDescriptorSet(AfterglowPassInterface& pass);
+	// @warning: Invoke only before the draw begin due to it's not handling the frameIndex case.
+	inline void initAllPassImageSets(render::PassUnorderedMap<img::ImageReferences>& allPassImages);
 
 	// Call it when that material submit.
 	inline void reloadMaterialResources(AfterglowMaterialLayout& matLayout);
 
 	inline void applyMaterialLayout(AfterglowMaterialLayout& matLayout);
-	inline void applyMaterialResource(AfterglowMaterialResource& matResource);
-	inline void applyExternalSetContext(AfterglowMaterialResource& matResource, PerObjectSetContextArray& perObjectSetContexts, uint32_t frameIndex);
-	inline void applyGlobalSetContext(img::WriteInfoArray& imageWriteInfos, uint32_t frameIndex);
+	inline void applyMaterialResource(AfterglowMaterialResource& matResource, MaterialResourceUpdateFlag updateFlag, uint32_t frameIndex);
+	inline void applyPerObjectGlobalSetContext(AfterglowMaterialResource& matResource, PerObjectSetContextArray& perObjectSetContexts, uint32_t frameIndex);
+	inline void applyGlobalUniformSet(uint32_t frameIndex);
+
+	inline void applyPassImageSets(AfterglowPassInterface& pass, img::ImageReferences& passImages, uint32_t frameIndex);
+	inline void applySwapchainPassImageSets(render::PassUnorderedMap<img::ImageReferences>& allPassImages, uint32_t frameIndex);
 
 	inline void appendGlobalSetTextureResource(shader::GlobalSetBindingIndex textureBindingIndex);
 
@@ -89,22 +110,26 @@ struct AfterglowMaterialManager::Impl {
 	inline void applyComputeExternalSSBOContext(AfterglowMaterialLayout& matLayout);
 	inline void applyComputeExternalSSBOSetReference(AfterglowMaterialLayout& matLayout, AfterglowDescriptorSetReferences& setRefs, uint32_t frameIndex);
 
-
+	inline bool submitMaterialInstanceWithoutLock(const std::string& name, MaterialResourceUpdateFlag updateFlag);
+	inline void markAsDated(AfterglowMaterialResource& matResource, MaterialResourceUpdateFlag flag = MaterialResourceUpdateFlag::UniformTexture);
 
 	// Static Pool Size
 	// TODO: add a new pool for dynamic pool size.
 	// Place front to make sure descriptor set destruct later than descriptor sets.
 	AfterglowDescriptorPool::AsElement descriptorPool;
 	AfterglowSharedTexturePool texturePool;
-	AfterglowRenderPass& renderPass;
+	AfterglowPassManager& passManager;
+	AfterglowSynchronizer& synchronizer;
 
 	AfterglowMaterialAssetRegistrar assetRegistrar;
 
 	MaterialLayouts materialLayouts;
 	MaterialResources materialResources;
 
-	// Global Set Layout
+	// Global Set Layouts
 	AfterglowDescriptorSetLayout::AsElement globalDescriptorSetLayout;
+	render::PassUnorderedMap<AfterglowDescriptorSetLayout::AsElement> allPassDescriptorSetLayouts;
+	std::array<bool, cfg::maxFrameInFlight> inFlightSwapchainImageSetOutdatedFlags{};
 	// Global Uniform Resources
 	GlobalSetContext globalSetContext;
 
@@ -120,6 +145,7 @@ struct AfterglowMaterialManager::Impl {
 	DatedPerObjectSetContexts datedPerObjectSetContexts;
 	std::vector<PerObjectSetContextArray*> perObjectSetContextRemovingCache;
 	std::vector<std::string> materialRemovingCache;
+	std::vector<std::string> materialInstanceRemovingCache;
 
 	ComputeExternalSSBOContexts computeExternalSSBOContexts;
 	DatedMaterialLayouts datedComputeExternalSSBOContextKeys;
@@ -128,25 +154,27 @@ struct AfterglowMaterialManager::Impl {
 };
 
 AfterglowMaterialManager::Impl::Impl(
-	AfterglowMaterialManager& managerRef,
-	AfterglowCommandPool& commandPoolRef, 
-	AfterglowGraphicsQueue& graphicsQueueRef, 
-	AfterglowRenderPass& renderPassRef, 
-	AfterglowAssetMonitor& assetMonitorRef) :
-	texturePool(commandPoolRef, graphicsQueueRef),
-	renderPass(renderPassRef),
-	assetRegistrar(managerRef, assetMonitorRef),
-	globalDescriptorSetLayout(AfterglowDescriptorSetLayout::makeElement(commandPoolRef.device())),
-	perObjectDescriptorSetLayout(AfterglowDescriptorSetLayout::makeElement(commandPoolRef.device())),
-	descriptorPool(AfterglowDescriptorPool::makeElement(commandPoolRef.device())),
-	descriptorSetWriter(commandPoolRef.device()), 
-	manager(managerRef) {
+	AfterglowMaterialManager& inManager,
+	AfterglowCommandPool& inCommandPool, 
+	AfterglowGraphicsQueue& inGraphicsQueue, 
+	AfterglowPassManager& inPassManager, 
+	AfterglowAssetMonitor& inAssetMonitor, 
+	AfterglowSynchronizer& inSynchronizer) :
+	texturePool(inCommandPool, inGraphicsQueue, inSynchronizer),
+	passManager(inPassManager),
+	assetRegistrar(inManager, inAssetMonitor),
+	synchronizer(inSynchronizer), 
+	perObjectDescriptorSetLayout(AfterglowDescriptorSetLayout::makeElement(inCommandPool.device())),
+	descriptorPool(AfterglowDescriptorPool::makeElement(inCommandPool.device())),
+	descriptorSetWriter(inCommandPool.device()), 
+	manager(inManager) {
 	// TODO: Check remaining set size every update, if have not enough size, reset pool and dated all material resources(remember reload layout ).
 	(*descriptorPool).extendUniformPoolSize(cfg::uniformDescriptorSize);
 	(*descriptorPool).extendImageSamplerPoolSize(cfg::samplerDescriptorSize);
 	(*descriptorPool).setMaxDescritporSets(cfg::descriptorSetSize);
 
-	initGlobalDescriptorSet();
+	// @note: Apply manually due to late initialize issue.
+	//initGlobalDescriptorSets();
 
 	// Initialize PerOjbect set binding[0] : mesh uniform
 	// All stage support, hardcoded yet.
@@ -162,7 +190,7 @@ inline AfterglowMaterialInstance& AfterglowMaterialManager::Impl::createMaterial
 	if (materialLayouts.find(parentMaterialName) == materialLayouts.end()) {
 		matLayout = &materialLayouts.emplace(
 			parentMaterialName,
-			AfterglowMaterialLayout{ renderPass }
+			AfterglowMaterialLayout{}
 		).first->second;
 		datedMaterialLayouts.insert(matLayout);
 	}
@@ -173,12 +201,12 @@ inline AfterglowMaterialInstance& AfterglowMaterialManager::Impl::createMaterial
 		matResource = &materialResources.emplace(
 			name,
 			AfterglowMaterialResource{ *matLayout, descriptorSetWriter, descriptorPool, texturePool }
-		).first->second;
+ 		).first->second;
 	}
 	else {
 		matResource = &materialResources.at(name);
 	}
-	datedMaterialResources.insert(matResource);
+	markAsDated(*matResource);
 	return matResource->materialInstance();
 }
 
@@ -187,7 +215,9 @@ inline bool AfterglowMaterialManager::Impl::removeMaterialInstanceWithoutLock(co
 	// TODO: Encapsurate these create and remove param into a RAII class.
 	if (matResourceIterator != materialResources.end()) {
 		auto& matResource = matResourceIterator->second;
-		datedMaterialResources.erase(&matResource);
+		for (uint32_t frameIndex = 0; frameIndex < cfg::maxFrameInFlight; ++frameIndex) {
+			datedMaterialResources[frameIndex].erase(&matResource);
+		}
 		datedPerObjectSetContexts.erase(&matResource);
 		materialPerObjectSetContexts.erase(&matResource);
 		materialResources.erase(matResourceIterator);
@@ -208,11 +238,17 @@ inline bool AfterglowMaterialManager::Impl::instantializeMaterial(const std::str
 	return true;
 }
 
-inline void AfterglowMaterialManager::Impl::initGlobalDescriptorSet() {
-	// Uniform buffer object description set layout.
+inline void AfterglowMaterialManager::Impl::initGlobalDescriptorSets(render::PassUnorderedMap<img::ImageReferences>& allPassImages) {
+	/** Pass SetLayout bindings:
+	*	0            : GlobalUniform
+	*	A part       : GlobalTextures / GlobalSamplers
+	*/
+
+	globalDescriptorSetLayout.recreate(texturePool.commandPool().device());
+	// SetLayout bindings: Global Uniform buffer object and Global Textures.
 	// Additional bindingInfo from enum
 	std::vector<shader::GlobalSetBindingIndex> textureBindingIndices;
-	Inreflect<shader::GlobalSetBindingIndex>::forEachAttribute([&](auto enumInfo) {
+	Inreflect<shader::GlobalSetBindingIndex>::forEachAttribute([this, &textureBindingIndices](auto enumInfo) {
 		if (enumInfo.name.ends_with(inreflect::EnumName(shader::GlobalSetBindingResource::Uniform))) {
 			// Global set binding[0] : global uniform
 			(*globalDescriptorSetLayout).appendBinding(
@@ -231,40 +267,84 @@ inline void AfterglowMaterialManager::Impl::initGlobalDescriptorSet() {
 				VK_DESCRIPTOR_TYPE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT
 			);
 		}
-		});
+	});
+	// Initialize global inflight sets.
+	for (uint32_t index = 0; index < cfg::maxFrameInFlight; ++index) {
+		globalSetContext.globalInFlightSets[index].recreate(descriptorPool, globalDescriptorSetLayout, 1);
+	}
 
-	// Global set binding[GlobalSetBindingIndex::enumCount] ~ binding[n] : attachment textures.
-	auto& subpassContext = renderPass.subpassContext();
-	for (const auto& attachmentInfo : subpassContext.inputAttachmentInfos()) {
-		// TODO: ComputeStage attachment supports.
-		(*globalDescriptorSetLayout).appendBinding(
+	// Create global texture resource and initialize 
+	for (auto textureBindingIndex : textureBindingIndices) {
+		appendGlobalSetTextureResource(textureBindingIndex);
+	}
+
+	// Passes SetLayout binding and create resource
+	passManager.forEachPass([this](AfterglowPassInterface& pass) {
+		initPassDescriptorSet(pass);
+	});
+	// Write passes image Sets.
+	initAllPassImageSets(allPassImages);
+}
+
+inline void AfterglowMaterialManager::Impl::initPassDescriptorSet(AfterglowPassInterface& pass) {
+	// Init descriptor set layouts.
+	auto& passSetLayout = allPassDescriptorSetLayouts[&pass];
+	passSetLayout.recreate(texturePool.commandPool().device());
+
+	/** Pass Set Layout
+	*	A part       : Pass ImportAttachmentImages
+	*	B part       : Pass InputAttachmentImages
+	*/
+
+	// Pass Import attachment: 
+	for (const auto& importAttachment : pass.importAttachments()) {
+		(*passSetLayout).appendBinding(
 			VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT
 		);
 	}
 
-	// Initialize inflight sets.
-	for (uint32_t index = 0; index < cfg::maxFrameInFlight; ++index) {
-		globalSetContext.inFlightSets[index].recreate(descriptorPool, globalDescriptorSetLayout, 1);
+	// Pass input attachment: 
+	auto& subpassContext = pass.subpassContext();
+	for (const auto& attachmentInfo : subpassContext.inputAttachmentInfos()) {
+		(*passSetLayout).appendBinding(
+			VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT
+		);
 	}
 
-	for (auto textureBindingIndex : textureBindingIndices) {
-		appendGlobalSetTextureResource(textureBindingIndex);
+	// Create pass sets.
+	auto& passInFlightSets = globalSetContext.allPassInFlightSets[&pass];
+	for (uint32_t index = 0; index < cfg::maxFrameInFlight; ++index) {
+		passInFlightSets[index].recreate(descriptorPool, passSetLayout, 1);
+	}
+}
+
+inline void AfterglowMaterialManager::Impl::initAllPassImageSets(render::PassUnorderedMap<img::ImageReferences>& allPassImages) {
+	for (uint32_t index = 0; index < cfg::maxFrameInFlight; ++index) {
+		passManager.forEachPass([this, &allPassImages, &index](AfterglowPassInterface& pass){
+			applyPassImageSets(pass, allPassImages.at(&pass), index);
+		});
 	}
 }
 
 inline void AfterglowMaterialManager::Impl::reloadMaterialResources(AfterglowMaterialLayout& matLayout) {
 	// Submit all matterial instances of this material.
-	// TODO: optimize here.
+	// TODO: optimize here by a graph: matLayout->{resources}
 	for (auto& [matResourceName, matResource] : materialResources) {
+		auto* a = &matResource.materialLayout();
 		if (&matResource.materialLayout() == &matLayout) {
 			matResource.reloadMaterialLayout();
-			datedMaterialResources.insert(&matResource);
+			markAsDated(matResource);
 		}
 	}
 }
 
 inline void AfterglowMaterialManager::Impl::applyMaterialLayout(AfterglowMaterialLayout& matLayout) {
-	matLayout.updateDescriptorSetLayouts(globalDescriptorSetLayout, perObjectDescriptorSetLayout);
+	matLayout.updateDescriptorSetLayouts(
+		passManager, 
+		allPassDescriptorSetLayouts, 
+		globalDescriptorSetLayout, 
+		perObjectDescriptorSetLayout
+	);
 	// Reload all derived material instances. 
 	reloadMaterialResources(matLayout);
 	// Delay the shader update if any external ssbo exists.
@@ -282,9 +362,16 @@ inline void AfterglowMaterialManager::Impl::applyMaterialLayout(AfterglowMateria
 	}
 }
 
-inline void AfterglowMaterialManager::Impl::applyMaterialResource(AfterglowMaterialResource& matResource) {
+inline void AfterglowMaterialManager::Impl::applyMaterialResource(AfterglowMaterialResource& matResource, MaterialResourceUpdateFlag updateFlag, uint32_t frameIndex) {
 	try {
-		matResource.update();
+		uint32_t flagValue = util::EnumValue(updateFlag);
+		if (flagValue & util::EnumValue(MaterialResourceUpdateFlag::Uniform)) {
+			matResource.updateUniforms(frameIndex);
+		}
+		if (flagValue & util::EnumValue(MaterialResourceUpdateFlag::Texture)) {
+			matResource.updateTextures(frameIndex);
+		}
+		matResource.submitDescriptorSets(frameIndex);
 	}
 	catch (std::runtime_error& error) {
 		DEBUG_CLASS_ERROR(std::format("Failed to apply material resource, due to: {}", error.what()));
@@ -292,19 +379,13 @@ inline void AfterglowMaterialManager::Impl::applyMaterialResource(AfterglowMater
 	// Update perObject set material changed flag.
 	auto objectSetIterator = materialPerObjectSetContexts.find(&matResource);
 	if (objectSetIterator != materialPerObjectSetContexts.end()) {
-
-		std::for_each(
-			objectSetIterator->second.begin(),
-			objectSetIterator->second.end(),
-			[](auto& context) {
-				for (uint32_t index = 0; index < cfg::maxFrameInFlight; ++index) {
-					context.inFlightMaterialChangedFlags[index] = true;
-				}
-			});
+		for (auto& setContext : objectSetIterator->second) {
+			setContext.inFlightMaterialChangedFlags[frameIndex] = true;
+		}
 	}
 }
 
-inline void AfterglowMaterialManager::Impl::applyExternalSetContext(AfterglowMaterialResource& matResource, PerObjectSetContextArray& perObjectSetContexts, uint32_t frameIndex) {
+inline void AfterglowMaterialManager::Impl::applyPerObjectGlobalSetContext(AfterglowMaterialResource& matResource, PerObjectSetContextArray& perObjectSetContexts, uint32_t frameIndex) {
 	/*uint32_t frameIndex = manager.device().currentFrameIndex();*/
 	auto& matResourceSets = matResource.inFlightDescriptorSets()[frameIndex];
 	auto& matLayout = matResource.materialLayout();
@@ -314,7 +395,7 @@ inline void AfterglowMaterialManager::Impl::applyExternalSetContext(AfterglowMat
 	for (auto& perObjectSetContext : perObjectSetContexts) {
 		// Initialize set.
 		auto& sets = perObjectSetContext.inFlightSets[frameIndex];
-		auto& buffer = perObjectSetContext.inFlightBuffers[frameIndex];
+		auto& buffer = perObjectSetContext.inFlightUniformBuffers[frameIndex];
 		auto& setReferences = perObjectSetContext.inFlightSetReferences[frameIndex];
 		bool& materialChanged = perObjectSetContext.inFlightMaterialChangedFlags[frameIndex];
 
@@ -333,14 +414,18 @@ inline void AfterglowMaterialManager::Impl::applyExternalSetContext(AfterglowMat
 		// Update set references
 		if (!setReferences.source() || materialChanged) {
 			setReferences.reset(matResourceSets);
+
+			// @note: Fill pass set only if material was changed for performance.
+			// Here we use sets[0] due to we treat external set always one set contains many binding elements
+			// Global set ref
+			setReferences[util::EnumValue(shader::SetIndex::Global)] = globalSetContext.globalInFlightSets[frameIndex][0];
+			// Pass set ref
+			setReferences[util::EnumValue(shader::SetIndex::Pass)] = globalSetContext.allPassInFlightSets[&matLayout.pass()][frameIndex][0];
+			// Per object set ref
+			setReferences[util::EnumValue(shader::SetIndex::PerObject)] = sets[0];
+
 			materialChanged = false;
 		}
-		// Global uniform ref
-		setReferences[util::EnumValue(shader::SetIndex::Global)] =
-			globalSetContext.inFlightSets[frameIndex][util::EnumValue(shader::GlobalSetBindingIndex::GlobalUniform)];
-		// Mesh uniform ref
-		setReferences[util::EnumValue(shader::SetIndex::PerObject)] =
-			sets[util::EnumValue(shader::PerObjectSetBindingIndex::MeshUniform)];
 
 		// Register mesh uniform buffer.
 		descriptorSetWriter.registerBuffer(
@@ -360,12 +445,10 @@ inline void AfterglowMaterialManager::Impl::applyExternalSetContext(AfterglowMat
 	}
 }
 
-inline void AfterglowMaterialManager::Impl::applyGlobalSetContext(img::WriteInfoArray& imageWriteInfos, uint32_t frameIndex) {
-	/*int32_t index = manager.device().currentFrameIndex();*/
-
+inline void AfterglowMaterialManager::Impl::applyGlobalUniformSet(uint32_t frameIndex) {
 	// Update global uniform buffer memory.
 	auto& globalUniform = globalSetContext.globalUniform;
-	auto& buffer = globalSetContext.inFlightBuffers[frameIndex];
+	auto& buffer = globalSetContext.inFlightUniformBuffers[frameIndex];
 	if (!buffer || (*buffer).sourceData() != &globalUniform) {
 		buffer.recreate(manager.device(), &globalUniform, sizeof(ubo::GlobalUniform));
 	}
@@ -373,32 +456,74 @@ inline void AfterglowMaterialManager::Impl::applyGlobalSetContext(img::WriteInfo
 		(*buffer).updateMemory();
 	}
 
+	// Global uniform buffer
 	descriptorSetWriter.registerBuffer(
-		*globalSetContext.inFlightBuffers[frameIndex],
+		*globalSetContext.inFlightUniformBuffers[frameIndex],
 		globalDescriptorSetLayout,
 		// GlobalSet, never apply Gloabal data in a per object set
-		globalSetContext.inFlightSets[frameIndex][0],
+		globalSetContext.globalInFlightSets[frameIndex][0],
 		util::EnumValue(shader::GlobalSetBindingIndex::GlobalUniform)
 	);
+}
 
-	auto& inputAttachmentInfos = renderPass.subpassContext().inputAttachmentInfos();
-	uint32_t attachmentBindingIndex = util::EnumValue(shader::GlobalSetBindingIndex::EnumCount);
-	for (const auto& info : inputAttachmentInfos) {
-		auto& imageWriteInfo = imageWriteInfos[info.attachmentIndex];
-		VkImageLayout imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		if (info.type != render::InputAttachmentType::Color) {
-			imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL;
-		}
+inline void AfterglowMaterialManager::Impl::applyPassImageSets(
+	AfterglowPassInterface& pass, 
+	img::ImageReferences& passImages, 
+	uint32_t frameIndex
+) {
+	// Seperate for each pass inputAttachments and importAttachments
+	/**
+	* 	RenderPass Descriptor sets
+	*		ImportAttachmentImageRefs...
+	*		InputAttachmentImageRefs...
+	*/
+
+	// We use seperate setlayout for pass, binding begin from 0 (without uniform buffer etc.)
+	uint32_t attachmentBindingIndex = 0;
+	auto& subpassContext = pass.subpassContext();
+	auto& passInFlightSet = globalSetContext.allPassInFlightSets[&pass];
+
+	// Import Attachment Images
+	for (const auto& importAttachment : pass.importAttachments()) {
+		auto& imageRef = passImages[importAttachment.destAttachmentIndex];
+		VkImageLayout imageLayout = subpassContext.isDepthAttachmentIndex(importAttachment.destAttachmentIndex)
+			? AfterglowSubpassContext::depthAttachmentRWLayout() : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 		descriptorSetWriter.registerImage(
-			imageWriteInfo.sampler,
-			imageWriteInfo.imageView,
-			globalDescriptorSetLayout,
-			globalSetContext.inFlightSets[frameIndex][0],
-			attachmentBindingIndex, 
+			imageRef.sampler,
+			imageRef.imageView,
+			allPassDescriptorSetLayouts[&pass],
+			passInFlightSet[frameIndex][0],
+			attachmentBindingIndex,
 			imageLayout
 		);
 		++attachmentBindingIndex;
 	}
+
+	// Input Attachment Images
+	auto& inputAttachmentInfos = subpassContext.inputAttachmentInfos();
+	for (const auto& info : inputAttachmentInfos) {
+		auto& imageRef = passImages[info.attachmentIndex];
+		VkImageLayout imageLayout = subpassContext.isDepthAttachmentIndex(info.attachmentIndex)
+			? AfterglowSubpassContext::depthAttachmentRWLayout() : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		descriptorSetWriter.registerImage(
+			imageRef.sampler,
+			imageRef.imageView,
+			allPassDescriptorSetLayouts[&pass],
+			passInFlightSet[frameIndex][0],
+			attachmentBindingIndex,
+			imageLayout
+		);
+		++attachmentBindingIndex;
+	}
+}
+
+inline void AfterglowMaterialManager::Impl::applySwapchainPassImageSets(render::PassUnorderedMap<img::ImageReferences>& allPassImages, uint32_t frameIndex) {
+	passManager.forEachPass([](AfterglowPassInterface& pass, auto& impl, auto& inAllPassImages, auto inFrameIndex){
+		if (pass.extentMode() == AfterglowPassInterface::ExtentMode::Swapchain) {
+			auto& passImages = inAllPassImages.at(&pass);
+			impl.applyPassImageSets(pass, passImages, inFrameIndex);
+		}
+	}, *this, allPassImages, frameIndex);
 }
 
 void AfterglowMaterialManager::applyErrorShaders(AfterglowMaterialLayout& matLayout) {
@@ -423,21 +548,28 @@ AfterglowSharedTexturePool& AfterglowMaterialManager::texturePool() noexcept {
 	return _impl->texturePool;
 }
 
+void AfterglowMaterialManager::waitGPU() const {
+	_impl->synchronizer.wait(AfterglowSynchronizer::FenceFlag::ComputeInFlight);
+	_impl->synchronizer.wait(AfterglowSynchronizer::FenceFlag::RenderInFlight);
+}
+
 inline void AfterglowMaterialManager::Impl::appendGlobalSetTextureResource(shader::GlobalSetBindingIndex textureBindingIndex) {
 	auto assetInfo = shader::GlobalSetBindingTextureInfo(textureBindingIndex);
 
-	auto& resource = globalSetContext.textureResources.emplace_back(
+	// Create global texture
+	auto& resource = globalSetContext.globalTextureResources.emplace_back(
 		// std::string(Inreflect<shader::GlobalSetBindingIndex>::enumName(textureBindingIndex)),
 		util::EnumValue(textureBindingIndex),
 		std::make_unique<AfterglowTextureReference>(texturePool.texture({ assetInfo }))
 	);
 
+	// Write descriptor set
 	for (uint32_t index = 0; index < cfg::maxFrameInFlight; ++index) {
 		descriptorSetWriter.registerImage(
 			resource.textureRef->texture(),
 			globalDescriptorSetLayout,
-			globalSetContext.inFlightSets[index][0],
-			util::EnumValue(textureBindingIndex)
+			globalSetContext.globalInFlightSets[index][0], // Set 0
+			util::EnumValue(textureBindingIndex)           // Binding n
 		);
 	}
 }
@@ -564,6 +696,28 @@ inline void AfterglowMaterialManager::Impl::applyComputeExternalSSBOSetReference
 	}
 }
 
+inline bool AfterglowMaterialManager::Impl::submitMaterialInstanceWithoutLock(const std::string& name, MaterialResourceUpdateFlag updateFlag) {
+	auto iterator = materialResources.find(name);
+	if (iterator == materialResources.end()) {
+		return false;
+	}
+	markAsDated(iterator->second, updateFlag);
+	return true;
+}
+
+inline void AfterglowMaterialManager::Impl::markAsDated(AfterglowMaterialResource& matResource, MaterialResourceUpdateFlag flag) {
+	for (uint32_t frameIndex = 0; frameIndex < cfg::maxFrameInFlight; ++frameIndex) {
+		auto [iterator, inserted] = datedMaterialResources[frameIndex].try_emplace(&matResource);
+		if (inserted) { // New one inserted case
+			iterator->second = flag;
+		}
+		else { // Element existed case
+			reinterpret_cast<std::underlying_type_t<MaterialResourceUpdateFlag>&>(iterator->second) |= util::EnumValue(flag);
+		}
+		
+	}
+}
+
 inline bool AfterglowMaterialManager::Impl::removeMaterialWithoutLock(const std::string& name) {
 	auto& matResources = materialResources;
 	auto layoutIterator = materialLayouts.find(name);
@@ -607,9 +761,10 @@ inline bool AfterglowMaterialManager::Impl::removeMaterialWithoutLock(const std:
 AfterglowMaterialManager::AfterglowMaterialManager(
 	AfterglowCommandPool& commandPool, 
 	AfterglowGraphicsQueue& graphicsQueue, 
-	AfterglowRenderPass& renderPass, 
-	AfterglowAssetMonitor& assetMonitor) :
-	_impl(std::make_unique<Impl>(*this, commandPool, graphicsQueue, renderPass, assetMonitor)) {
+	AfterglowPassManager& passManager,
+	AfterglowAssetMonitor& assetMonitor, 
+	AfterglowSynchronizer& synchronizer) :
+	_impl(std::make_unique<Impl>(*this, commandPool, graphicsQueue, passManager, assetMonitor, synchronizer)) {
 	
 	// Initialize ErrorMaterial (For base object)
 	createMaterial(mat::ErrorMaterialName(), AfterglowMaterial::errorMaterial());
@@ -623,8 +778,16 @@ AfterglowMaterialManager::AfterglowMaterialManager(
 AfterglowMaterialManager::~AfterglowMaterialManager() {
 }
 
+void AfterglowMaterialManager::initGlobalDescriptorSets(render::PassUnorderedMap<img::ImageReferences>& allPassImages) {
+	_impl->initGlobalDescriptorSets(allPassImages);
+}
+
 AfterglowDevice& AfterglowMaterialManager::device() noexcept {
 	return _impl->texturePool.commandPool().device();
+}
+
+AfterglowPassManager& AfterglowMaterialManager::passManager() noexcept {
+	return _impl->passManager;
 }
 
 AfterglowDescriptorPool& AfterglowMaterialManager::descriptorPool() {
@@ -667,7 +830,7 @@ AfterglowMaterial& AfterglowMaterialManager::createMaterial(
 	AfterglowMaterialLayout* matLayout = nullptr;
 	if (matLayouts.find(name) == matLayouts.end()) { /* Create new material. */
 		matLayout = &matLayouts.emplace(
-			name, AfterglowMaterialLayout{ _impl->renderPass, *safeSrcMaterial}
+			name, AfterglowMaterialLayout{ *safeSrcMaterial}
 		).first->second;
 	}
 	else { /* Update exists material. */
@@ -691,9 +854,9 @@ void AfterglowMaterialManager::removeMaterial(const std::string& name) {
 	_impl->materialRemovingCache.push_back(name);
 }
 
-bool AfterglowMaterialManager::removeMaterialInstance(const std::string& name) {
+void AfterglowMaterialManager::removeMaterialInstance(const std::string& name) {
 	LockGuard lockGuard{ _mutex };
-	return _impl->removeMaterialInstanceWithoutLock(name);
+	_impl->materialInstanceRemovingCache.push_back(name);
 }
 
 AfterglowMaterial* AfterglowMaterialManager::material(const std::string& name) {
@@ -751,6 +914,7 @@ const AfterglowMaterialResource* AfterglowMaterialManager::materialResource(cons
 }
 
 bool AfterglowMaterialManager::submitMaterial(const std::string& name) {
+	LockGuard lockGuard{ _mutex };
 	auto iterator = _impl->materialLayouts.find(name);
 	if (iterator == _impl->materialLayouts.end()) {
 		return false;
@@ -760,12 +924,18 @@ bool AfterglowMaterialManager::submitMaterial(const std::string& name) {
 }
 
 bool AfterglowMaterialManager::submitMaterialInstance(const std::string& name) {
-	auto iterator = _impl->materialResources.find(name);
-	if (iterator == _impl->materialResources.end()) {
-		return false;
-	}
-	_impl->datedMaterialResources.insert(&iterator->second);
-	return true;
+	LockGuard lockGuard{ _mutex };
+	return _impl->submitMaterialInstanceWithoutLock(name, Impl::MaterialResourceUpdateFlag::UniformTexture);
+}
+
+bool AfterglowMaterialManager::submitMaterialInstanceUniformParams(const std::string& name) {
+	LockGuard lockGuard{ _mutex };
+	return _impl->submitMaterialInstanceWithoutLock(name, Impl::MaterialResourceUpdateFlag::Uniform);
+}
+
+bool AfterglowMaterialManager::submitMaterialInstanceTextureParams(const std::string& name) {
+	LockGuard lockGuard{ _mutex };
+	return _impl->submitMaterialInstanceWithoutLock(name, Impl::MaterialResourceUpdateFlag::Texture);
 }
 
 bool AfterglowMaterialManager::submitMeshUniform(const std::string& materialInstanceName, const ubo::MeshUniform& meshUniform) {
@@ -800,30 +970,36 @@ bool AfterglowMaterialManager::submitMeshUniform(const std::string& materialInst
 	return true;
 }
 
-void AfterglowMaterialManager::updateMaterials(img::WriteInfoArray& imageWriteInfos, AfterglowSynchronizer& synchronizer) {
+void AfterglowMaterialManager::updateMaterials(
+	render::PassUnorderedMap<img::ImageReferences>& allPassImages, bool swapchainImageSetOutdated
+) {
 	// To avoid resource conflitions if the GPU in flight.
 	// @note: It's important for CPU-GPU synchornization.
-	if (!_impl->datedMaterialLayouts.empty() || !_impl->datedMaterialResources.empty()) {
-		synchronizer.wait(AfterglowSynchronizer::FenceFlag::ComputeInFlight);
-		synchronizer.wait(AfterglowSynchronizer::FenceFlag::RenderInFlight);
+	if (!_impl->datedMaterialLayouts.empty()) {
+		waitGPU();
 	}
 
 	uint32_t frameIndex = device().currentFrameIndex();
 
-	// TODO: Check .modifed for auto submit.
-	_impl->applyGlobalSetContext(imageWriteInfos, frameIndex);
+	_impl->applyGlobalUniformSet(frameIndex);
+	// If the swapchain was recreate, rewrite swapchain-relavant pass sets.
+	if (swapchainImageSetOutdated) {
+		std::fill(_impl->inFlightSwapchainImageSetOutdatedFlags.begin(), _impl->inFlightSwapchainImageSetOutdatedFlags.end(), true);
+	}
+	if (_impl->inFlightSwapchainImageSetOutdatedFlags[frameIndex]) {
+		_impl->applySwapchainPassImageSets(allPassImages, frameIndex);
+		_impl->inFlightSwapchainImageSetOutdatedFlags[frameIndex] = false;
+	}
 
 	for (auto* matLayout : _impl->datedMaterialLayouts) {
 		_impl->appendDatedComputeExternalSSBOContext(*matLayout);
 		_impl->applyMaterialLayout(*matLayout);
-		// TODO: Handle SSBO resource references when relavant materials changed or removed.
-		// TODO: How to find resource? by ssboInfo external name.
 	}
-	for (auto* matResource : _impl->datedMaterialResources) {
-		_impl->applyMaterialResource(*matResource);
+	for (auto& [matResource, flag] : _impl->datedMaterialResources[frameIndex]) {
+		_impl->applyMaterialResource(*matResource, flag, frameIndex);
 	}
 	for (auto& [materialResource, perObjectSetContexts] : _impl->datedPerObjectSetContexts) {
-		_impl->applyExternalSetContext(*materialResource , *perObjectSetContexts, frameIndex);
+		_impl->applyPerObjectGlobalSetContext(*materialResource , *perObjectSetContexts, frameIndex);
 	}
 
 	for (auto* key : _impl->datedComputeExternalSSBOContextKeys) {
@@ -833,29 +1009,38 @@ void AfterglowMaterialManager::updateMaterials(img::WriteInfoArray& imageWriteIn
 	// Submit resource to device.
 	_impl->descriptorSetWriter.write();
 
+	std::lock_guard lock{ _mutex };
 	_impl->datedMaterialLayouts.clear();
-	_impl->datedMaterialResources.clear();
+	_impl->datedMaterialResources[frameIndex].clear();
 	_impl->datedPerObjectSetContexts.clear();
 	_impl->datedComputeExternalSSBOContextKeys.clear();
 }
 
 void AfterglowMaterialManager::updateResources() {
-	LockGuard lockGuard{ _mutex };
+	if (!_impl->perObjectSetContextRemovingCache.empty()
+		|| !_impl->materialInstanceRemovingCache.empty()
+		|| !_impl->materialRemovingCache.empty()) {
+		waitGPU();
+	}
 	for (auto* perObjectSetContexts : _impl->perObjectSetContextRemovingCache) {
 		// Clear inactivated context and reset the flag.
 		// Recreate them all is effecient than erase_if due to all context were marked as inactivate.
 		perObjectSetContexts->clear();
 		// std::erase_if(*perObjectSetContexts, [](auto& context) { return !context.activated; });
-	}
-	_impl->perObjectSetContextRemovingCache.clear();
-
+	}	
 	// Remove materials here due to some vulkan resources (pipelines) inside them.
-	for (const auto& materialName : _impl->materialRemovingCache) {
-		_impl->removeMaterialWithoutLock(materialName);
+	for (const auto& name : _impl->materialInstanceRemovingCache){
+		_impl->removeMaterialInstanceWithoutLock(name);
 	}
-	_impl->materialRemovingCache.clear();
+	for (const auto& name : _impl->materialRemovingCache) {
+		_impl->removeMaterialWithoutLock(name);
+	}
 
+	std::lock_guard lock{ _mutex };
 	_impl->texturePool.update();
+	_impl->materialRemovingCache.clear();
+	_impl->perObjectSetContextRemovingCache.clear();
+	_impl->materialInstanceRemovingCache.clear();
 }
 
 AfterglowMaterialResource& AfterglowMaterialManager::errorMaterialResource() {
@@ -883,7 +1068,7 @@ AfterglowDescriptorSetReferences* AfterglowMaterialManager::descriptorSetReferen
 			*	-- frame 0 --
 			*	...;
 			*	materialManager.update();
-			*	completeSubmission(); // Here seperating old frameIndex and new frameIndex
+			*	prepareNextFrameContext(); // Here seperating old frameIndex and new frameIndex
 			*	-- frame 1 --
 			*	...;
 			*	auto& setRefs = descriptorSetReferences(); 
@@ -902,31 +1087,27 @@ AfterglowDescriptorSetReferences* AfterglowMaterialManager::descriptorSetReferen
 }
 
 void AfterglowMaterialManager::applyShaders(AfterglowMaterialLayout& matLayout, const AfterglowMaterialAsset& matAsset, bool useGlobalResources) {
-	util::OptionalRef<render::InputAttachmentInfos> inputeAttachmentInfos = 
-		useGlobalResources 
-		? _impl->renderPass.subpassContext().inputAttachmentInfos()
-		: util::OptionalRef<render::InputAttachmentInfos>(std::nullopt);
+	util::OptionalRef<AfterglowPassInterface> pass = 
+		useGlobalResources ? matLayout.pass() : util::OptionalRef<AfterglowPassInterface>(std::nullopt);
 
 	util::OptionalRef<AfterglowComputeTask::SSBOInfoRefs> associatedSSBOInfos =
 		useGlobalResources
 		? _impl->computeExternalSSBOContexts[&matLayout].associatedSSBOInfos
 		: util::OptionalRef<AfterglowComputeTask::SSBOInfoRefs>(std::nullopt);
 
-	// auto& inputeAttachmentInfos = _impl->renderPass.subpassContext().inputAttachmentInfos();
-	// auto& associatedSSBOInfos = _impl->computeExternalSSBOContexts[&matLayout].associatedSSBOInfos;
 	auto& material = matLayout.material();
 	if (!material.hasComputeTask() || !material.computeTask().isComputeOnly()) {
 		matLayout.compileVertexShader(matAsset.generateShaderCode(
-			shader::Stage::Vertex, inputeAttachmentInfos, associatedSSBOInfos
+			shader::Stage::Vertex, pass, associatedSSBOInfos
 		));
 		matLayout.compileFragmentShader(matAsset.generateShaderCode(
-			shader::Stage::Fragment, inputeAttachmentInfos, associatedSSBOInfos
+			shader::Stage::Fragment, pass, associatedSSBOInfos
 		));
 	}
 
 	if (material.hasComputeTask()) {
 		matLayout.compileComputeShader(matAsset.generateShaderCode(
-			shader::Stage::Compute, inputeAttachmentInfos, associatedSSBOInfos
+			shader::Stage::Compute, pass, associatedSSBOInfos
 		));
 		// No require to apply compute shader initializer, them will generated in updateComputePipeline automatically.
 		// @see: AfterglowMaterialLayout::updateComputePipeline

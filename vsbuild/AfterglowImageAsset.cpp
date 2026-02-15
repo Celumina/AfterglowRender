@@ -15,6 +15,7 @@
 #include <omp.h>
 #include <OpenImageIO/imageio.h>
 #include "AfterglowUtilities.h"
+#include "ExceptionUtilities.h"
 
 struct AfterglowImageAsset::Impl {
 	void initImage();
@@ -57,11 +58,19 @@ std::weak_ptr<img::DataArray> AfterglowImageAsset::data() noexcept {
 
 void AfterglowImageAsset::Impl::initImage() {
 	bool loadSuccess = false;
-	auto file = OIIO::ImageInput::open(path);
+
+	// @deprecated: Doesn't work for me.
+	// OIIO::attribute("png:linear_premult", 0);
+
+	// Avoid the implicit pre-multiplied alpha
+	OIIO::ImageSpec config;
+	config["oiio:UnassociatedAlpha"] = 1;
+
+	auto file = OIIO::ImageInput::open(path, &config);
 	if (!file) {
-		DEBUG_CLASS_ERROR(std::format("Failed to load image file: {}", path));
-		throw std::runtime_error("[AfterglowImageAsset] Failed to load image file.");
+		EXCEPT_CLASS_RUNTIME(std::format("Failed to load image file: {}", path));
 	}
+
 	auto& spec = file->spec();
 	info.width = spec.width;
 	info.height = spec.height;
@@ -95,8 +104,7 @@ void AfterglowImageAsset::Impl::initImage() {
 	file->close();
 
 	if (!loadSuccess) {
-		DEBUG_CLASS_ERROR(std::format("Faild to read image: \"{}\", due to {}.", path, file->geterror()));
-		throw std::runtime_error("Faild to read image.");
+		EXCEPT_CLASS_RUNTIME(std::format("Faild to read image: \"{}\", due to {}.", path, file->geterror()));
 	}
 }
 
@@ -139,7 +147,6 @@ inline img::Format AfterglowImageAsset::Impl::imageFormat(const OIIO::ImageSpec&
 	case(OIIO::TypeDesc::INT64): return img::Format::Int64;
 	case(OIIO::TypeDesc::DOUBLE): return img::Format::Double;
 	default:
-		DEBUG_CLASS_ERROR("Unknown image format from OpenImageIO.");
-		throw std::runtime_error("Unknown image format from OpenImageIO.");
+		EXCEPT_CLASS_RUNTIME("Unknown image format from OpenImageIO.");
 	}
 }

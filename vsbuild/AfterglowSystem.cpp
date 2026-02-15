@@ -8,8 +8,6 @@
 struct AfterglowSystem::Impl {
 	Impl(AfterglowWindow& windowRef, AfterglowMaterialManager& materialManagerRef);
 
-	inline void updateSystemContext();
-
 	AfterglowWindow& window;
 	AfterglowMaterialManager& materialManager;
 	AfterglowTicker ticker;
@@ -18,13 +16,10 @@ struct AfterglowSystem::Impl {
 	//std::vector<AfterglowEntity*> destroyEntityCache;
 
 	std::unique_ptr<std::jthread> systemThread;
-	bool systemStoped = false;
-
 };
 
 AfterglowSystem::Impl::Impl(AfterglowWindow& windowRef, AfterglowMaterialManager& materialManagerRef) : 
 	window(windowRef), materialManager(materialManagerRef) {
-
 }
 
 AfterglowSystem::AfterglowSystem(
@@ -55,12 +50,11 @@ AfterglowCameraComponent* AfterglowSystem::mainCamera() noexcept {
 
 void AfterglowSystem::startSystemThread() {
 	if (!_impl->systemThread) {
-		_impl->systemThread = std::make_unique<std::jthread>([&]() { systemLoop(); });
+		_impl->systemThread = std::make_unique<std::jthread>([this](std::stop_token stopToken) { systemLoop(stopToken); });
 	}
 }
 
 void AfterglowSystem::stopSystemThread() {
-	_impl->systemStoped = true;
 	_impl->systemThread.reset();
 }
 
@@ -87,14 +81,17 @@ AfterglowRenderableContext& AfterglowSystem::renderableContext() noexcept {
 	return _renderableContext;
 }
 
-void AfterglowSystem::systemLoop() {
-	// TODO: Stop system automatically?
-	while (!_impl->systemStoped) {
+void AfterglowSystem::systemLoop(std::stop_token stopToken) {
+	while (!stopToken.stop_requested()) {
 		_impl->ticker.tick();
 		_impl->window.input().update();
 		// applyDestroyEntityCache();
 		updateComponents<reg::RegisteredComponentTypes>();
 	}
+}
+
+ubo::GlobalUniform& AfterglowSystem::globalUniform() const {
+	return _impl->materialManager.globalUniform();
 }
 
 //inline void AfterglowSystem::applyDestroyEntityCache() {

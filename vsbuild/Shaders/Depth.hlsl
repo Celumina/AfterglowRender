@@ -53,4 +53,14 @@ float3 ReconstructWorldPosition(float2 uv, float perspectiveDepth) {
 	return worldPos.xyz / worldPos.w;
 }
 
+float3 ReconstructViewPosition(float2 uv, float perspectiveDepth) {
+	float4 viewPos = mul(invProjection, float4(Snorm(uv), ZeroNearOneFarDepth(perspectiveDepth), 1.0));
+	return viewPos.xyz / viewPos.w;
+}
+
+float3 ReconstructWorldNormal(float2 uv, float perspectiveDepth) {
+	float3 viewPos = ReconstructViewPosition(uv, perspectiveDepth);
+	return mul(invView, float4(normalize(cross(ddy(viewPos), ddx(viewPos))), 0.0)).xyz;
+}
+
 #endif

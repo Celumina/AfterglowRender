@@ -55,6 +55,12 @@
     <Filter Include="Source Files\ACES">
       <UniqueIdentifier>{71c87637-3b08-4fd8-977e-84f7aa781ef3}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\RenderPass">
+      <UniqueIdentifier>{0cb11259-80e0-4af8-9c99-e699148094c5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\RenderPass">
+      <UniqueIdentifier>{96cc32c3-6146-4fc0-b6f8-ab92ddb022c6}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Main.cpp">
@@ -97,9 +103,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="AfterglowImageView.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="AfterglowRenderPass.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="AfterglowPipelineLayout.cpp">
@@ -297,9 +300,6 @@
     <ClCompile Include="AfterglowMaterialInstanceAsset.cpp">
       <Filter>Source Files\AssetIO</Filter>
     </ClCompile>
-    <ClCompile Include="AfterglowSubpassContext.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="AfterglowPostProcessComponent.cpp">
       <Filter>Source Files\Components</Filter>
     </ClCompile>
@@ -447,10 +447,55 @@
     <ClCompile Include="ACESUtilities.cpp">
       <Filter>Source Files\ACES</Filter>
     </ClCompile>
-    <ClCompile Include="ACESOutputDevice.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="AfterglowRenderableComponent.cpp">
+      <Filter>Source Files\Components</Filter>
+    </ClCompile>
+    <ClCompile Include="AfterglowUserInterfacePass.cpp">
+      <Filter>Source Files\RenderPass</Filter>
+    </ClCompile>
+    <ClCompile Include="AfterglowBloomPassSet.cpp">
+      <Filter>Source Files\RenderPass</Filter>
+    </ClCompile>
+    <ClCompile Include="AfterglowForwardPass.cpp">
+      <Filter>Source Files\RenderPass</Filter>
+    </ClCompile>
+    <ClCompile Include="AfterglowPassInterface.cpp">
+      <Filter>Source Files\RenderPass</Filter>
+    </ClCompile>
+    <ClCompile Include="AfterglowPostProcessPass.cpp">
+      <Filter>Source Files\RenderPass</Filter>
+    </ClCompile>
+    <ClCompile Include="AfterglowRenderPass.cpp">
+      <Filter>Source Files\RenderPass</Filter>
+    </ClCompile>
+    <ClCompile Include="AfterglowPassManager.cpp">
+      <Filter>Source Files\RenderPass</Filter>
+    </ClCompile>
+    <ClCompile Include="AfterglowSubpassContext.cpp">
+      <Filter>Source Files\RenderPass</Filter>
+    </ClCompile>
+    <ClCompile Include="AfterglowPassSet.cpp">
+      <Filter>Source Files\RenderPass</Filter>
+    </ClCompile>
+    <ClCompile Include="AfterglowTransparencyPass.cpp">
+      <Filter>Source Files\RenderPass</Filter>
     </ClCompile>
     <ClCompile Include="ACESCommon.cpp">
+      <Filter>Source Files\ACES</Filter>
+    </ClCompile>
+    <ClCompile Include="ACESOutputDevice.cpp">
+      <Filter>Source Files\ACES</Filter>
+    </ClCompile>
+    <ClCompile Include="AfterglowDownSamplingPass.cpp">
+      <Filter>Source Files\RenderPass</Filter>
+    </ClCompile>
+    <ClCompile Include="AfterglowBloomPass.cpp">
+      <Filter>Source Files\RenderPass</Filter>
+    </ClCompile>
+    <ClCompile Include="AfterglowShapeMeshComponent.cpp">
+      <Filter>Source Files\Components</Filter>
+    </ClCompile>
+    <ClCompile Include="AfterglowCullingUtilities.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -543,9 +588,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="AfterglowProxyTemplate.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="AfterglowRenderPass.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="AfterglowSampler.h">
@@ -719,9 +761,6 @@
     <ClInclude Include="RenderDefinitions.h">
       <Filter>Header Files\Definitions</Filter>
     </ClInclude>
-    <ClInclude Include="AfterglowSubpassContext.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="AfterglowPostProcessComponent.h">
       <Filter>Header Files\Components</Filter>
     </ClInclude>
@@ -886,6 +925,60 @@
     </ClInclude>
     <ClInclude Include="ACESOutputDevice.h">
       <Filter>Header Files\ACES</Filter>
+    </ClInclude>
+    <ClInclude Include="AfterglowRenderableComponent.h">
+      <Filter>Header Files\Components</Filter>
+    </ClInclude>
+    <ClInclude Include="AfterglowBloomPassSet.h">
+      <Filter>Header Files\RenderPass</Filter>
+    </ClInclude>
+    <ClInclude Include="AfterglowForwardPass.h">
+      <Filter>Header Files\RenderPass</Filter>
+    </ClInclude>
+    <ClInclude Include="AfterglowPassInterface.h">
+      <Filter>Header Files\RenderPass</Filter>
+    </ClInclude>
+    <ClInclude Include="AfterglowPostProcessPass.h">
+      <Filter>Header Files\RenderPass</Filter>
+    </ClInclude>
+    <ClInclude Include="AfterglowRenderPass.h">
+      <Filter>Header Files\RenderPass</Filter>
+    </ClInclude>
+    <ClInclude Include="AfterglowPassManager.h">
+      <Filter>Header Files\RenderPass</Filter>
+    </ClInclude>
+    <ClInclude Include="AfterglowSubpassContext.h">
+      <Filter>Header Files\RenderPass</Filter>
+    </ClInclude>
+    <ClInclude Include="AfterglowPassSet.h">
+      <Filter>Header Files\RenderPass</Filter>
+    </ClInclude>
+    <ClInclude Include="AfterglowPassSetBase.h">
+      <Filter>Header Files\RenderPass</Filter>
+    </ClInclude>
+    <ClInclude Include="AfterglowTransparencyPass.h">
+      <Filter>Header Files\RenderPass</Filter>
+    </ClInclude>
+    <ClInclude Include="AfterglowUserInterfacePass.h">
+      <Filter>Header Files\RenderPass</Filter>
+    </ClInclude>
+    <ClInclude Include="SwapchainConfigurations.h">
+      <Filter>Header Files\Definitions</Filter>
+    </ClInclude>
+    <ClInclude Include="AfterglowDownSamplingPass.h">
+      <Filter>Header Files\RenderPass</Filter>
+    </ClInclude>
+    <ClInclude Include="AfterglowBloomPass.h">
+      <Filter>Header Files\RenderPass</Filter>
+    </ClInclude>
+    <ClInclude Include="ExceptionUtilities.h">
+      <Filter>Header Files\Shared</Filter>
+    </ClInclude>
+    <ClInclude Include="AfterglowShapeMeshComponent.h">
+      <Filter>Header Files\Components</Filter>
+    </ClInclude>
+    <ClInclude Include="AfterglowCullingUtilities.h">
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

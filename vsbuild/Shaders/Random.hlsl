@@ -32,22 +32,22 @@ float Hash(float x) {
 	return frac(sin(x * 15368.6234 + 475.053) + 15413.21);
 }
 
-float Hash(float x, float seed) {
+float Hash(float x, float seed = randomSeed0) {
 	return frac(sin(x * 14523.46187) * seed);
 }
 
-float Hash(float2 xy, float seed) {
+float Hash(float2 xy, float seed = randomSeed0) {
 	return frac(sin(dot(xy, float2(13.6196,54.2197))) * 43758.5453123 + seed);
 }
 
-float2 Hash2D(float2 xy, float seed) {
+float2 Hash2D(float2 xy, float seed = randomSeed0) {
    return frac(sin(float2(
 		dot(xy, float2(46.531, 91.4653)), 
 		dot(xy, float2(64.4634, 49.4349))
 	)) * 13127.643 + seed);
 }
 
-float3 Hash3D(float3 xyz, float seed) {
+float3 Hash3D(float3 xyz, float seed = randomSeed0) {
 	return frac(sin(float3(
 		dot(xyz, float3(83.7247, 71.7823, 24.274)), 
 		dot(xyz, float3(64.4634, 49.4349, 82.263)), 
@@ -61,7 +61,7 @@ float PseudoRandom(float2 xy) {
 	return frac(dot(pos.xyx * pos.xyy, float3(29.23412, 71.235082, 4.532124)));
 }
  
-float InterpolatedNoise(float2 xy, float2 scale, float seed) {
+float InterpolatedNoise(float2 xy, float2 scale, float seed = randomSeed0) {
 	float2 scaledXY = xy * scale;
 	float2 floorXY = floor(scaledXY) / scale;
 	float2 ceilXY = ceil(scaledXY) / scale;
@@ -75,7 +75,7 @@ float InterpolatedNoise(float2 xy, float2 scale, float seed) {
 	return lerp(lerp(hashFF, hashFC, weight.y), lerp(hashCF, hashCC, weight.y), weight.x);
 }
 
-float SmoothInterpolatedNoise(float2 xy, float2 scale, float seed) {
+float SmoothInterpolatedNoise(float2 xy, float2 scale, float seed = randomSeed0) {
 	float2 scaledXY = xy * scale;
 	float2 floorXY = floor(scaledXY) / scale;
 	float2 ceilXY = ceil(scaledXY) / scale;
@@ -90,7 +90,7 @@ float SmoothInterpolatedNoise(float2 xy, float2 scale, float seed) {
 }
 
 // TODO: The range of noise seems a bit less than [0, 1]..
-float PerlinNoise(float2 xy, float2 scale, float seed) {
+float PerlinNoise(float2 xy, float2 scale, float seed = randomSeed0) {
 	float2 scaledXY = xy * scale;
 	float2 scaledFloorXY = floor(scaledXY);
 	float2 scaledCeilXY = ceil(scaledXY);
@@ -115,7 +115,7 @@ float PerlinNoise(float2 xy, float2 scale, float seed) {
 	return Unorm(lerp(lerp(productFF, productFC, weight.y), lerp(productCF, productCC, weight.y), weight.x) * sqrt2);
 }
 
-float PerlinNoise(float3 xyz, float3 scale, float seed) {
+float PerlinNoise(float3 xyz, float3 scale, float seed = randomSeed0) {
 	float3 scaledXYZ = xyz * scale;
 	float3 scaledFloorXYZ = floor(scaledXYZ);
 	float3 scaledCeilXYZ = ceil(scaledXYZ);
@@ -157,7 +157,7 @@ float PerlinNoise(float3 xyz, float3 scale, float seed) {
 	return Unorm(lerp(lerpFF, lerpCF, weight.x) * sqrt2);
 }
 
-float SimplexNoise(float2 xy, float2 scale, float seed) {
+float SimplexNoise(float2 xy, float2 scale, float seed = randomSeed0) {
 	float2 scaledXY = xy * scale;
 
 	// 2d skew constants.
@@ -211,7 +211,7 @@ float SimplexNoise(float2 xy, float2 scale, float seed) {
 	return Unorm(dot(float3(70.0, 70.0, 70.0), hashGradiant));
 }
 
-float SimplexNoise(float3 xyz, float3 scale, float seed) {
+float SimplexNoise(float3 xyz, float3 scale, float seed = randomSeed0) {
 	float3 scaledXYZ = xyz * scale;
 
 	static const float F = 0.333333333; // (sqrt(4) - 1) / 3 = 1/3
@@ -247,7 +247,7 @@ float SimplexNoise(float3 xyz, float3 scale, float seed) {
 	return Unorm(dot(hash * Pow4(weight), float4(52.0, 52.0, 52.0, 52.0)));
 }
 
-float WorleyNoise(float2 xy, float2 scale, float seed) {
+float WorleyNoise(float2 xy, float2 scale, float seed = randomSeed0) {
 	float2 scaledXY = xy * scale;
 	float2 scaledFloorXY = floor(scaledXY);
 	
@@ -263,7 +263,7 @@ float WorleyNoise(float2 xy, float2 scale, float seed) {
 	return minDistance;
 }
 
-float WorleyNoise(float3 xyz, float3 scale, float seed) {
+float WorleyNoise(float3 xyz, float3 scale, float seed = randomSeed0) {
 	float3 scaledXYZ = xyz * scale;
 	float3 scaledFloorXYZ = floor(scaledXYZ);
 	

@@ -7,7 +7,7 @@
 #include "AfterglowComputeTask.h"
 #include "GlobalAssets.h"
 #include "Configurations.h"
-#include "DebugUtilities.h"
+#include "ExceptionUtilities.h"
 
 struct AfterglowMaterialAsset::Impl {
 	AfterglowMaterial material;
@@ -21,15 +21,13 @@ AfterglowMaterialAsset::AfterglowMaterialAsset(const std::string& path):
 	std::ifstream file(path);
 
 	if (!file.is_open()) {
-		DEBUG_CLASS_ERROR("Failed to load material file: " + path);
-		throw std::runtime_error("[AfterglowMaterialAsset] Failed to open material file.");
+		EXCEPT_CLASS_RUNTIME("Failed to load material file: " + path);
 	}
 	try {
 		file >> _impl->data;
 	}
 	catch (const nlohmann::json::parse_error& error) {
-		DEBUG_CLASS_ERROR("Failed to parse material file " + path + " to json, due to: " + error.what());
-		throw std::runtime_error("[AfterglowMaterialAsset] Failed to parse material file to json.");
+		EXCEPT_CLASS_RUNTIME("Failed to parse material file " + path + " to json, due to: " + error.what());
 	}
 
 	initMaterial();
@@ -71,8 +69,7 @@ std::string AfterglowMaterialAsset::materialName() const {
 const std::string& AfterglowMaterialAsset::shaderDeclaration(shader::Stage shaderStage) const {
 	auto iterator = _impl->shaderDeclarations.find(shaderStage);
 	if (iterator == _impl->shaderDeclarations.end()) {
-		DEBUG_CLASS_ERROR(std::format("Shader declaration not found, in material: \"{}\"", materialName()));
-		throw std::runtime_error("[AfterglowMaterialAsset] Shader declaration not found.");
+		EXCEPT_CLASS_RUNTIME(std::format("Shader declaration not found, in material: \"{}\"", materialName()));
 	}
 	return iterator->second;
 }
@@ -80,23 +77,26 @@ const std::string& AfterglowMaterialAsset::shaderDeclaration(shader::Stage shade
 const std::string& AfterglowMaterialAsset::shaderBody(shader::Stage shaderStage) const {
 	auto iterator = _impl->shaderAssets.find(shaderStage);
 	if (iterator == _impl->shaderAssets.end()) {
-		DEBUG_CLASS_ERROR(std::format("Shader asset not found, in material: \"{}\"", materialName()));
-		throw std::runtime_error("[AfterglowMaterialAsset] Shader asset not found.");
+		EXCEPT_CLASS_RUNTIME(std::format("Shader asset not found, in material: \"{}\"", materialName()));
 	}
 	return iterator->second.code();
 }
 
 std::string AfterglowMaterialAsset::generateShaderCode(
 	shader::Stage shaderStage, 
-	util::OptionalRef<render::InputAttachmentInfos> inputAttachmentInfos, 
+	util::OptionalRef<AfterglowPassInterface> pass,
 	util::OptionalRef<std::vector<const AfterglowSSBOInfo*>> externalSSBOInfoRefs) const {
 	const std::string& declaration = shaderDeclaration(shaderStage);
 	const std::string& body = shaderBody(shaderStage);
 
 	std::string extraDeclarations;
-	// Only Fragment shader support input attachments.
-	if (inputAttachmentInfos && shaderStage == shader::Stage::Fragment) {
-		extraDeclarations += makeInputAttachmentDeclaration(*inputAttachmentInfos);
+	// Only Fragment shader support import and input attachments.
+	if (pass && shaderStage == shader::Stage::Fragment) {
+		uint32_t bindingIndex = 0;
+		extraDeclarations += makeImportAttachmentDeclaration(*pass, bindingIndex);
+
+		auto& inputAttachmentInfos = (*pass).get().subpassContext().inputAttachmentInfos();
+		extraDeclarations += makeInputAttachmentDeclaration(inputAttachmentInfos, bindingIndex);
 	}
 	if (externalSSBOInfoRefs) {
 		extraDeclarations += makeComputeExternalSSBODeclarations(*externalSSBOInfoRefs);
@@ -115,8 +115,20 @@ void AfterglowMaterialAsset::initMaterial() {
 	if (data.contains("fragmentShaderPath") && data["fragmentShaderPath"].is_string()) {
 		material.setFragmentShader(data["fragmentShaderPath"]);
 	}
-	if (data.contains("domain") && data["domain"].is_number_integer()) {
-		material.setDomain(data["domain"]);
+	// The name "domain" is from a legacy reason. 
+	if (data.contains("domain") && data["domain"].is_string()) {
+		std::string domainName = data["domain"];
+		Inreflect<render::Domain>::forEachAttribute([&domainName, &material](auto enumInfo){
+			if (enumInfo.name == domainName) {
+				material.setDomain(enumInfo.raw);
+			}
+		});
+	}
+	if (data.contains("customPassName") && data["customPassName"].is_string()) {
+		material.setCustomPass(data["customPassName"]);
+	}
+	if (data.contains("subpassName") && data["subpassName"].is_string()) {
+		material.setSubpass(data["subpassName"]);
 	}
 	if (data.contains("topology") && data["topology"].is_number_integer()) {
 		material.setTopology(data["topology"]);
@@ -124,14 +136,20 @@ void AfterglowMaterialAsset::initMaterial() {
 	if (data.contains("vertexType") && data["vertexType"].is_number_integer()) {
 		material.setVertexTypeIndex(vertexTypeIndex(data["vertexType"]));
 	}
-	if (data.contains("twoSided") && data["twoSided"].is_boolean()) {
-		material.setTwoSided(data["twoSided"]);
+	if (data.contains("cullMode") && data["cullMode"].is_number_integer()) {
+		material.setCullMode(data["cullMode"]);
 	}
 	if (data.contains("wireframe") && data["wireframe"].is_boolean()) {
 		material.setWireframe(data["wireframe"]);
 	}
 	if (data.contains("depthWrite") && data["depthWrite"].is_boolean()) {
 		material.setDepthWrite(data["depthWrite"]);
+	}
+	if (data.contains("stencil") && data["stencil"].is_object()) {
+		render::FaceStencilInfos faceStencilInfos{};
+		initMaterialStencilInfo("front", faceStencilInfos.front);
+		initMaterialStencilInfo("back", faceStencilInfos.back);
+		material.setFaceStencilInfo(std::move(faceStencilInfos));
 	}
 
 	if (data.contains("scalars") && data["scalars"].is_array()) {
@@ -289,6 +307,31 @@ void AfterglowMaterialAsset::initMaterialComputeTask() {
 	}
 }
 
+inline void AfterglowMaterialAsset::initMaterialStencilInfo(std::string_view srcFaceName, render::StencilInfo& dstStencilInfo) {
+	auto& srcStencilInfoData = _impl->data["stencil"][srcFaceName];
+	if (srcStencilInfoData.contains("stencilValue") && srcStencilInfoData["stencilValue"].is_number_integer()) {
+		dstStencilInfo.stencilValue = srcStencilInfoData["stencilValue"];
+	}
+	if (srcStencilInfoData.contains("compareMask") && srcStencilInfoData["compareMask"].is_number_integer()) {
+		dstStencilInfo.compareMask = srcStencilInfoData["compareMask"];
+	}
+	if (srcStencilInfoData.contains("writeMask") && srcStencilInfoData["writeMask"].is_number_integer()) {
+		dstStencilInfo.writeMask = srcStencilInfoData["writeMask"];
+	}
+	if (srcStencilInfoData.contains("compareOperation") && srcStencilInfoData["compareOperation"].is_number_integer()) {
+		dstStencilInfo.compareOperation = srcStencilInfoData["compareOperation"];
+	}
+	if (srcStencilInfoData.contains("failOperation") && srcStencilInfoData["failOperation"].is_number_integer()) {
+		dstStencilInfo.failOperation = srcStencilInfoData["failOperation"];
+	}
+	if (srcStencilInfoData.contains("passOperation") && srcStencilInfoData["passOperation"].is_number_integer()) {
+		dstStencilInfo.passOperation = srcStencilInfoData["passOperation"];
+	}
+	if (srcStencilInfoData.contains("depthFailOperation") && srcStencilInfoData["depthFailOperation"].is_number_integer()) {
+		dstStencilInfo.depthFailOperation = srcStencilInfoData["depthFailOperation"];
+	}
+}
+
 void AfterglowMaterialAsset::parseShaderDeclarations() {	
 	// <shader::Stage, {ScalarCount, memberDeclarations}>
 	// ScalarCount use for memory alignment.
@@ -406,7 +449,7 @@ void AfterglowMaterialAsset::parseShaderDeclarations() {
 void AfterglowMaterialAsset::loadShaderAssets() {
 	auto& material = _impl->material;
 	auto& shaderAsset = _impl->shaderAssets;
-	// We just assume that shader is exists, ShaderAsset weill throw a error, just let them go.
+	// We assume that shader is exists, ShaderAsset would throw some errors, just let them spread out.
 	if (!material.hasComputeTask() || !material.computeTask().isComputeOnly()) {
 		shaderAsset.emplace(shader::Stage::Vertex, material.vertexShaderPath());
 		shaderAsset.emplace(shader::Stage::Fragment, material.fragmentShaderPath());
@@ -728,28 +771,38 @@ inline std::string AfterglowMaterialAsset::vertexInputStructDeclaration(const Af
 	return declaration;
 }
 
-inline std::string AfterglowMaterialAsset::makeInputAttachmentDeclaration(const render::InputAttachmentInfos& inputAttachmentInfos) const {
+inline std::string AfterglowMaterialAsset::makeImportAttachmentDeclaration(const AfterglowPassInterface& pass, uint32_t& bindingIndex) const {
 	std::string declaration;
-	auto domain = _impl->material.domain();
-	uint32_t bindingIndex = util::EnumValue(shader::GlobalSetBindingIndex::EnumCount);
-	for (const auto& info : inputAttachmentInfos) {
-		if (info.domain == domain) {
-			// Texture sampler method.
-			declaration += makeCombinedTextureSamplerDeclaration(
-				util::EnumValue(shader::SetIndex::Global), 
-				bindingIndex, 
-				info.name, 
-				info.isMultiSample, 
-				render::HLSLTexturePixelTypeName(info.type)
-			);
-			// @deprecated: Subpass method.			
-			//std::format(
-			//	"[[vk::input_attachment_index({})]] SubpassInput<{}> {}; \n",
-			//	shader::AttachmentTextureBindingIndex(bindingIndex),
-			//	render::inputAttachmentPixelTypeNames[util::EnumValue(info.type)],
-			//	info.name
-			//);
+	auto& subpassContext = pass.subpassContext();
+	for (const auto& importAttachment : pass.importAttachments()) {
+		// TODO: depth stencil support.
+		auto attachmentType = render::AttachmentType::Color;
+		if (subpassContext.isDepthAttachmentIndex(importAttachment.destAttachmentIndex)) {
+			attachmentType = render::AttachmentType::Depth;
 		}
+		declaration += makeCombinedTextureSamplerDeclaration(
+			util::EnumValue(shader::SetIndex::Pass),
+			bindingIndex,
+			importAttachment.attachmentName,
+			importAttachment.isMultipleSample,
+			render::HLSLTexturePixelTypeName(attachmentType)
+		);
+		++bindingIndex;
+	}
+	return declaration;
+}
+
+inline std::string AfterglowMaterialAsset::makeInputAttachmentDeclaration(const render::InputAttachmentInfos& inputAttachmentInfos, uint32_t& bindingIndex) const {
+	std::string declaration;
+	for (const auto& info : inputAttachmentInfos) {
+		// Texture sampler method.
+		declaration += makeCombinedTextureSamplerDeclaration(
+			util::EnumValue(shader::SetIndex::Pass),
+			bindingIndex,
+			info.name,
+			info.isMultiSample,
+			render::HLSLTexturePixelTypeName(info.type)
+		);
 		++bindingIndex;
 	}
 	return declaration;

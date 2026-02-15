@@ -1,6 +1,6 @@
 #include "AssetDefinitions.h"
-#include <stdexcept>
 #include <algorithm>
+#include "ExceptionUtilities.h"
 
 uint32_t img::FormatByteSize(Format format) {
 	switch (format) {		
@@ -16,7 +16,7 @@ uint32_t img::FormatByteSize(Format format) {
 	case img::Format::Int64: return 8;
 	case img::Format::Double: return 8;
 	default:
-		throw std:: runtime_error("Image format is undefined.");
+		EXCEPT_RUNTIME("Image format is undefined.");
 	}
 }
 

@@ -132,6 +132,20 @@ bool AfterglowPanel::renderInput(int& bindingValue) {
 	return true;
 }
 
+bool AfterglowPanel::renderInput(uint8_t& bindingValue) {
+	ScopeID id(&bindingValue);
+	renderInputTypeHint("uint8", { 0.3f, 0.55f, 0.45f, 1.0f });
+	ImGui::InputScalar("##uint8", ImGuiDataType_U8, &bindingValue);
+	return true;
+}
+
+bool AfterglowPanel::renderInput(uint16_t& bindingValue) {
+	ScopeID id(&bindingValue);
+	renderInputTypeHint("uint16", { 0.35f, 0.5f, 0.45f, 1.0f });
+	ImGui::InputScalar("##uint16", ImGuiDataType_U16, &bindingValue);
+	return true;
+}
+
 bool AfterglowPanel::renderInput(uint32_t& bindingValue) {
 	ScopeID id(&bindingValue);
 	renderInputTypeHint("uint", { 0.3f, 0.6f, 0.45f, 1.0f });
@@ -172,6 +186,13 @@ bool AfterglowPanel::renderInput(glm::vec3& bindingValue) {
 	ScopeID id(&bindingValue);
 	renderInputTypeHint("float3", { 0.5f, 0.5f, 0.75f, 1.0f });
 	ImGui::InputFloat3("##float3", reinterpret_cast<float*>(&bindingValue), _floatFormat);
+	return true;
+}
+
+bool AfterglowPanel::renderInput(glm::vec4& bindingValue) {
+	ScopeID id(&bindingValue);
+	renderInputTypeHint("float4", { 0.4f, 0.5f, 0.65f, 1.0f });
+	ImGui::InputFloat4("##float4", reinterpret_cast<float*>(&bindingValue), _floatFormat);
 	return true;
 }
 

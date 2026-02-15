@@ -1,8 +1,11 @@
 #pragma once
 
 #include "AfterglowCommandBuffer.h"
-#include "AfterglowComputePipeline.h"
 #include "ComputeDefinitions.h"
+
+class AfterglowPipelineLayout;
+class AfterglowComputePipeline;
+class AfterglowDescriptorSetReferences;
 
 class AfterglowComputeCommandBuffer : public AfterglowCommandBuffer<AfterglowComputeCommandBuffer> {
 public:

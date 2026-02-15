@@ -11,6 +11,8 @@ struct VSOutput {
 };
 
 VSOutput main(VSInput input) {
+	static const float grassStiffness = 1.5;
+	
 	VSOutput output;
 	
 	InstanceBufferStruct instanceInfo = InstanceBufferIn[input.instanceID];
@@ -26,7 +28,7 @@ VSOutput main(VSInput input) {
 	float2 tipFrequency = Square(1.0 - abs(sin(time * 1.0 + randomSpeedFactor - rcp(worldPosition.xy) * 0.001 * instanceInfo.wind)));
 	float2 amplitude = Unorm(sin(time * 2.5 + (tipFrequency * 8.0) + worldPosition.xy * 0.5)) * 0.2 + tipFrequency * 0.8 + 0.2;
 	float3 vertexOffset = 0.0;
-	vertexOffset.xy = instanceInfo.wind * amplitude * input.position.z;
+	vertexOffset.xy = instanceInfo.wind * amplitude * pow(input.position.z, grassStiffness);
 	vertexOffset.z = -length(vertexOffset.xy);
 	// Mask
 	vertexOffset *= Square(input.color.x);

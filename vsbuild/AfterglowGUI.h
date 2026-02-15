@@ -19,21 +19,21 @@ struct ImDrawData;
 
 class AfterglowGUI {
 public:
-	AfterglowGUI(
-		AfterglowWindow& window, 
-		AfterglowInstance& instance, 
-		AfterglowDevice& device, 
-		AfterglowSwapchain& swapchain, 
-		AfterglowGraphicsQueue& graphicsQueue, 
-		AfterglowDescriptorPool& descriptorPool,
-		AfterglowRenderPass& renderPass
-	);
+	AfterglowGUI(AfterglowWindow& window);
 	~AfterglowGUI();
 
 	// @brief: Immediate mode GUI update every frame.
 	ImDrawData* update();
 
-	void bindRenderStatus(AfterglowRenderStatus& renderStatus) noexcept;
+	void bindRenderContext(
+		AfterglowInstance& instance,
+		AfterglowDevice& device,
+		AfterglowSwapchain& swapchain,
+		AfterglowGraphicsQueue& graphicsQueue,
+		AfterglowDescriptorPool& descriptorPool,
+		AfterglowRenderPass& renderPass, 
+		AfterglowRenderStatus& renderStatus
+	);
 	void bindSystemUtilities(AfterglowSystemUtilities& sysUtils) noexcept;
 
 	/**
@@ -95,5 +95,6 @@ private:
 	 std::mutex _inputMutex;
 
 	AfterglowWindow& _window;
+	AfterglowSystemUtilities* _sysUtils = nullptr;
 };
 

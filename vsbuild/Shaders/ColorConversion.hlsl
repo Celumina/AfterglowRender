@@ -56,4 +56,10 @@ float3 LinearRGBToHSV(in float3 rgb) {
 	return float3(hcv.x, s, hcv.z);
 }
 
+float3 HueShift(in float3 rgb, in float offset) {
+	float3 hsv = LinearRGBToHSV(rgb);
+	hsv.x = frac(hsv.x + offset);
+	return HSVToLinearRGB(hsv);
+}
+
 #endif

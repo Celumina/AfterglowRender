@@ -6,8 +6,10 @@
 #include "AfterglowDescriptorSetLayout.h"
 #include "AfterglowPipeline.h"
 #include "AfterglowComputePipeline.h"
+#include "AfterglowPassInterface.h"
 
 class AfterglowShaderAsset;
+class AfterglowPassManager;
 
 // TODO: Many Pipelines for Different vertexTypes. and then remove the material vertexType mark.
 class AfterglowMaterialLayout {
@@ -15,10 +17,7 @@ public:
 	using DescriptorSetLayouts = std::map<shader::Stage, AfterglowDescriptorSetLayout::AsElement>;
 	using RawDescriptorSetLayouts = std::vector<typename AfterglowDescriptorSetLayout::Raw>;
 
-	AfterglowMaterialLayout(
-		AfterglowRenderPass& renderPass, 
-		const AfterglowMaterial& refMaterial = AfterglowMaterial::emptyMaterial()
-	);
+	AfterglowMaterialLayout(const AfterglowMaterial& refMaterial = AfterglowMaterial::emptyMaterial());
 
 	DescriptorSetLayouts& descriptorSetLayouts();
 	const DescriptorSetLayouts& descriptorSetLayouts() const;
@@ -26,10 +25,13 @@ public:
 	RawDescriptorSetLayouts& rawDescriptorSetLayouts();
 	const RawDescriptorSetLayouts& rawDescriptorSetLayouts() const;
 
-	AfterglowDevice& device() noexcept;
+	AfterglowDevice& device();
+	AfterglowPassInterface& pass();
 	AfterglowPipeline& pipeline();
 	AfterglowComputePipeline& computePipeline();
 	AfterglowComputePipeline* indirectResetPipeline();
+
+	inline uint32_t subpassIndex() const noexcept { return _subpassIndex; }
 	
 	AfterglowComputePipeline::Array& ssboInitComputePipelines();
 
@@ -43,7 +45,12 @@ public:
 	void compileComputeShader(const std::string& shaderCode);
 
 	// @brief: Apply material modification to layout.
-	void updateDescriptorSetLayouts(AfterglowDescriptorSetLayout& globalSetLayout, AfterglowDescriptorSetLayout& perObjectSetLayout);
+	void updateDescriptorSetLayouts(
+		AfterglowPassManager& passManager, 
+		render::PassUnorderedMap<AfterglowDescriptorSetLayout::AsElement>& allPassSetLayouts,
+		AfterglowDescriptorSetLayout& globalSetLayout, 
+		AfterglowDescriptorSetLayout& perObjectSetLayout
+	);
 
 	// @brief: Extra descriptor set layout for compute shader external ssbos.
 	void activateComputeExternalSSBOSetLayout(AfterglowDescriptorSetLayout& externalSSBOSetLayout);
@@ -80,7 +87,10 @@ private:
 	inline void verifyComputeTask();
 	inline AfterglowShaderAsset& indirectResetShaderAsset();
 
-	AfterglowRenderPass& _renderPass;
+	static inline VkCullModeFlags vulkanCullMode(render::CullMode cullMode);
+
+	AfterglowPassInterface* _pass = nullptr;
+	uint32_t _subpassIndex = 0;
 
 	AfterglowPipeline::AsElement _pipeline;
 	AfterglowShaderModule::AsElement _vertexShader;

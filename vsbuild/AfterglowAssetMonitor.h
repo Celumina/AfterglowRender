@@ -2,11 +2,12 @@
 
 #include <unordered_map>
 #include <functional>
+#include <memory>
+#include <string>
+#include <chrono>
 
 #include "AfterglowObject.h"
-#include "LocalClock.h"
 
-// TODO: Asset relative class run in a workthread.
 // TODO: Multi callbacks for one asset type support.
 // @brief: This class use for hot-recompilation of materials and its shaders.
 class AfterglowAssetMonitor : public AfterglowObject {
@@ -39,10 +40,17 @@ public:
 	AfterglowAssetMonitor();
 	~AfterglowAssetMonitor();
 
-	void update(const LocalClock& clock);
-	// @return: Is success to register.
+	// @note: invoke this function in target thread which are thread-safe for asset callback functions.
+	void update();
+	/**
+	* @return: Success to register.
+	* @thread-safety
+	*/ 
 	AssetInfo* registerAsset(AssetType type, const std::string& path, const TagInfos& tagInfos = {});
-	// @return: Is success to unregister.
+	/**
+	* @return: Success to unregister.
+	* @thread-safety
+	*/
 	bool unregisterAsset(const std::string& path);
 
 	void setCheckInterval(float sec);

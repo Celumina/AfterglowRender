@@ -1,11 +1,11 @@
 #include "ACESUtilities.h"
 
 #include <cmath>
-#include <stdexcept>
 #include <algorithm>
+#include "ExceptionUtilities.h"
 
-aces::OutputTransformParamsWrapper& aces::OutputTransformContext() {
-	static OutputTransformParamsWrapper wrapper{};
+aces::OutputTransformParamWrapper& aces::OutputTransformContext() {
+	static OutputTransformParamWrapper wrapper{};
 	return wrapper;
 }
 
@@ -934,7 +934,7 @@ aces::OutputTransformParams::OutputTransformParams(float inPeakLuminance, const 
 	hueLinearitySearchRange = DetermineHueLinearitySearchRange(*gamutCuspsTable);
 }
 
-const aces::OutputTransformParamsSSBO aces::OutputTransformParamsWrapper::takeSSBO() {
+const aces::OutputTransformParamsSSBO aces::OutputTransformParamWrapper::takeSSBO() {
 	verifyTakenFlag(_ssboTaken);
 	OutputTransformParamsSSBO ssbo {
 		_params->peakLuminance, 
@@ -974,28 +974,28 @@ const aces::OutputTransformParamsSSBO aces::OutputTransformParamsWrapper::takeSS
 	return ssbo;
 }
 
-const std::unique_ptr<aces::ReachMTable> aces::OutputTransformParamsWrapper::takeReachMTable() {
+const std::unique_ptr<aces::ReachMTable> aces::OutputTransformParamWrapper::takeReachMTable() {
 	verifyTakenFlag(_reachMTableTaken);
 	std::unique_ptr<aces::ReachMTable> ptr = std::move(_params->reachMTable);
 	updateTakenFlag(_reachMTableTaken);
 	return std::move(ptr);
 }
 
-const std::unique_ptr<aces::UpperHullGammaTable> aces::OutputTransformParamsWrapper::takeUpperHullGammaTable() {
+const std::unique_ptr<aces::UpperHullGammaTable> aces::OutputTransformParamWrapper::takeUpperHullGammaTable() {
 	verifyTakenFlag(_upperHullGammaTableTaken);
 	std::unique_ptr<UpperHullGammaTable> ptr = std::move(_params->upperHullGammaTable);
 	updateTakenFlag(_upperHullGammaTableTaken);
 	return std::move(ptr);
 }
 
-const std::unique_ptr<aces::GamutCuspsTable> aces::OutputTransformParamsWrapper::takeGamutCuspsTable() {
+const std::unique_ptr<aces::GamutCuspsTable> aces::OutputTransformParamWrapper::takeGamutCuspsTable() {
 	verifyTakenFlag(_gamutCuspsTableTaken);
 	std::unique_ptr<GamutCuspsTable> ptr = std::move(_params->gamutCuspsTable);
 	updateTakenFlag(_gamutCuspsTableTaken);
 	return std::move(ptr);
 }
 
-void aces::OutputTransformParamsWrapper::verifyTakenFlag(bool& flag) {
+void aces::OutputTransformParamWrapper::verifyTakenFlag(bool& flag) {
 	// Recreate resource if it is not exists.
 	if (!_params) {
 		_params = std::make_unique<OutputTransformParams>();
@@ -1005,11 +1005,11 @@ void aces::OutputTransformParamsWrapper::verifyTakenFlag(bool& flag) {
 		_gamutCuspsTableTaken = false;
 	}
 	if (flag) {
-		throw std::runtime_error("[OutputTransformParamsWrapper] Resource had been taken.");
+		EXCEPT_CLASS_RUNTIME("Resource had been taken.");
 	}
 }
 
-void aces::OutputTransformParamsWrapper::updateTakenFlag(bool& flag) {
+void aces::OutputTransformParamWrapper::updateTakenFlag(bool& flag) {
 	flag = true;
 	// Clear resource for memory saving.
 	if (_ssboTaken && _reachMTableTaken && _upperHullGammaTableTaken && _gamutCuspsTableTaken) {

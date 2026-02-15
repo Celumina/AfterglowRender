@@ -22,9 +22,9 @@ public:
 	static constexpr VkImageUsageFlags defaultUsage();
 	static constexpr VkImageUsageFlags inputAttachmentUsage();
 
-private:
 	bool hasStencilComponent();
 
+private:
 	// Single Command.
 	void cmdPipelineBarrier(VkCommandBuffer commandBuffer, VkImageLayout oldLayout, VkImageLayout newLayout);
 };

@@ -3,7 +3,8 @@
 #include "AfterglowSharedMeshPool.h"
 #include "UniformBufferObjects.h"
 
-class AfterglowMeshResource {
+// Polymophic class
+class AfterglowMeshResource : public AfterglowObject {
 public:
 	// Supports manager buffer itself or ref from shared mesh pool.
 	enum class Mode {
@@ -30,6 +31,8 @@ public:
 
 	ubo::MeshUniform& meshUniform();
 	const ubo::MeshUniform& meshUniform() const;
+
+	const model::AABB* aabb() const;
 
 private:
 	// Storage data

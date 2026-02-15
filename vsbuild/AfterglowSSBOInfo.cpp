@@ -3,7 +3,7 @@
 #include <mutex>
 #include <cmath>
 #include "AfterglowUtilities.h"
-#include "DebugUtilities.h"
+#include "ExceptionUtilities.h"
 
 AfterglowSSBOInfo::AfterglowSSBOInfo() {
 }
@@ -176,8 +176,7 @@ const std::string& AfterglowSSBOInfo::hlslTemplateName() const {
 		return texture3DTypeName;
 	}
 
-	DEBUG_CLASS_FATAL("Unsupported hlsl template name.");
-	throw std::runtime_error("Unsupported hlsl template name.");
+	EXCEPT_CLASS_RUNTIME("Unsupported hlsl template name.");
 }
 
 uint64_t AfterglowSSBOInfo::numUnpackedIndices() const noexcept {

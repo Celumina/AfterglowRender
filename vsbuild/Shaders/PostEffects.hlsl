@@ -58,7 +58,7 @@ float Vignette(float2 uv, float intensity = 0.75, float hardness = 0.5) {
 }
 
 float HeightFog(float worldHeight, float sceneDepth, float distanceFade = 0.25, float intensity = 0.4) {
-	float heightFog = pow(max(cameraPosition.z - worldHeight + sceneDepth * distanceFade, 0.0) * 0.01, 2.0) * intensity;
+	float heightFog = Square(max(cameraPosition.z - worldHeight + sceneDepth * distanceFade, 0.0) * 0.01) * intensity;
 	// Exponent fadeoff: 1.0 - exp(-k * x); 
 	return saturate(1.0 - exp(-2.0 * heightFog));	
 }

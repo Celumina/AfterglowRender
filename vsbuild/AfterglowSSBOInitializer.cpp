@@ -38,7 +38,6 @@ AfterglowSSBOInitializer::AfterglowSSBOInitializer(const AfterglowSSBOInfo& ssbo
 		DEBUG_CLASS_ERROR(std::format("Unsupported init mode: {}", util::EnumValue(ssboInfo.initMode())));
 		// throw std::runtime_error("[AfterglowSSBOInitializer] Unsupported init mode.");
 	}
-
 }
 
 AfterglowSSBOInitializer::~AfterglowSSBOInitializer() {

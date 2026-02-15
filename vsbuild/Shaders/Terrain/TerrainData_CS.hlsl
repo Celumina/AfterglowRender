@@ -1,4 +1,5 @@
 #include "TerrainCommon.hlsl"
+#include "../Common.hlsl"
 #include "../Meteorograph/MeteorographCommon.hlsl"
 
 [numthreads(32, 32, 1)]
@@ -8,20 +9,20 @@ void main(uint3 threadID : SV_DispatchThreadID) {
 	// waterFlowDamping: To avoid water over oscillation.
 	static const float waterFlowDamping = 0.005;
 	static const float waterViscosity = 1.0;
-	static const float soilDissolvingFactor = 0.2;// 0.2;
-	static const float sedimentDepositingFactor = 0.05;// 0.02;
+	static const float soilDissolvingFactor = 0.1;
+	static const float sedimentDepositingFactor = 0.025;
 	static const float deltaTerrainDistance = 0.001;
 	static const float hydrologicalCycleRate = 0.5;
 	// Compensation factor from the meteorogragh resolution error.
 	static const float evaporationFactor = 0.65;
 
-	static const float thermalUnderwaterFactor = 0.25;
+	static const float thermalUnderwaterFactor = 0.1;
 	static const float thermalWindIntensity = 0.1;
 	static const float thermalHeatIntensity = 0.2;
-	static const float thermalErosionRate = 0.5;
+	static const float thermalErosionRate = 0.2;
 
 	static const uint windEffectWaveSize = 64;
-	static const float windEffectIntensity = 0.75;
+	static const float windEffectIntensity = 0.65;
 
 
 	static const float waterFlowPipeArea = terrainDataCellArea / waterViscosity;
@@ -83,12 +84,12 @@ void main(uint3 threadID : SV_DispatchThreadID) {
 	float4 surfaceDeltaHeights = surfaceHeight - neighbourSurfaceHeights;
 
 	//  Wind affect to the water surface.
-	// 64: Cluster size
 	if (all(threadID % windEffectWaveSize) == 0) {
 		float4 maxDisturbance = max(neighbourSurfaceHeights - float4(terrainHeightT.x, terrainHeightB.x, terrainHeightR.x, terrainHeightL.x), 0.0) * waterDeltaTime;
+		float2 resizedWind = ClampVectorWithLength(meteorograph.xy, 0.8, 64.0);
+		float4 windEffect = float4(-resizedWind.x, resizedWind.x, -resizedWind.y, resizedWind.y);
 		// @note: Here we use length(surfaceDeltaHeights) to cluster waves.
-		// TODO: min wind effect and intensity param
-		surfaceDeltaHeights -= clamp(float4(-meteorograph.x, meteorograph.x, -meteorograph.y, meteorograph.y) * windEffectIntensity * max(length(surfaceDeltaHeights), 0.005), -maxDisturbance, maxDisturbance);
+		surfaceDeltaHeights -= clamp(windEffect * windEffectIntensity * max(length(surfaceDeltaHeights), 0.001), -maxDisturbance, maxDisturbance);
 	}
 
 	// Shallow water equation with pipe model.	
@@ -121,7 +122,7 @@ void main(uint3 threadID : SV_DispatchThreadID) {
 	waterHeight += deltaWaterVolume * rcp(terrainDataInterval * terrainDataInterval);
 	
 	// Regenerate terrain normal
-	float4 terrainNormal = calculateTerrainNormal(terrainHeightIn, terrainHeightR, terrainHeightT);
+	float4 terrainNormal = CalculateTerrainNormal(terrainHeightIn, terrainHeightR, terrainHeightT);
 	
 	// Delta terrain height
 	float4 deltaTerrainHeights = lerp(
@@ -213,19 +214,31 @@ void main(uint3 threadID : SV_DispatchThreadID) {
 	TerrainHeightOut[threadID.xy] = float2(terrainHeight, isEdgeCell ? max(waterHeight, waterBaseHeight) : waterHeight);
 	TerrainNormalOut[threadID.xy] = terrainNormal;
 
+
+	float waterToTerrainHeight = terrainHeight - waterHeight;
+	half4 terrainSurface = 0.0;
+	// .r Slope
+	terrainSurface.r = smoothstep(0.3, 0.5, length(terrainNormal.xy));
+	// .g Beach
+	terrainSurface.g = max(1.0 - max((waterToTerrainHeight) * 10.0, 0.0), 0.0);
+	// .b Humidity
+	terrainSurface.b = max((waterToTerrainHeight - 0.5) * invMaxWaterSoilDiffuseDistance, 0.0);
+
+	/*
 	// Surface colors
-	// Beach
+	// Humidity
+	float waterToTerrainHeight = terrainHeight - waterHeight;
 	half4 terrainSurface = lerp(
 		half4(0.15, 0.2, 0.04, 1.0), 
 		half4(0.55, 0.4, 0.1, 1.0), 
-		max((terrainHeight - waterHeight - 0.1) * invMaxWaterSoilDiffuseDistance, 0.0)
+		max((waterToTerrainHeight - 0.1) * invMaxWaterSoilDiffuseDistance, 0.0)
 	);
 
-	// Humidity
+	// Beach
 	terrainSurface = lerp(
 		terrainSurface, 
 		half4(0.55, 0.52, 0.25, 1.0), 
-		max(1.0 - max((terrainHeight - waterHeight) * 10.0, 0.0), 0.0)
+		max(1.0 - max((waterToTerrainHeight) * 10.0, 0.0), 0.0)
 	);
 
 	// Slope
@@ -241,6 +254,16 @@ void main(uint3 threadID : SV_DispatchThreadID) {
 		half4(0.7, 0.7, 0.72, 1.0), 
 		saturate(-meteorograph.w * 0.5)
 	);
+	*/
+
+	// use terrainSurface.a as roughness
+	static const float surfaceRoughnessRange = 0.4;
+	terrainSurface.a = lerp(
+		0.95, 
+		0.2, 
+		-(1.0 / surfaceRoughnessRange) * min(abs(waterToTerrainHeight + 0.2) - surfaceRoughnessRange, 0.0)
+	);
+	
 
 	TerrainSurfaceOut[threadID.xy] = terrainSurface;
 }

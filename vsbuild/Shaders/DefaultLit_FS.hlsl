@@ -36,8 +36,9 @@ FSOutput main(StandardFSInput input) {
 	tbn = input.isFrontFace ? tbn : -tbn;
 
 	half4 baseColor = albedoTex.Sample(albedoTexSampler, input.texCoord0);
+	// baseColor.xyz *= dyeColor.xyz * dyeColor.w;
 	// tbn defines as row-major so put matrix in the rightside.
-	half3 normal = mul(DecodeNormal(normalTex.Sample(normalTexSampler, input.texCoord0 * 4.0).xyz), tbn);	
+	half3 normal = mul(DecodeNormal(normalTex.Sample(normalTexSampler, input.texCoord0).xyz), tbn);	
 	// normal = input.worldNormal;
 	
 	// Gram-Schmidt Orthogonization
@@ -52,17 +53,17 @@ FSOutput main(StandardFSInput input) {
 
 	ShadingContext shadingContext = (ShadingContext)0;
 	shadingContext.baseColor = baseColor.xyz;
-	shadingContext.metallic = 0.1;
-	shadingContext.specular = 0.5;
-	shadingContext.roughness = 0.5;
+	shadingContext.metallic = metallic;
+	shadingContext.specular = specular;
+	shadingContext.roughness = roughness;
 	shadingContext.ambientOcclusion = 1.0;
-	shadingContext.anisotropy = 0.5; 
+	shadingContext.anisotropy = anisotropy; 
 	shadingContext.normal = normal; //input.worldNormal; 
 	shadingContext.tangent = tangent;
 	shadingContext.bitangent = bitangent;
 	shadingContext.view = view;
-	shadingContext.subsurfaceColor = baseColor * 1.0;
-	shadingContext.opacity = 0.99;
+	shadingContext.subsurfaceColor = baseColor;
+	shadingContext.opacity = subsurfaceOpacity;
 
 	LightingResult lightingResult = SubsurfaceShadingAnisotropic(shadingContext);
 	float3 finalColor = lightingResult.diffuse + lightingResult.specular + lightingResult.transmission;
@@ -70,9 +71,9 @@ FSOutput main(StandardFSInput input) {
 	// finalColor = lightingResult.specular;
 
 	output.color.xyz = finalColor;
-	// output.color.xyz = input.color;
-	// output.color.xyz = baseColor; //HSVToLinearRGB(LinearRGBToHSV(baseColor));
-
+	
+	// output.color.xyz = lightingResult.specular;
+	// output.color.xyz = input.color.xyz; //HSVToLinearRGB(LinearRGBToHSV(baseColor));
 
 	return output;
 }

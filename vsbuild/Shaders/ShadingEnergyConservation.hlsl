@@ -25,7 +25,9 @@ float GetEnergyLuminance(float3 inEnergy) {
 float2 GGXEnergyLookup(float roughness, float nov) {
 	// Approximation method:
 	const float energy = 1.0 - saturate(pow(roughness, nov / roughness) * ((roughness * nov + 0.0266916) / (0.466495 + nov)));
-	const float energyFresnel = Pow5(1.0 - nov) * pow(2.36651 * pow(nov, 4.7703 * roughness) + 0.0387332, roughness);
+	// Nan was happen here.
+	// const float energyFresnel = Pow5(1.0 - nov) * pow(2.36651 * pow(nov, 4.7703 * roughness) + 0.0387332, roughness);
+	const float energyFresnel = Pow5(1.0 - nov) * pow(2.36651 * pow(nov, max(4.7703 * roughness, 1.0e-12)) + 0.0387332, roughness);
 	return float2(energy, energyFresnel);
 }
 

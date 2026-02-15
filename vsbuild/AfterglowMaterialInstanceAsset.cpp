@@ -2,7 +2,7 @@
 
 #include <fstream>
 #include <json.hpp>
-#include "DebugUtilities.h"
+#include "ExceptionUtilities.h"
 
 struct AfterglowMaterialInstanceAsset::Impl {
 	nlohmann::json data;
@@ -14,15 +14,13 @@ AfterglowMaterialInstanceAsset::AfterglowMaterialInstanceAsset(const std::string
 	std::ifstream file(path);
 
 	if (!file.is_open()) {
-		DEBUG_TYPE_ERROR(AfterglowMaterialInstanceAsset, "Failed to load material instance file: " + path);
-		throw std::runtime_error("[AfterglowMaterialInstanceAsset] Failed to open material instance file.");
+		EXCEPT_CLASS_RUNTIME("Failed to load material instance file: " + path);
 	}
 	try {
 		file >> _impl->data;
 	}
 	catch (const nlohmann::json::parse_error& error) {
-		DEBUG_TYPE_ERROR(AfterglowMaterialInstanceAsset, "Failed to parse material instance file " + path + " to json, due to: " + error.what());
-		throw std::runtime_error("[AfterglowMaterialInstanceAsset] Failed to parse material instance file to json.");
+		EXCEPT_CLASS_RUNTIME("Failed to parse material instance file " + path + " to json, due to: " + error.what());
 	}
 }
 

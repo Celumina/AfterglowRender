@@ -1,6 +1,7 @@
 #include "AfterglowGraphicsQueue.h"
 #include "AfterglowSynchronizer.h"
 #include "AfterglowPhysicalDevice.h"
+#include "ExceptionUtilities.h"
 
 AfterglowGraphicsQueue::AfterglowGraphicsQueue(AfterglowDevice& device) : 
 	AfterglowQueue(device, device.physicalDevice().graphicsFamilyIndex()) {
@@ -39,7 +40,7 @@ void AfterglowGraphicsQueue::submit(VkCommandBuffer* commandBuffers, AfterglowSy
 
 	// DEBUG_COST_BEGIN("GraphicsSubmit");
 	if (vkQueueSubmit(_queue, 1, &submitInfo, synchronizer.fence(AfterglowSynchronizer::FenceFlag::RenderInFlight)) != VK_SUCCESS) {
-		throw std::runtime_error("[AfterglowGraphicsQueue] Failed to submit draw command buffer.");
+		EXCEPT_CLASS_RUNTIME("Failed to submit draw command buffer.");
 	}
 	// DEBUG_COST_END;
 } 

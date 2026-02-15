@@ -1,6 +1,8 @@
 #pragma once
-#include "AfterglowSwapchain.h"
+#include "AfterglowDevice.h"
 #include "AfterglowSubpassContext.h"
+
+//#include "AfterglowPassSetBase.h"
 
 /* Pipeline and RenderPass
 RenderPass has higher level then Pipeline, one RendePass may contains many pipelines.
@@ -12,23 +14,23 @@ Forward Rendering and Deferred Rendering are Frameworks, not Pipeline.
 
 class AfterglowRenderPass : public AfterglowProxyObject<AfterglowRenderPass, VkRenderPass, VkRenderPassCreateInfo> {
 public:
-	using AttachmentDescriptionArray = std::vector<VkAttachmentDescription>;
-	using AttachmentReferenceArray = std::vector<VkAttachmentReference>;
+	//using Parent = AfterglowProxyObject<AfterglowRenderPass, VkRenderPass, VkRenderPassCreateInfo>;
 
-	AfterglowRenderPass(AfterglowSwapchain& swapchain);
+	AfterglowRenderPass(AfterglowDevice& device);
 	~AfterglowRenderPass();
  
-	inline AfterglowDevice& device() noexcept;
-	AfterglowSwapchain& swapchain();
+	//void initialize();
+	inline AfterglowDevice& device() noexcept { return _device; };
 
-	AfterglowSubpassContext& subpassContext();
+	inline AfterglowSubpassContext& subpassContext() noexcept { return _subpassContext; }
+	inline const AfterglowSubpassContext& subpassContext() const noexcept { return _subpassContext; }
 
 proxy_protected:
 	void initCreateInfo();
 	void create();
 
 private:
-	std::unique_ptr<AfterglowSubpassContext> _subpassContext;
-	AfterglowSwapchain& _swapchain;
+	AfterglowDevice& _device;
+	AfterglowSubpassContext _subpassContext{};
 };
 

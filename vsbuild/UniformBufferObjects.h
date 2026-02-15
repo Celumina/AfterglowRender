@@ -42,8 +42,8 @@ namespace ubo {
 		alignas(16) glm::vec4 frustumPlaneF;
 
 		alignas(4) float cameraFov;
-		alignas(4) float __padding0;
-		alignas(4) float __padding1;
+		alignas(4) float screenAspectRatio; // screenResolution.x / screenResolution.y
+		alignas(4) float invScreenAspectRatio; // screenResolution.y / screenResolution.x
 		alignas(4) float __padding2;
 	};
 
@@ -72,7 +72,9 @@ namespace ubo {
 			INR_ATTR(frustumPlaneT),
 			INR_ATTR(frustumPlaneN),
 			INR_ATTR(frustumPlaneF),
-			INR_ATTR(cameraFov)
+			INR_ATTR(cameraFov), 
+			INR_ATTR(screenAspectRatio), 
+			INR_ATTR(invScreenAspectRatio)
 		);
 	};
 
@@ -86,6 +88,8 @@ namespace ubo {
 		alignas(4) uint32_t indexCount; 
 		alignas(4) float __padding0;
 		alignas(4) float __padding1;
+		alignas(16) glm::vec3 minAABB; // Object space AABB
+		alignas(16) glm::vec3 maxAABB; // Object space AABB
 	};
 
 	INR_CLASS(MeshUniform) {
@@ -93,7 +97,11 @@ namespace ubo {
 			INR_ATTR(model), 
 			INR_ATTR(invTransModel), 
 			INR_ATTR(objectID), 
-			INR_ATTR(indexCount)
+			INR_ATTR(indexCount), 
+			INR_ATTR(__padding0), 
+			INR_ATTR(__padding1), 
+			INR_ATTR(minAABB), 
+			INR_ATTR(maxAABB)
 		);
 	};
 

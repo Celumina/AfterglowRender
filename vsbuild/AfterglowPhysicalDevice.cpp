@@ -85,7 +85,8 @@ VkFormat AfterglowPhysicalDevice::findSupportedFormat(const std::vector<VkFormat
 
 VkFormat AfterglowPhysicalDevice::findDepthFormat() {
 	return findSupportedFormat(
-		{VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT}, 
+		// Select Depth type in order.
+		{VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT, VK_FORMAT_D32_SFLOAT },
 		VK_IMAGE_TILING_OPTIMAL, 
 		VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT
 	);

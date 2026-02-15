@@ -1,9 +1,10 @@
 #include "AfterglowPresentQueue.h"
-#include <stdexcept>
-
 #include "AfterglowFramebufferManager.h"
 #include "AfterglowWindow.h"
 #include "AfterglowPhysicalDevice.h"
+#include "AfterglowSwapchain.h"
+#include "AfterglowSynchronizer.h"
+#include "ExceptionUtilities.h"
 
 AfterglowPresentQueue::AfterglowPresentQueue(AfterglowDevice& device) : 
 	AfterglowQueue(device, device.physicalDevice().presentFamilyIndex()) {
@@ -16,9 +17,9 @@ void AfterglowPresentQueue::submit(AfterglowWindow& window, AfterglowFramebuffer
 	presentInfo.waitSemaphoreCount = 1;
 	presentInfo.pWaitSemaphores = signalSemaphores;
 
-	VkSwapchainKHR swapChains[] = { framebufferManager.swapchain() };
+	VkSwapchainKHR swapchains[] = { framebufferManager.swapchain() };
 	presentInfo.swapchainCount = 1;
-	presentInfo.pSwapchains = swapChains;
+	presentInfo.pSwapchains = swapchains;
 	presentInfo.pImageIndices = &imageIndex;
 
 	presentInfo.pResults = nullptr;
@@ -27,10 +28,10 @@ void AfterglowPresentQueue::submit(AfterglowWindow& window, AfterglowFramebuffer
 	// DEBUG_COST_BEGIN("PresentSubmit");
 	VkResult result = vkQueuePresentKHR(_queue, &presentInfo);
 	if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || window.resized()) {
-		window.waitIdle([&framebufferManager](){ framebufferManager.recreate(); });
+		window.waitIdle([&framebufferManager](){ framebufferManager.recreateSwapchain(); });
 	}
 	else if (result != VK_SUCCESS) {
-		throw std::runtime_error("[AfterglowPresentQueue] Failed to present swapchain image.");
+		EXCEPT_CLASS_RUNTIME("Failed to present swapchain image.");
 	}
 	//else {
 	//	window.setPresented(true);

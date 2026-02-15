@@ -22,30 +22,53 @@ AfterglowTextureImage& AfterglowTextureReference::texture() noexcept {
 	return _value->buffer;
 }
 
-AfterglowSharedTexturePool::AfterglowSharedTexturePool(AfterglowCommandPool& commandPool, AfterglowGraphicsQueue& graphicsQueue) : 
-	AfterglowSharedResourcePool(commandPool, graphicsQueue) {
+AfterglowSharedTexturePool::AfterglowSharedTexturePool(
+	AfterglowCommandPool& commandPool, 
+	AfterglowGraphicsQueue& graphicsQueue, 
+	AfterglowSynchronizer& synchronizer) :
+	AfterglowSharedResourcePool(commandPool, graphicsQueue, synchronizer) {
 }
 
 AfterglowTextureReference AfterglowSharedTexturePool::texture(const img::AssetInfo& assetInfo) {
-	// TODO: mesh pool also do that check?
-	img::AssetInfo safeInfo = assetInfo;
-	if (!std::filesystem::exists(safeInfo.path)) {
-		safeInfo.path = img::defaultTextureInfo.path;
-	}
+	img::AssetInfo assetInfoCopy = assetInfo;
 
-	auto textureIterator = _resources.find(safeInfo);
+	auto textureIterator = _resources.find(assetInfoCopy);
 	Resource* texture = nullptr;
 	if (textureIterator == _resources.end()) {
-		texture = createTexture(safeInfo);
+		texture = createTexture(assetInfoCopy);
 	}
 	else {
 		texture = &(textureIterator->second);
 	}
 
-	return AfterglowTextureReference{ safeInfo, _resources, texture->count};
+	return AfterglowTextureReference{ std::move(assetInfoCopy), _resources, texture->count };
 }
 
-AfterglowSharedTexturePool::Resource* AfterglowSharedTexturePool::createTexture(const img::AssetInfo& assetInfo) {
+AfterglowTextureReference AfterglowSharedTexturePool::texture(img::AssetInfo&& rval) {
+	img::AssetInfo assetInfo{ std::forward<img::AssetInfo>(rval) };
+	auto textureIterator = _resources.find(assetInfo);
+	Resource* texture = nullptr;
+	if (textureIterator == _resources.end()) {
+		texture = createTexture(assetInfo);
+	}
+	else {
+		texture = &(textureIterator->second);
+	}
+
+	return AfterglowTextureReference{ std::move(assetInfo), _resources, texture->count };
+}
+
+AfterglowSharedTexturePool::Resource* AfterglowSharedTexturePool::createTexture(img::AssetInfo& assetInfo) {
+	// TODO: mesh pool also do that check?
+	if (!std::filesystem::exists(assetInfo.path)) {
+		DEBUG_CLASS_ERROR(std::format("Path texture is not exists: \"{}\", it was replaced to default texture. ", assetInfo.path));
+		assetInfo.path = img::defaultTextureInfo.path;
+		auto textureIterator = _resources.find(assetInfo);
+		if (textureIterator != _resources.end()) {
+			return &textureIterator->second;
+		}
+	}
+
 	auto textureIterator = _resources.emplace(assetInfo, Resource{}).first;
 	auto& texture = textureIterator->second;
 	

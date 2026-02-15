@@ -1,8 +1,7 @@
 #include "AfterglowStructLayout.h"
 
 #include <algorithm>
-#include <stdexcept>
-#include "DebugUtilities.h"
+#include "ExceptionUtilities.h"
 
 
 uint32_t AfterglowStructLayout::attributeByteSize(AttributeType type) {
@@ -68,7 +67,7 @@ uint32_t AfterglowStructLayout::offset(
 
 		offset = size - attributeSize;
 	}
-	throw std::runtime_error("[AfterglowStructLayout] Attribute name not found, can not aquire offset value.");
+	EXCEPT_CLASS_RUNTIME("Attribute name not found, can not aquire offset value.");
 }
 
 void AfterglowStructLayout::addAttribute(AttributeType type, const std::string& name) {

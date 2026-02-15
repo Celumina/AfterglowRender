@@ -28,9 +28,6 @@ FSOutput main(VSOutput input) {
 	float depth = SampleDepth(pixelCoord);
 	float sceneDepth = SceneDepth(depth);
 
-	// float4 testTexColor = testTex.Sample(testTexSampler, uniformUV);
-	// testTexColor *= testTexColor.w;
-
 	// // Hash blur
 	// float2 hashValue = (float2(
 	// 	PseudoRandom(screenResolution.xy * input.texCoord0.yx), 
@@ -64,8 +61,10 @@ FSOutput main(VSOutput input) {
 	// Linear render result will be encoded to sRGB by swapchain automatically.
 	// output.color.xyz = 0.5;
 	output.color = color; //Grayscale(color);
+
+	// Chromatic aberration
 	output.color.xyz = SceneColorChromaticAberration(input.texCoord0, output.color.xyz);
-	
+
 	// output.color.xyz = edge.xyz;
 	// output.color.xyz = SceneColorLinearBlur(input.texCoord0, sceneDepth);
 	// output.color.xyz = sceneDepth;
@@ -84,16 +83,23 @@ FSOutput main(VSOutput input) {
 
 	// Underwater
 	float underwaterMask = UnderwaterMask(input.texCoord0);
-	output.color.xyz = lerp(output.color.xyz, float3(0.05, 0.05, 0.15) + envColor * 0.05, saturate(1.0 - exp(-sceneDepth * 0.05 - 0.5)) * underwaterMask);
+	output.color.xyz = lerp(output.color.xyz, float3(0.02, 0.05, 0.12) + envColor * 0.05, saturate(1.0 - exp(-sceneDepth * 0.05 - 1.0)) * underwaterMask);
+
+	// Bloom
+	if (bloomEnabled) {
+		output.color.xyz += bloomCombinedTexture.Sample(bloomCombinedTextureSampler, input.texCoord0);
+	}
 
 	// Effect Blending
 	output.color.xyz += AtmosphericDust(input.texCoord0, sceneDepth);
 	output.color *= Vignette(input.texCoord0);
 
 	// Cursor test.
-	output.color += saturate(0.05 - distance(float2(screenResolution.x * invScreenResolution.y, 1.0) * cursorPosition * invScreenResolution, uniformUV));
+	output.color += saturate(0.05 - distance(float2(screenAspectRatio, 1.0) * cursorPosition * invScreenResolution, uniformUV));
 
 	output.color.xyz = LUTMapping(output.color.xyz);
+
+	// output.color.xyz = ReconstructWorldNormal(input.texCoord0, depth);
 
 	return output;
 }

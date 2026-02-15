@@ -1,11 +1,10 @@
 #pragma once
 
 #include <concepts>
-#include <stdexcept>
 #include "AfterglowStructLayout.h"
 
 #include "TypeConstraints.h"
-#include "DebugUtilities.h"
+#include "ExceptionUtilities.h"
 
 class AfterglowStructuredData {
 public:
@@ -104,7 +103,7 @@ inline void AfterglowStructuredData::fill(const Type& srcArray) {
 template<typename ElementType, typename CallbackType, typename ...ParamTypes>
 inline void AfterglowStructuredData::forEachElement(CallbackType callback, ParamTypes && ...params) {
 	if (sizeof(ElementType) != _strideSize) {
-		throw std::runtime_error("[AfterglowStructuredData] Different type size with layout size.");
+		EXCEPT_CLASS_INVALID_ARG("Different type size with layout size.");
 	}
 	size_t numElements = _data.size() / _strideSize;
 	for (uint32_t index = 0; index < numElements; ++index) {
@@ -115,10 +114,10 @@ inline void AfterglowStructuredData::forEachElement(CallbackType callback, Param
 template<util::Trivial Type>
 inline void AfterglowStructuredData::verifyElement(size_t index) const {
 	if (sizeof(Type) != _strideSize) {
-		throw std::runtime_error("[AfterglowStructuredData] Different type size with layout size.");
+		EXCEPT_CLASS_INVALID_ARG("Different type size with layout size.");
 	}
 	if (index < 0 || index >= /*numElements*/(_data.size() / _strideSize)) {
-		throw std::runtime_error("[AfterglowStructuredData] Index out of range.");
+		EXCEPT_CLASS_INVALID_ARG("Index out of range.");
 	}
 }
 
@@ -126,10 +125,10 @@ template<util::Trivial Type>
 inline AfterglowStructuredData::AttributeInfo AfterglowStructuredData::verifyAttribute(const std::string& attributeName) const {
 	auto iterator = _attributeInfos.find(attributeName);
 	if (iterator == _attributeInfos.end()) {
-		throw std::runtime_error("[AfterglowStructuredData] This name is not an element attribute name.");
+		EXCEPT_CLASS_INVALID_ARG("This name is not an element attribute name.");
 	}
 	if (iterator->second.byteSize != sizeof(Type)) {
-		throw std::runtime_error("[AfterglowStructuredData] Different type size with attribute size.");
+		EXCEPT_CLASS_INVALID_ARG("Different type size with attribute size.");
 	}
 	return iterator->second;
 }

@@ -90,6 +90,10 @@ void AfterglowSystemUtilities::unlockCursor() const {
 	_impl->system->window().unlockCursor();
 }
 
+AfterglowPassManager& AfterglowSystemUtilities::passManager() const {
+	return _impl->materialManager->passManager();
+}
+
 std::string AfterglowSystemUtilities::registerMaterialAsset(const std::string& materialPath) const {
 	return _impl->materialManager->registerMaterialAsset(materialPath);
 }
@@ -124,6 +128,34 @@ AfterglowMaterial* AfterglowSystemUtilities::findMaterialByInstanceName(const st
 
 AfterglowMaterialInstance* AfterglowSystemUtilities::materialInstance(const std::string& name) const {
 	return _impl->materialManager->materialInstance(name);
+}
+
+AfterglowMaterialResource* AfterglowSystemUtilities::materialResource(const std::string& name) const {
+	return _impl->materialManager->materialResource(name);
+}
+
+AfterglowDescriptorSetReferences* AfterglowSystemUtilities::materialDescriptorSetReferences(const std::string& name, const ubo::MeshUniform& meshUniform) const {
+	return _impl->materialManager->descriptorSetReferences(name, meshUniform);
+}
+
+bool AfterglowSystemUtilities::materialSubmitMeshUniform(const std::string& materialInstanceName, const ubo::MeshUniform& meshUniform) const {
+	return _impl->materialManager->submitMeshUniform(materialInstanceName, meshUniform);
+}
+
+bool AfterglowSystemUtilities::submitMaterial(const std::string& name) const {
+	return _impl->materialManager->submitMaterial(name);
+}
+
+bool AfterglowSystemUtilities::submitMaterialInstance(const std::string& name) const {
+	return _impl->materialManager->submitMaterialInstance(name);
+}
+
+bool AfterglowSystemUtilities::submitMaterialInstanceUniformParams(const std::string& name) const {
+	return _impl->materialManager->submitMaterialInstanceUniformParams(name);
+}
+
+bool AfterglowSystemUtilities::submitMaterialInstanceTextureParams(const std::string& name) const {
+	return _impl->materialManager->submitMaterialInstanceTextureParams(name);
 }
 
 const ubo::GlobalUniform& AfterglowSystemUtilities::globalUniform() const noexcept {

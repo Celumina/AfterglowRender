@@ -1,14 +1,14 @@
 #include "RenderDefinitions.h"
-#include <stdexcept>
+#include "ExceptionUtilities.h"
 
-std::string render::HLSLTexturePixelTypeName(InputAttachmentType inputAttachment) {
+std::string render::HLSLTexturePixelTypeName(AttachmentType inputAttachment) {
     switch (inputAttachment) {
-        case InputAttachmentType::Color:
+        case AttachmentType::Color:
             return "float4";
-        case InputAttachmentType::Depth:
+        case AttachmentType::Depth:
             return "float";
-        case InputAttachmentType::DepthStencil:
+        case AttachmentType::DepthStencil:
             return "float2"; // TODO: Not supported yet.
     }
-    throw std::runtime_error("inputAttachment type name is not defined.");
+    EXCEPT_RUNTIME("inputAttachment type name is not defined.");
 }

@@ -3,6 +3,7 @@
 #include "../Constants.hlsl"
 #include "../ColorConversion.hlsl"
 #include "../Terrain/TerrainCommon.hlsl"
+#include "../Meteorograph/MeteorographCommon.hlsl"
 
 
 struct VSOutput {
@@ -29,16 +30,24 @@ FSOutput main(VSOutput input) {
 	// baseColor = -Square(input.color.y * 0.01);
 	// Ambient occlusion (approximation)
 	half3 normal = input.isFrontFace ? input.worldNormal : -input.worldNormal;
-
-	output.color.xyz = lerp(baseColor.xyz, baseColor.xyz * max(dot(normal, dirLightDirection.xyz), 0.0), 0.5);
-	output.color.xyz *= dirLightColor.xyz * dirLightColor.w;
+	// Half-Lambert Lighting
+	output.color.xyz = baseColor.xyz * max(Unorm(dot(normal, dirLightDirection.xyz)), 0.0);
 
 	// Blend terrain
+	float2 terrainTexCoord = input.worldPosition.xy * terrainTexCoordScaling;
+	half4 texColor = grassAlbedoTex.SampleLevel(grassAlbedoTexSampler, terrainTexCoord, 3) * 4.0;
 	half4 terrainSurface = SampleTerrain(TerrainSurface, TerrainSurfaceSampler, input.worldPosition.xy);
-	output.color.xyz = lerp(output.color.xyz, terrainSurface.xyz, 0.75/*input.color.x*/);
-
+	float4 meteorograph = SampleMeteorograph(Meteorograph, MeteorographSampler, input.worldPosition.xy);
+	texColor.xyz = VariantTerrainSurface(texColor.xyz, terrainSurface, meteorograph.w);
+	// output.color.xyz = lerp(output.color.xyz, terrainSurface.xyz * 0.5, 0.65/*input.color.x*/) * 0.75;
+	output.color.xyz = lerp(output.color.xyz, texColor.xyz * 0.5, 0.65) * 0.75;
+	
 	// Fake occlusion
 	float occlusionFactor = min(input.position.z * grassVisibleDistance, 0.8);
-	output.color.xyz = lerp(output.color.xyz, float3(0.03, 0.03, 0.02), (1.0 - Pow3(input.color.x)) * occlusionFactor);
+	output.color.xyz = lerp(output.color.xyz, output.color.xyz * 0.4, (1.0 - Pow3(input.color.x)) * occlusionFactor);
+
+	output.color.xyz *= dirLightColor.xyz * dirLightColor.w;
+	// output.color.xyz = input.color.w;
+
 	return output;	 
 }

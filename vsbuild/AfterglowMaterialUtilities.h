@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
-#include "AfterglowMaterialAsset.h"
+
+class AfterglowMaterialAsset;
 
 namespace mat {
 	const AfterglowMaterialAsset& ErrorMaterialAsset();

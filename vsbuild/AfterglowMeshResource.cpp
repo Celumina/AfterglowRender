@@ -1,4 +1,5 @@
 #include "AfterglowMeshResource.h"
+#include "ExceptionUtilities.h"
 
 AfterglowMeshResource::AfterglowMeshResource(Mode mode) : _mode(mode) {
 	if (mode == Mode::Custom) {
@@ -29,7 +30,7 @@ AfterglowIndexBuffer::Array& AfterglowMeshResource::indexBuffers() {
 	else if (_mode == Mode::SharedPool) {
 		return _meshReference->indexBuffers();
 	}
-	throw std::runtime_error("[AfterglowMeshResource] Unknown mode.");
+	EXCEPT_CLASS_RUNTIME("Unknown mode.");
 }
 
 std::vector<AfterglowVertexBufferHandle>& AfterglowMeshResource::vertexBufferHandles() {
@@ -39,7 +40,7 @@ std::vector<AfterglowVertexBufferHandle>& AfterglowMeshResource::vertexBufferHan
 	else if (_mode == Mode::SharedPool) {
 		return _meshReference->vertexBufferHandles();
 	}
-	throw std::runtime_error("[AfterglowMeshResource] Unknown mode.");
+	EXCEPT_CLASS_RUNTIME("Unknown mode.");
 }
 
 ubo::MeshUniform& AfterglowMeshResource::meshUniform() {
@@ -48,4 +49,12 @@ ubo::MeshUniform& AfterglowMeshResource::meshUniform() {
 
 const ubo::MeshUniform& AfterglowMeshResource::meshUniform() const {
 	return _meshUniform;
+}
+
+const model::AABB* AfterglowMeshResource::aabb() const {
+	if (!_meshReference) {
+		// EXCEPT_CLASS_RUNTIME("MeshReference not found, aabb is supported in SharedPool mode only.");
+		return nullptr;
+	}
+	return &_meshReference->aabb();
 }

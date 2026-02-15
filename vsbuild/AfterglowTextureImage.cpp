@@ -5,6 +5,7 @@
 #include "AfterglowCommandPool.h"
 #include "AfterglowGraphicsQueue.h"
 #include "AfterglowStagingBuffer.h"
+#include "ExceptionUtilities.h"
 
 
 AfterglowTextureImage::AfterglowTextureImage(AfterglowDevice& device) : 
@@ -122,7 +123,7 @@ void AfterglowTextureImage::cmdPipelineBarrier(VkCommandBuffer commandBuffer, Vk
 		destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
 	}
 	else {
-		throw std::invalid_argument("[AfterglowTextureImage] Unsupported layout transition.");
+		EXCEPT_CLASS_INVALID_ARG("Unsupported layout transition.");
 	}
 
 	vkCmdPipelineBarrier(

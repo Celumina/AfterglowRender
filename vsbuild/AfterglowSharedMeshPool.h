@@ -6,7 +6,7 @@
 #include "AfterglowVertexBuffer.h"
 #include "AfterglowModelAsset.h"
 
-struct AfterglowMeshPoolResource {
+struct AfterglowMeshPoolResource : public AfterglowSharedPoolResource {
 	AfterglowIndexBuffer::Array indexBuffers;
 	// AfterglowVertexBuffer::Array vertexBuffers;
 	// Polynomial unique_ptr for Different VertexBuffer Types
@@ -14,7 +14,7 @@ struct AfterglowMeshPoolResource {
 	
 	// VertexBufferHandle is type-independent, for different vertex buffer type support.
 	std::vector<AfterglowVertexBufferHandle> vertexBufferHandles;
-	AfterglowReferenceCount count;
+	model::AABB aabb;
 };
 
 
@@ -29,12 +29,17 @@ public:
 	AfterglowIndexBuffer::Array& indexBuffers() noexcept;
 	//AfterglowVertexBuffer::Array& vertexBuffers() noexcept;
 	std::vector<AfterglowVertexBufferHandle>& vertexBufferHandles() noexcept;
+	const model::AABB& aabb() const noexcept;
 };
 
 
 class AfterglowSharedMeshPool : public AfterglowSharedResourcePool<AfterglowMeshReference> {
 public: 
-	AfterglowSharedMeshPool(AfterglowCommandPool& commandPool, AfterglowGraphicsQueue& graphicsQueue);
+	AfterglowSharedMeshPool(
+		AfterglowCommandPool& commandPool, 
+		AfterglowGraphicsQueue& graphicsQueue, 
+		AfterglowSynchronizer& synchronizer
+	);
 
 	// @brief: Get ref of mesh resource, if resource not exists, it will create mesh from file automatically.
 	AfterglowMeshReference mesh(const model::AssetInfo& assetInfo);
@@ -73,5 +78,6 @@ AfterglowSharedMeshPool::Resource* AfterglowSharedMeshPool::createMesh(const mod
 
 		mesh.vertexBufferHandles.emplace_back(vertexBuffer.handle());
 	}
+	mesh.aabb = modelAsset.aabb();
 	return &mesh;
 }

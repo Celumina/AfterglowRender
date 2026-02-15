@@ -5,19 +5,20 @@
 namespace shader {
 	enum class SetIndex : uint32_t {
 		Global = 0,
-		PerObject = 1, 
+		Pass = 1, 
+		PerObject = 2, 
 
-		MaterialVertex = 2,
-		MaterialFragment = 3,
-		MaterialShared = 4,
+		MaterialVertex = 3,
+		MaterialFragment = 4,
+		MaterialShared = 5,
 
-		Compute = 5, 
-		ComputeVertex = 6,
-		ComputeFragment = 7, 
-		ComputeShared = 8, 
+		Compute = 6, 
+		ComputeVertex = 7,
+		ComputeFragment = 8, 
+		ComputeShared = 9, 
 
 		// For compute task use other compute task resources.
-		ExternalStorage = 9,
+		ExternalStorage = 10,
 
 		EnumCount
 	};
@@ -25,6 +26,7 @@ namespace shader {
 	INR_CLASS(SetIndex) {
 		INR_ATTRS(
 			INR_ENUM(Global), 
+			INR_ENUM(Pass), 
 			INR_ENUM(PerObject),
 			INR_ENUM(MaterialVertex),
 			INR_ENUM(MaterialFragment),

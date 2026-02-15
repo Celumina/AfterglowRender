@@ -10,7 +10,8 @@ void main(uint3 threadID : SV_DispatchThreadID) {
 	static const float randomWindFieldIntensity = 0.2;
 	static const float windSourceIntensity = 4.0;
 	static const float diffuseBaseWeight = 0.01;
-	
+	static const float rainFadeoff = 0.5;
+
 	float2 worldPos = WorldPositionFromTileID(threadID.xy, meteorographInvSideElements);
 
 	// Fetch Terrain Data
@@ -63,7 +64,7 @@ void main(uint3 threadID : SV_DispatchThreadID) {
 	humiture.x += DeltaEvaporation(wind, humiture, SoilMoisture(deltaWaterHeight), 1.0);
 
 	// Humidity saturation and rainfall
-	float rainFall = max(0.0, humiture.x - humidityCapability) * deltaTime;
+	float rainFall = max(0.0, humiture.x - humidityCapability) * rainFadeoff * deltaTime;
 	humiture.x -= rainFall;
 
 	// Temperature transport and recovery.

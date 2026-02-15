@@ -2,12 +2,13 @@
 
 #include <array>
 #include "AfterglowPipelineLayout.h"
-#include "AfterglowShaderModule.h"
-#include "AfterglowRenderPass.h"
-#include "AfterglowDescriptorSetLayout.h"
 #include "AfterglowVertexBuffer.h"
+#include "RenderDefinitions.h"
+#include "AfterglowUtilities.h"
 
 class AfterglowStructLayout;
+class AfterglowPassInterface;
+class AfterglowShaderModule;
 
 class AfterglowPipeline : public AfterglowProxyObject<AfterglowPipeline, VkPipeline, VkGraphicsPipelineCreateInfo> {
 public:
@@ -31,18 +32,20 @@ public:
 
 	// TODO: Dynamic linking vertex attribute to avoid the different pipeline from vertex layout,
 	//		then the vertex type setting from material can be removed.
+	/**
+	* @param subpassName: If the subpass name is empty, pipeline will choose the first subpass.
+	*/
 	AfterglowPipeline(
-		AfterglowRenderPass& renderPass, 
-		render::Domain subpassDomain, 
+		AfterglowPassInterface& pass, 
+		const std::string& subpassName = "",
 		std::type_index vertexTypeIndex = util::TypeIndex<vert::StandardVertex>()
 	);
 
 	~AfterglowPipeline();
 
 	inline AfterglowDevice& device() noexcept;
-	inline AfterglowSwapchain& swapchain();
-	AfterglowRenderPass& renderPass();
-	AfterglowPipelineLayout& pipelineLayout();
+	inline AfterglowPassInterface& pass() noexcept { return _pass; }
+	inline AfterglowPipelineLayout& pipelineLayout() noexcept { return _pipelineLayout; }
 
 	template<size_t index = 0>
 	void assignVertex(std::type_index vertexTypeIndex);
@@ -65,6 +68,7 @@ public:
 	void setTopology(render::Topology topology);
 	void setPolygonMode(VkPolygonMode polygonMode);
 	void setDepthWrite(bool depthWrite);
+	void setFaceStencilInfos(const render::FaceStencilInfos& faceStencilInfos);
 
 	void setBlendingMode(BlendingMode mode);
 
@@ -74,8 +78,12 @@ proxy_protected:
 
 private:
 	void verifyDependencies() const;
+	inline void setStencilInfo(const render::StencilInfo& stencilInfo, VkStencilOpState* dstVulkanStencilState);
 
 	static inline VkPrimitiveTopology vulkanTopology(render::Topology topology);
+	static inline VkCompareOp vulkanCompareOperation(render::CompareOperation operation);
+	static inline VkStencilOp vulkanStencilOperation(render::StencilOperation operation);
+
 	static inline VkFormat vulkanVertexAttributeFormat(uint32_t attributeByteSize, uint32_t numAttributeComponents);
 
 	struct CreateInfoDependencies {
@@ -92,9 +100,10 @@ private:
 		// Input Assembly
 		VkPipelineInputAssemblyStateCreateInfo inputAssemblyStateCreateInfo;
 
+		// @deprecated: We are using dynamic state instead.
 		// Viewport
-		VkViewport viewport;
-		VkRect2D scissor;
+		//VkViewport viewport;
+		//VkRect2D scissor;
 		VkPipelineViewportStateCreateInfo viewportStateCreateInfo;
 
 		// Rasterization
@@ -111,7 +120,7 @@ private:
 	};
 
 	std::unique_ptr<CreateInfoDependencies> _dependencies;
-	AfterglowRenderPass& _renderPass;
+	AfterglowPassInterface& _pass;
 	AfterglowPipelineLayout::AsElement _pipelineLayout;
 };
 

@@ -52,6 +52,12 @@ public:
 	template<typename FuncType, typename ...ParamTypes>
 	void lockedAccess(FuncType&& func, ParamTypes&& ...params);
 
+	/**
+	* @param func: []<typename ComponentType>(){...}
+	*/
+	template<typename FuncType, uint32_t componentTypeIndex = 0>
+	void forEachTypeComponents(FuncType&& func);
+
 private:
 	mutable std::mutex _mutex;
 
@@ -147,7 +153,18 @@ inline ComponentType* AfterglowComponentPool::component(AfterglowComponentBase::
 template<typename FuncType, typename ...ParamTypes>
 inline void AfterglowComponentPool::lockedAccess(FuncType&& func, ParamTypes && ...params) {
 	LockGuard lockGuard{ _mutex };
-	func(params...);
+	func(std::forward<ParamTypes>(params)...);
+}
+
+template<typename FuncType, uint32_t componentTypeIndex>
+inline void AfterglowComponentPool::forEachTypeComponents(FuncType&& func) {
+	if constexpr (componentTypeIndex < std::tuple_size_v<reg::RegisteredComponentTypes>) {
+		using ComponentType = std::tuple_element_t<componentTypeIndex, reg::RegisteredComponentTypes>;
+		func.template operator() <ComponentType> ();
+	}
+	if constexpr (componentTypeIndex < std::tuple_size_v<reg::RegisteredComponentTypes> - 1) {
+		forEachTypeComponents<FuncType, componentTypeIndex + 1>(std::forward<FuncType>(func));
+	}
 }
 
 template<typename TupleType, size_t Index>

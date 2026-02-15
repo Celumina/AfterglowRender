@@ -5,6 +5,7 @@
 
 #include "AfterglowComputeTask.h"
 #include "AfterglowUtilities.h"
+#include "GlobalAssets.h"
 #include "DebugUtilities.h"
 #include "VertexStructs.h"
 
@@ -30,19 +31,82 @@ AfterglowMaterial::AfterglowMaterial(
 }
 
 AfterglowMaterial::AfterglowMaterial(const AfterglowMaterial& other) :
-	_domain(other._domain),
+	_domain(other._domain), 
 	_topology(other._topology), 
-	_twoSided(other._twoSided),
+	_cullMode(other._cullMode),
 	_wireframe(other._wireframe),
 	_depthWrite(other._depthWrite),
+	_faceStencilInfos(other._faceStencilInfos), 
 	_vertexTypeIndex(other._vertexTypeIndex),
 	_vertexShaderPath(other._vertexShaderPath),
 	_fragmentShaderPath(other._fragmentShaderPath),
+	_customPassName(other._customPassName), 
+	_subpassName(other._subpassName), 
 	_scalars(other._scalars),
 	_vectors(other._vectors),
 	_textures(other._textures) {
 	if (other._computeTask) {
 		_computeTask = std::make_unique<AfterglowComputeTask>(*other._computeTask);
+	}
+}
+
+void AfterglowMaterial::operator=(const AfterglowMaterial& other) {
+	_domain = other._domain;
+	_topology = other._topology;
+	_cullMode = other._cullMode;
+	_wireframe = other._wireframe;
+	_depthWrite = other._depthWrite;
+	_faceStencilInfos = other._faceStencilInfos;
+	_vertexTypeIndex = other._vertexTypeIndex;
+	_vertexShaderPath = other._vertexShaderPath;
+	_fragmentShaderPath = other._fragmentShaderPath;
+	_customPassName = other._customPassName;
+	_subpassName = other._subpassName;
+	_scalars = other._scalars;
+	_vectors = other._vectors;
+	_textures = other._textures;
+	if (other._computeTask) {
+		_computeTask = std::make_unique<AfterglowComputeTask>(*other._computeTask);
+	}
+}
+
+AfterglowMaterial::AfterglowMaterial(AfterglowMaterial&& rval) noexcept :
+	_domain(std::move(rval._domain)),
+	_topology(std::move(rval._topology)),
+	_cullMode(std::move(rval._cullMode)),
+	_wireframe(std::move(rval._wireframe)),
+	_depthWrite(std::move(rval._depthWrite)),
+	_faceStencilInfos(std::move(rval._faceStencilInfos)),
+	_vertexTypeIndex(std::move(rval._vertexTypeIndex)),
+	_vertexShaderPath(std::move(rval._vertexShaderPath)),
+	_fragmentShaderPath(std::move(rval._fragmentShaderPath)),
+	_customPassName(std::move(rval._customPassName)),
+	_subpassName(std::move(rval._subpassName)),
+	_scalars(std::move(rval._scalars)),
+	_vectors(std::move(rval._vectors)),
+	_textures(std::move(rval._textures)) {
+	if (rval._computeTask) {
+		_computeTask = std::move(rval._computeTask);
+	}
+}
+
+void AfterglowMaterial::operator=(AfterglowMaterial&& rval) noexcept {
+	_domain = std::move(rval._domain);
+	_topology = std::move(rval._topology);
+	_cullMode = std::move(rval._cullMode);
+	_wireframe = std::move(rval._wireframe);
+	_depthWrite = std::move(rval._depthWrite);
+	_faceStencilInfos = std::move(rval._faceStencilInfos);
+	_vertexTypeIndex = std::move(rval._vertexTypeIndex);
+	_vertexShaderPath = std::move(rval._vertexShaderPath);
+	_fragmentShaderPath = std::move(rval._fragmentShaderPath);
+	_customPassName = std::move(rval._customPassName);
+	_subpassName = std::move(rval._subpassName);
+	_scalars = std::move(rval._scalars);
+	_vectors = std::move(rval._vectors);
+	_textures = std::move(rval._textures);
+	if (rval._computeTask) {
+		_computeTask = std::move(rval._computeTask);
 	}
 }
 
@@ -57,14 +121,14 @@ const AfterglowMaterial& AfterglowMaterial::emptyMaterial() {
 const AfterglowMaterial& AfterglowMaterial::defaultMaterial() {
 	static AfterglowMaterial material{
 		render::Domain::Forward,
-		"Shaders/Unlit_VS.hlsl", 
-		"Shaders/Unlit_FS.hlsl", 
+		shader::defaultForwardVSPath, 
+		shader::defaultForwardFSPath,
 		// scalars
 		{}, 
 		// vectors
 		{}, 
 		// textures
-		{{shader::Stage::Fragment, {Parameter<TextureInfo>{"albedoTex", {img::ColorSpace::SRGB, "Assets/Shared/Textures/White.png"}, true}}}}
+		{{shader::Stage::Fragment, {Parameter<TextureInfo>{"albedoTex", img::defaultTextureInfo, true}}}}
 	};
 	return material;
 }
@@ -72,8 +136,8 @@ const AfterglowMaterial& AfterglowMaterial::defaultMaterial() {
 const AfterglowMaterial& AfterglowMaterial::errorMaterial() {
 	static AfterglowMaterial material{
 		render::Domain::Forward,
-		"Shaders/Error_VS.hlsl",
-		"Shaders/Error_FS.hlsl",
+		shader::errorVSPath,
+		shader::errorFSPath,
 		// scalars
 		{},
 		// vectors
@@ -84,7 +148,7 @@ const AfterglowMaterial& AfterglowMaterial::errorMaterial() {
 	static std::once_flag onceFlag;
 	std::call_once(onceFlag, []() {
 		auto& computeTask = material.initComputeTask();
-		computeTask.setComputeShader("Shaders/Error_CS.hlsl");
+		computeTask.setComputeShader(shader::errorCSPath);
 	});
 	return material;
 }
@@ -92,8 +156,8 @@ const AfterglowMaterial& AfterglowMaterial::errorMaterial() {
 const AfterglowMaterial& AfterglowMaterial::emptyPostProcessMaterial() {
 	static AfterglowMaterial material {
 		render::Domain::PostProcess,
-		"Shaders/EmptyPostProcess_VS.hlsl",
-		"Shaders/EmptyPostProcess_FS.hlsl",
+		shader::emptyPostprocessVSPath,
+		shader::emptyPostprocessFSPath,
 		{}, {}, {}
 	};
 	static std::once_flag onceFlag;
@@ -101,23 +165,6 @@ const AfterglowMaterial& AfterglowMaterial::emptyPostProcessMaterial() {
 		material.setVertexTypeIndex(util::TypeIndex<vert::VertexPT0>());
 	});
 	return material;
-}
-
-void AfterglowMaterial::operator=(const AfterglowMaterial& other) {
-	_domain = other._domain;
-	_topology = other._topology;
-	_twoSided = other._twoSided;
-	_wireframe = other._wireframe;
-	_depthWrite = other._depthWrite,
-	_vertexTypeIndex = other._vertexTypeIndex;
-	_vertexShaderPath = other._vertexShaderPath;
-	_fragmentShaderPath = other._fragmentShaderPath;
-	_scalars = other._scalars;
-	_vectors = other._vectors;
-	_textures = other._textures;
-	if (other._computeTask) {
-		_computeTask = std::make_unique<AfterglowComputeTask>(*other._computeTask);
-	}
 }
 
 bool AfterglowMaterial::is(const AfterglowMaterial& other) const noexcept {
@@ -128,8 +175,8 @@ void AfterglowMaterial::setVertexTypeIndex(std::type_index vertexTypeIndex) noex
 	_vertexTypeIndex = vertexTypeIndex;
 }
 
-void AfterglowMaterial::setTwoSided(bool twoSided) noexcept {
-	_twoSided = twoSided;
+void AfterglowMaterial::setCullMode(render::CullMode cullMode) noexcept {
+	_cullMode = cullMode;
 }
 
 void AfterglowMaterial::setWireframe(bool wireframe) noexcept {
@@ -152,6 +199,14 @@ void AfterglowMaterial::setFragmentShader(const std::string& shaderPath) {
 	_fragmentShaderPath = shaderPath;
 }
 
+void AfterglowMaterial::setCustomPass(const std::string& passName) {
+	_customPassName = passName;
+}
+
+void AfterglowMaterial::setSubpass(const std::string& subpassName) {
+	_subpassName = subpassName;
+}
+
 void AfterglowMaterial::setScalar(shader::Stage stage, const std::string& name, Scalar defaultValue) {
 	setParameter<Scalar>(_scalars, stage, Parameter<Scalar>{ name, defaultValue, true });
 }
@@ -168,16 +223,28 @@ void AfterglowMaterial::setTexture(shader::Stage stage, const std::string& name,
 	);
 }
 
+render::Domain AfterglowMaterial::domain() const noexcept {
+	return _domain;
+}
+
 void AfterglowMaterial::setDomain(render::Domain domain) noexcept {
 	_domain = domain;
+}
+
+const render::FaceStencilInfos& AfterglowMaterial::faceStencilInfos() const noexcept {
+	return _faceStencilInfos;
+}
+
+void AfterglowMaterial::setFaceStencilInfo(const render::FaceStencilInfos& faceStencilInfo) noexcept {
+	_faceStencilInfos = faceStencilInfo;
 }
 
 std::type_index AfterglowMaterial::vertexTypeIndex() const noexcept {
 	return _vertexTypeIndex;
 }
 
-bool AfterglowMaterial::twoSided() const noexcept {
-	return _twoSided;
+render::CullMode AfterglowMaterial::cullMode() const noexcept {
+	return _cullMode;
 }
 
 bool AfterglowMaterial::wireframe() const noexcept {
@@ -246,8 +313,12 @@ const std::string& AfterglowMaterial::fragmentShaderPath() const noexcept {
 	return _fragmentShaderPath;
 }
 
-render::Domain AfterglowMaterial::domain() const noexcept {
-	return _domain;
+const std::string& AfterglowMaterial::customPassName() const noexcept {
+	return _customPassName;
+}
+
+const std::string& AfterglowMaterial::subpassName() const noexcept {
+	return _subpassName;
 }
 
 render::Topology AfterglowMaterial::topology() const noexcept {
@@ -259,8 +330,8 @@ uint32_t AfterglowMaterial::scalarPaddingSize(shader::Stage stage) const noexcep
 	if (iterator == _scalars.end()) {
 		return 0;
 	}
-	uint32_t numScalars = iterator->second.size();
-	return util::Align(numScalars, elementAlignment()) - numScalars;
+	size_t numScalars = iterator->second.size();
+	return static_cast<uint32_t>(util::Align(numScalars, elementAlignment()) - numScalars);
 }
 
 bool AfterglowMaterial::hasComputeTask() const noexcept {

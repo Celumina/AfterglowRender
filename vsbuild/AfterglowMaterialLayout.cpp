@@ -2,12 +2,13 @@
 
 #include "AfterglowMaterialUtilities.h"
 #include "AfterglowComputeTask.h"
+#include "AfterglowMaterialAsset.h"
+#include "AfterglowPassManager.h"
 #include "GlobalAssets.h"
-#include "DebugUtilities.h"
+#include "ExceptionUtilities.h"
 
-AfterglowMaterialLayout::AfterglowMaterialLayout(
-	AfterglowRenderPass& renderPass, const AfterglowMaterial& refMaterial) :
-	_renderPass(renderPass), _material(refMaterial) {
+AfterglowMaterialLayout::AfterglowMaterialLayout(const AfterglowMaterial& refMaterial) :
+	_material(refMaterial) {
 }
 
 AfterglowMaterialLayout::DescriptorSetLayouts& AfterglowMaterialLayout::descriptorSetLayouts() {
@@ -26,8 +27,12 @@ const AfterglowMaterialLayout::RawDescriptorSetLayouts& AfterglowMaterialLayout:
 	return _rawDescriptorSetLayouts;
 }
 
-AfterglowDevice& AfterglowMaterialLayout::device() noexcept {
-	return _renderPass.device();
+AfterglowDevice& AfterglowMaterialLayout::device() {
+	return _pass->device();
+}
+
+AfterglowPassInterface& AfterglowMaterialLayout::pass() {
+	return *_pass;
 }
 
 AfterglowPipeline& AfterglowMaterialLayout::pipeline() {
@@ -91,7 +96,27 @@ void AfterglowMaterialLayout::compileComputeShader(const std::string& shaderCode
 	);
 }
 
-void AfterglowMaterialLayout::updateDescriptorSetLayouts(AfterglowDescriptorSetLayout& globalSetLayout, AfterglowDescriptorSetLayout& perObjectSetLayout) {
+void AfterglowMaterialLayout::updateDescriptorSetLayouts(
+	AfterglowPassManager& passManager,
+	render::PassUnorderedMap<AfterglowDescriptorSetLayout::AsElement>& allPassSetLayouts,
+	AfterglowDescriptorSetLayout& globalSetLayout,
+	AfterglowDescriptorSetLayout& perObjectSetLayout
+) {
+	// Update pass
+	if (_material.customPassName().empty()) {
+		_pass = passManager.findPass(_material.domain());
+	}
+	else {
+		_pass = passManager.findPass(_material.customPassName());
+	}
+	if (!_pass) {
+		DEBUG_CLASS_ERROR(std::format(
+			"Material pass is not exists: \"{}\", pipeline will be created by the default pass (Forward).",
+			_material.customPassName()
+		));
+		_pass = passManager.findPass(render::Domain::Forward);
+	}
+
 	// Material Sets:
 	// Set 0: Global Set	(Managed in the MaterialManager instead of MaterialContext)
 	// Set 1: PerObject Set 
@@ -118,6 +143,7 @@ void AfterglowMaterialLayout::updateDescriptorSetLayouts(AfterglowDescriptorSetL
 	_rawDescriptorSetLayouts.clear();
 
 	_rawDescriptorSetLayouts.push_back(globalSetLayout);
+	_rawDescriptorSetLayouts.push_back(allPassSetLayouts.at(_pass));
 	_rawDescriptorSetLayouts.push_back(perObjectSetLayout);
 
 	for (auto& [stage, setLayout] : _descriptorSetLayouts) {
@@ -143,20 +169,25 @@ void AfterglowMaterialLayout::updatePipeline() {
 	if (isComputeOnly()){
 		return;
 	}
-	_pipeline.recreate(_renderPass, _material.domain(), _material.vertexTypeIndex());
+	// Store subpassindex for draw commands.
+	auto& subpassContext = _pass->subpassContext();
+	_subpassIndex = _material.subpassName().empty() ? 0 : subpassContext.subpassIndex(_material.subpassName());
+	
+	_pipeline.recreate(*_pass, _material.subpassName(), _material.vertexTypeIndex());
 	AfterglowPipeline& pipeline = _pipeline;
 
+	// TODO: Provide a material interface instead of dependent on the domain. (for custom pass)
 	if (_material.domain() == render::Domain::Transparency) {
 		pipeline.setBlendingMode(AfterglowPipeline::BlendingMode::Alpha);
 	}
-	if (_material.twoSided()) {
-		// TODO: Filp normal if it is backface.
-		pipeline.setCullMode(VK_CULL_MODE_NONE);
-	}
+	// TODO: Filp normal if it is backface.
+	pipeline.setCullMode(vulkanCullMode(_material.cullMode()));
+
 	if (_material.wireframe()) {
 		pipeline.setPolygonMode(VK_POLYGON_MODE_LINE);
 	}
 	pipeline.setDepthWrite(_material.depthWrite());
+	pipeline.setFaceStencilInfos(_material.faceStencilInfos());
 
 	// If use SSBO as vertex input.
 	if (_material.hasComputeTask() && _material.computeTask().vertexInputSSBOInfo()) {
@@ -168,13 +199,14 @@ void AfterglowMaterialLayout::updatePipeline() {
 
 	// Compile default shaders.
 	if (!_vertexShader || !_fragmentShader) {
+		DEBUG_CLASS_WARNING("Vertex shader or fragment shader is not built, the updatePipeline() will build them from material. ");
+		// TODO: Here inputAttachmentInfos is dated.
 		auto materialAsset = AfterglowMaterialAsset(_material);
-		auto& inputAttacmentInfos = _renderPass.subpassContext().inputAttachmentInfos();
 		if (!_vertexShader) {
-			compileVertexShader(materialAsset.generateShaderCode(shader::Stage::Vertex, inputAttacmentInfos));
+			compileVertexShader(materialAsset.generateShaderCode(shader::Stage::Vertex, *_pass));
 		}
 		if (!_fragmentShader) {
-			compileFragmentShader(materialAsset.generateShaderCode(shader::Stage::Fragment, inputAttacmentInfos));
+			compileFragmentShader(materialAsset.generateShaderCode(shader::Stage::Fragment, *_pass));
 		}
 	}
 	pipeline.setVertexShader(_vertexShader);
@@ -327,8 +359,7 @@ void AfterglowMaterialLayout::appendDescriptorSetLayout(shader::Stage stage) {
 
 inline void AfterglowMaterialLayout::fillPipelineLayout(AfterglowPipelineLayout& pipelineLayout) {
 	// Size of meshlSetLayout + materialSetLayouts
-	// pipelineLayout->setLayoutCount = static_cast<uint32_t>(_descriptorSetLayouts.size()) + shader::materialSetIndexBegin;
-	pipelineLayout->setLayoutCount = _rawDescriptorSetLayouts.size();
+	pipelineLayout->setLayoutCount = static_cast<uint32_t>(_rawDescriptorSetLayouts.size());
 	pipelineLayout->pSetLayouts = _rawDescriptorSetLayouts.data();
 }
 
@@ -351,8 +382,23 @@ inline void AfterglowMaterialLayout::verifyComputeTask() {
 }
 
 inline AfterglowShaderAsset& AfterglowMaterialLayout::indirectResetShaderAsset() {
-	static AfterglowShaderAsset indirectResetShaderAsset(shader::indirectResetShaderPath);
+	static AfterglowShaderAsset indirectResetShaderAsset(shader::indirectResetCSPath);
 	return indirectResetShaderAsset;
+}
+
+inline VkCullModeFlags AfterglowMaterialLayout::vulkanCullMode(render::CullMode cullMode) {
+	switch (cullMode) {
+	case render::CullMode::None:
+		return VK_CULL_MODE_NONE;
+	case render::CullMode::Front:
+		return VK_CULL_MODE_FRONT_BIT;
+	case render::CullMode::Back:
+		return VK_CULL_MODE_BACK_BIT;
+	case render::CullMode::FrontBack:
+		return VK_CULL_MODE_FRONT_AND_BACK;
+	default:
+		EXCEPT_INVALID_ARG("Invalid cull mode enum.");
+	}
 }
 
 VkShaderStageFlags AfterglowMaterialLayout::vulkanShaderStage(shader::Stage stage) {
@@ -372,7 +418,6 @@ VkShaderStageFlags AfterglowMaterialLayout::vulkanShaderStage(shader::Stage stag
 	case shader::Stage::ComputeShared:
 		return VK_SHADER_STAGE_COMPUTE_BIT | VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
 	default:
-		DEBUG_TYPE_ERROR(AfterglowMaterialLayout, "Unknown parameter stage.");
-		throw std::runtime_error("[AfterglowMaterialLayout] Unknown parameter stage.");
+		EXCEPT_TYPE_RUNTIME(AfterglowMaterialLayout, "Unknown parameter stage.");
 	}
 }

@@ -1,12 +1,15 @@
 #include "AfterglowPipeline.h"
 
 #include "AfterglowStructLayout.h"
+#include "AfterglowShaderModule.h"
+#include "AfterglowPassInterface.h"
 #include "Configurations.h"
 #include "RenderConfigurations.h"
+#include "ExceptionUtilities.h"
 
-AfterglowPipeline::AfterglowPipeline(AfterglowRenderPass& renderPass, render::Domain subpassDomain, std::type_index vertexTypeIndex) :
-	_renderPass(renderPass), 
-	_pipelineLayout(AfterglowPipelineLayout::makeElement(renderPass.device())) {
+AfterglowPipeline::AfterglowPipeline(AfterglowPassInterface& pass, const std::string& subpassName, std::type_index vertexTypeIndex) :
+	_pass(pass), 
+	_pipelineLayout(AfterglowPipelineLayout::makeElement(pass.device())) {
 	// Pipeline layout: the uniform and push values referenced by the shader
 	// that can be updated at draw time
 	_dependencies = std::make_unique<CreateInfoDependencies>();
@@ -28,9 +31,16 @@ AfterglowPipeline::AfterglowPipeline(AfterglowRenderPass& renderPass, render::Do
 	}
 
 	// Pipeline subpass index 
-	auto& subpassContext = _renderPass.subpassContext();
-	info().subpass = subpassContext.subpassIndex(subpassDomain);
-	_dependencies->multisamplingStateCreateInfo.rasterizationSamples = subpassContext.rasterizationSampleCount(subpassDomain);
+	auto& subpassContext = pass.subpassContext();
+	if (subpassName.empty()) {
+		auto& firstSubpassName = subpassContext.firstSubpassName();
+		info().subpass = 0;
+		_dependencies->multisamplingStateCreateInfo.rasterizationSamples = subpassContext.rasterizationSampleCount(firstSubpassName);
+	}
+	else {
+		info().subpass = subpassContext.subpassIndex(subpassName);
+		_dependencies->multisamplingStateCreateInfo.rasterizationSamples = subpassContext.rasterizationSampleCount(subpassName);
+	}
 
 	// Default blend mode
 	setBlendingMode(BlendingMode::Opaque);
@@ -41,19 +51,7 @@ AfterglowPipeline::~AfterglowPipeline() {
 }
 
 inline AfterglowDevice& AfterglowPipeline::device() noexcept {
-	return _renderPass.device();
-}
-
-inline AfterglowSwapchain& AfterglowPipeline::swapchain() {
-	return _renderPass.swapchain();
-}
-
-AfterglowRenderPass& AfterglowPipeline::renderPass() {
-	return _renderPass;
-}
-
-AfterglowPipelineLayout& AfterglowPipeline::pipelineLayout() {
-	return _pipelineLayout;
+	return _pass.device();
 }
 
 void AfterglowPipeline::assignVertex(const AfterglowStructLayout& structLayout) {
@@ -125,6 +123,24 @@ void AfterglowPipeline::setDepthWrite(bool depthWrite) {
 	_dependencies->depthStencilCreateInfo.depthWriteEnable = depthWrite;
 }
 
+void AfterglowPipeline::setFaceStencilInfos(const render::FaceStencilInfos& faceStencilInfos) {
+	verifyDependencies();
+
+	using namespace render;
+	if (faceStencilInfos.front.compareOperation != CompareOperation::AlwaysTrue
+		|| faceStencilInfos.front.passOperation != StencilOperation::Keep
+		|| faceStencilInfos.back.compareOperation != CompareOperation::AlwaysTrue
+		|| faceStencilInfos.back.passOperation != StencilOperation::Keep) {
+		_dependencies->depthStencilCreateInfo.stencilTestEnable = true;
+	}
+	else {
+		_dependencies->depthStencilCreateInfo.stencilTestEnable = false;
+		return;
+	}
+	setStencilInfo(faceStencilInfos.front, &_dependencies->depthStencilCreateInfo.front);
+	setStencilInfo(faceStencilInfos.back, &_dependencies->depthStencilCreateInfo.back);
+}
+
 void AfterglowPipeline::setBlendingMode(BlendingMode mode) {
 	verifyDependencies();
 	auto& colorBlendAttachment = _dependencies->colorBlendAttachment;
@@ -158,7 +174,7 @@ void AfterglowPipeline::setBlendingMode(BlendingMode mode) {
 }
 
 void AfterglowPipeline::initCreateInfo() {
-	// Dynamic state
+	// Dynamic states
 	_dependencies->dynamicStates = {
 		VK_DYNAMIC_STATE_VIEWPORT, 
 		VK_DYNAMIC_STATE_SCISSOR
@@ -178,22 +194,23 @@ void AfterglowPipeline::initCreateInfo() {
 	_dependencies->inputAssemblyStateCreateInfo.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 	_dependencies->inputAssemblyStateCreateInfo.primitiveRestartEnable = VK_FALSE;
 
+	// @deprecated: We are using dynamic state instead.
 	// Viewport and Scissor
-	_dependencies->viewport.x = 0.0f;
-	_dependencies->viewport.y = 0.0f;
-	_dependencies->viewport.width = static_cast<float>(swapchain().extent().width);
-	_dependencies->viewport.height = static_cast<float>(swapchain().extent().height);
-	_dependencies->viewport.minDepth = 0.0f;
-	_dependencies->viewport.maxDepth = 1.0f;
+	//_dependencies->viewport.x = 0.0f;
+	//_dependencies->viewport.y = 0.0f;
+	//_dependencies->viewport.width = static_cast<float>(swapchain().extent().width);
+	//_dependencies->viewport.height = static_cast<float>(swapchain().extent().height);
+	//_dependencies->viewport.minDepth = 0.0f;
+	//_dependencies->viewport.maxDepth = 1.0f;
 
-	_dependencies->scissor.offset = { 0, 0 };
-	_dependencies->scissor.extent = swapchain().extent();
+	//_dependencies->scissor.offset = { 0, 0 };
+	//_dependencies->scissor.extent = swapchain().extent();
 
 	_dependencies->viewportStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
 	_dependencies->viewportStateCreateInfo.viewportCount = 1;
-	_dependencies->viewportStateCreateInfo.pViewports = &_dependencies->viewport;
+	_dependencies->viewportStateCreateInfo.pViewports = nullptr;// &_dependencies->viewport;
 	_dependencies->viewportStateCreateInfo.scissorCount = 1;
-	_dependencies->viewportStateCreateInfo.pScissors = &_dependencies->scissor;
+	_dependencies->viewportStateCreateInfo.pScissors = nullptr;// &_dependencies->scissor;
 
 	_dependencies->rasterizerStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
 	_dependencies->rasterizerStateCreateInfo.depthClampEnable = VK_FALSE;
@@ -265,13 +282,13 @@ void AfterglowPipeline::initCreateInfo() {
 	info().pStages = _dependencies->shaderStageCreateInfos.data();
 	info().pVertexInputState = &_dependencies->vertexInputStateCreateInfo;
 	info().pInputAssemblyState = &_dependencies->inputAssemblyStateCreateInfo;
-	info().pViewportState = &_dependencies->viewportStateCreateInfo;
+	info().pViewportState = &_dependencies->viewportStateCreateInfo; // Dynamic viewport state.
 	info().pRasterizationState = &_dependencies->rasterizerStateCreateInfo;
 	info().pMultisampleState = &_dependencies->multisamplingStateCreateInfo;
 	info().pDepthStencilState = &_dependencies->depthStencilCreateInfo;
 	info().pColorBlendState = &_dependencies->colorBlendStateCreateInfo;
 	info().pDynamicState = &_dependencies->dynamicStateCreateInfo;
-	info().renderPass = _renderPass;
+	info().renderPass = _pass.renderPass();
 	info().subpass = 0; 
 	// You can deriveing a base pipeline in vulkan.
 	// Pipeline derivative is less expensive than set up a new pipeline.
@@ -296,22 +313,53 @@ void AfterglowPipeline::verifyDependencies() const {
 	}
 }
 
+inline void AfterglowPipeline::setStencilInfo(const render::StencilInfo& stencilInfo, VkStencilOpState* dstVulkanStencilState) {
+	dstVulkanStencilState->failOp = vulkanStencilOperation(stencilInfo.failOperation);
+	dstVulkanStencilState->passOp = vulkanStencilOperation(stencilInfo.passOperation);
+	dstVulkanStencilState->depthFailOp = vulkanStencilOperation(stencilInfo.depthFailOperation);
+	dstVulkanStencilState->compareOp = vulkanCompareOperation(stencilInfo.compareOperation);
+	dstVulkanStencilState->compareMask = stencilInfo.compareMask;
+	dstVulkanStencilState->writeMask = stencilInfo.writeMask;
+	dstVulkanStencilState->reference = stencilInfo.stencilValue;
+}
+
 inline VkPrimitiveTopology AfterglowPipeline::vulkanTopology(render::Topology topology) {
 	switch (topology) {
-	case render::Topology::PointList:
-		return VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
-	case render::Topology::LineList:
-		return VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
-	case render::Topology::LineStrip:
-		return VK_PRIMITIVE_TOPOLOGY_LINE_STRIP;
-	case render::Topology::TriangleList:
-		return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-	case render::Topology::TriangleStrip:
-		return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
-	case render::Topology::PatchList:
-		return VK_PRIMITIVE_TOPOLOGY_PATCH_LIST;
-	default:
-		throw std::runtime_error("[AfterglowPipeline] Unknown topology.");
+	case render::Topology::PointList: return VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
+	case render::Topology::LineList: return VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
+	case render::Topology::LineStrip: return VK_PRIMITIVE_TOPOLOGY_LINE_STRIP;
+	case render::Topology::TriangleList: return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+	case render::Topology::TriangleStrip: return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
+	case render::Topology::PatchList: return VK_PRIMITIVE_TOPOLOGY_PATCH_LIST;
+	default: EXCEPT_TYPE_INVALID_ARG(AfterglowPipeline, "Unknown topology.");
+	}
+}
+
+inline VkCompareOp AfterglowPipeline::vulkanCompareOperation(render::CompareOperation operation) {
+	switch (operation) {
+	case render::CompareOperation::AlwaysFalse: return VK_COMPARE_OP_NEVER;
+	case render::CompareOperation::Less: return VK_COMPARE_OP_LESS;
+	case render::CompareOperation::Equal: return VK_COMPARE_OP_EQUAL;
+	case render::CompareOperation::LessEqual: return VK_COMPARE_OP_LESS_OR_EQUAL;
+	case render::CompareOperation::Greater: return VK_COMPARE_OP_GREATER;
+	case render::CompareOperation::NotEqual: return VK_COMPARE_OP_NOT_EQUAL;
+	case render::CompareOperation::GreaterEqual: return VK_COMPARE_OP_GREATER_OR_EQUAL;
+	case render::CompareOperation::AlwaysTrue: return VK_COMPARE_OP_ALWAYS;
+	default: EXCEPT_TYPE_INVALID_ARG(AfterglowPipeline, "Unknown compare operation");
+	}
+}
+
+inline VkStencilOp AfterglowPipeline::vulkanStencilOperation(render::StencilOperation operation) {
+	switch (operation) {
+	case render::StencilOperation::Keep: return VK_STENCIL_OP_KEEP;
+	case render::StencilOperation::Zero: return VK_STENCIL_OP_ZERO;
+	case render::StencilOperation::Replace: return VK_STENCIL_OP_REPLACE;
+	case render::StencilOperation::IncrementClamp: return VK_STENCIL_OP_INCREMENT_AND_CLAMP;
+	case render::StencilOperation::DecrementClamp: return VK_STENCIL_OP_DECREMENT_AND_CLAMP;
+	case render::StencilOperation::Invert: return VK_STENCIL_OP_INVERT;
+	case render::StencilOperation::IncrementWrap: return VK_STENCIL_OP_INCREMENT_AND_WRAP;
+	case render::StencilOperation::DecrementWrap: return VK_STENCIL_OP_DECREMENT_AND_WRAP;
+	default: EXCEPT_TYPE_INVALID_ARG(AfterglowPipeline, "Unknown stencil operation");
 	}
 }
 

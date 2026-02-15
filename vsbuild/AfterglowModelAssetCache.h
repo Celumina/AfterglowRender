@@ -49,6 +49,7 @@ public:
 
 	// Read Functions
 	void read(uint32_t meshIndex, vert::IndexArray& destIndexArray, vert::VertexData& destVertexData) const;
+	const model::AABB& aabb() const;
 
 	// Write Functions
 	void recordWrite(const vert::IndexArray& indexArray, const vert::VertexData& vertexData);

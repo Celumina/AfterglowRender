@@ -5,20 +5,6 @@
 #include "AssetDefinitions.h"
 #include "AfterglowPhysicalDevice.h"
 
-namespace img {
-	struct WriteInfo {
-		AfterglowSampler& sampler;
-		AfterglowImageView& imageView;
-	};
-
-	using WriteInfoArray = std::vector<WriteInfo>;
-
-	template<typename Type>
-	concept ImageType = 
-		requires { typename Type::Derived; } 
-		&& std::is_base_of_v<AfterglowProxyObject<typename Type::Derived, VkImage, VkImageCreateInfo>, Type>;
-}
-
 template<typename DerivedType, bool useUniqueSampler = true>
 class AfterglowImage : public AfterglowProxyObject<DerivedType, VkImage, VkImageCreateInfo> {
 public:
@@ -54,6 +40,29 @@ protected:
 	img::Info _imageInfo;
 	AfterglowSampler::AsElement _sampler;
 };
+
+namespace img {
+	struct ImageReference {
+		AfterglowSampler& sampler;
+		AfterglowImageView& imageView;
+		VkImage image;
+	};
+
+	using ImageReferences = std::vector<ImageReference>;
+
+	template<typename Type>
+	concept ImageType = std::is_base_of_v<AfterglowImage<Type>, Type>;
+
+	// @note: construct a ImageReference will initialize the source image.
+	template<ImageType Type>
+	ImageReference MakeImageReference(Type& image) {
+		return ImageReference{ 
+			.sampler = image.sampler(), 
+			.imageView = image.imageView(), 
+			.image = image
+		};
+	};
+}
 
 template<typename DerivedType, bool useUniqueSampler>
 AfterglowImage<DerivedType, useUniqueSampler>::AfterglowImage(AfterglowDevice& device) :

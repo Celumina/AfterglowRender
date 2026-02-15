@@ -14,7 +14,7 @@ void main(
 ) {
 	static const float grassCullingRadius = 1.0; // m
 	static const float grassCullingOffsetZ = grassCullingRadius * 0.5;
-	static const float grassSlopeThreshold = 0.35;
+	static const float grassSlopeThreshold = 0.4;
 
 	// TODO: Moving flicking when the grass decreasing.
 	// Grass was losing in wrong index, and then be fill.
@@ -73,7 +73,7 @@ void main(
 	sincos(yaw, sinYaw, cosYaw);
 
 	// Random scaling epsilon=0.2
-	float scaling = (Snorm(Hash(1.0 / id, randomSeed1)) * 0.2 + 1.0) * min(distanceFade * 2.0, 1.0) * (grassInfo.z * 2.0);
+	float scaling = (Snorm(Hash(1.0 / id, randomSeed1)) * 0.2 + 1.0) * min(distanceFade * 2.0, 1.0) * (grassInfo.z);
 
 	float4x4 instanceModel = {
 		cosYaw * scaling, -sinYaw * scaling, 0.0,     worldPos.x, 

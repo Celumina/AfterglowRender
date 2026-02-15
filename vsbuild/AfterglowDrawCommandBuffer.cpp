@@ -1,5 +1,8 @@
 #include "AfterglowDrawCommandBuffer.h"
-#include "AfterglowComputeCommandBuffer.h"
+#include "AfterglowPipeline.h"
+#include "AfterglowFramebuffer.h"
+#include "AfterglowPassInterface.h"
+#include "AfterglowDescriptorSetReferences.h"
 #include "RenderConfigurations.h"
 
 
@@ -7,13 +10,21 @@ AfterglowDrawCommandBuffer::AfterglowDrawCommandBuffer(AfterglowCommandPool& com
 	AfterglowCommandBuffer(commandPool) {
 }
 
-void AfterglowDrawCommandBuffer::beginRecord(BeginInfo& beginInfo) {
+void AfterglowDrawCommandBuffer::beginRecord() {
 	updateCurrentCommandBuffer();
+
+	VkCommandBufferBeginInfo commandBufferBegin{};
+	commandBufferBegin.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	commandBufferBegin.flags = 0;
+	commandBufferBegin.pInheritanceInfo = nullptr;
+
 	// Here call operator Type  will make sure command buffer be created.
-	if (vkBeginCommandBuffer(_currentCommandBuffer, &beginInfo.commandBufferBegin) != VK_SUCCESS) {
+	if (vkBeginCommandBuffer(_currentCommandBuffer, &commandBufferBegin) != VK_SUCCESS) {
 		throw runtimeError("Failed to begin recording command buffer.");
 	}
+}
 
+void AfterglowDrawCommandBuffer::beginRenderPass(PassBeginInfo& beginInfo) {
 	// # 0 cmd
 	// VK_SUBPASS_CONTENTS_INLINE: for primary command buffers.
 	// VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS: for secondary command buffers.
@@ -26,6 +37,26 @@ void AfterglowDrawCommandBuffer::beginRecord(BeginInfo& beginInfo) {
 	// # 5 cmd
 	// vkCmdSetScissor(commandBuffer, firstScissorIndex, scissorCount, scissorHandle);
 	vkCmdSetScissor(_currentCommandBuffer, 0, 1, &beginInfo.scissor);
+}
+
+void AfterglowDrawCommandBuffer::beginRenderPass(AfterglowPassInterface& pass, uint32_t imageIndex) {
+	auto& subpassContext = pass.subpassContext();
+	if (pass.framebuffers().size() <= 1) {
+		imageIndex = 0;
+	}
+	auto& framebuffer = pass.framebuffer(imageIndex);
+
+	AfterglowDrawCommandBuffer::PassBeginInfo beginInfo{};
+	beginInfo.renderPassBegin.renderPass = pass.renderPass();
+	beginInfo.renderPassBegin.framebuffer = framebuffer;
+	beginInfo.renderPassBegin.renderArea.extent = framebuffer.extent();
+	beginInfo.renderPassBegin.clearValueCount = subpassContext.clearValueCount();
+	beginInfo.renderPassBegin.pClearValues = subpassContext.clearValues().data();
+	beginInfo.viewport.width = static_cast<float>(framebuffer.extent().width);
+	beginInfo.viewport.height = static_cast<float>(framebuffer.extent().height);
+	beginInfo.scissor.extent = framebuffer.extent();
+
+	beginRenderPass(beginInfo);
 }
 
 void AfterglowDrawCommandBuffer::setResolution(float width, float height) {
@@ -74,7 +105,7 @@ void AfterglowDrawCommandBuffer::setupDescriptorSets(const AfterglowDescriptorSe
 	}
 }
 
-void AfterglowDrawCommandBuffer::dispatch(const RecordInfo& recordInfo) {
+void AfterglowDrawCommandBuffer::draw(const RecordInfo& recordInfo) {
 	static constexpr std::array<VkDeviceSize, 1> vertexoffsets = { 0 };
 	
 	vkCmdBindVertexBuffers(
@@ -109,25 +140,46 @@ void AfterglowDrawCommandBuffer::dispatch(const RecordInfo& recordInfo) {
 	}
 }
 
-void AfterglowDrawCommandBuffer::nextSubpassRecord() {
+void AfterglowDrawCommandBuffer::nextSubpass() {
 	vkCmdNextSubpass(_currentCommandBuffer, VK_SUBPASS_CONTENTS_INLINE);
 }
 
-void AfterglowDrawCommandBuffer::endRecord() {
+void AfterglowDrawCommandBuffer::endRenderPass() {
 	// # 8 cmd
 	vkCmdEndRenderPass(_currentCommandBuffer);
+}
 
+void AfterglowDrawCommandBuffer::endRecord() {
 	// # 9 cmd
 	if (vkEndCommandBuffer(_currentCommandBuffer) != VK_SUCCESS) {
 		throw runtimeError("Failed to record command buffer.");
 	}
 }
 
-AfterglowDrawCommandBuffer::BeginInfo::BeginInfo() {
-	commandBufferBegin.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-	commandBufferBegin.flags = 0;
-	commandBufferBegin.pInheritanceInfo = nullptr;
+void AfterglowDrawCommandBuffer::barrier(
+	const std::vector<VkImageMemoryBarrier>* barriers, 
+	VkPipelineStageFlags srcPipelineStage, 
+	VkPipelineStageFlags destPipelineStage
+) {
+	if (!barriers || barriers->empty()) {
+		return;
+	}
+	vkCmdPipelineBarrier(
+		_currentCommandBuffer,
+		srcPipelineStage, 
+		destPipelineStage,
+		0, 
+		0, nullptr, 
+		0, nullptr, 
+		barriers->size(), barriers->data()
+	);
+}
 
+void AfterglowDrawCommandBuffer::barrier(AfterglowPassInterface& pass) {
+	barrier(pass.exportBarriers(), pass.exportBarrierSrcPipelineStage());
+}
+
+AfterglowDrawCommandBuffer::PassBeginInfo::PassBeginInfo() {
 	renderPassBegin.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
 	renderPassBegin.clearValueCount = 0;
 	renderPassBegin.pClearValues = nullptr;

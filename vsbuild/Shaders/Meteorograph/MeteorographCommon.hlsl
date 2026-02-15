@@ -87,7 +87,7 @@ float DeltaEvaporation(float windSpeed, float2 humiture, float soilMoisture, flo
 template<typename ElementType>
 ElementType LoadMeteorograph(Texture2D<ElementType> data, in float2 worldPosition) {
 	// Clamp in the edges.
-	uint2 dataIndex = clamp((worldPosition - worldCenterOffset) * meteorographInvInterval, 0, meteorographSideElements);
+	uint2 dataIndex = clamp((worldPosition - worldCenterOffset) * meteorographInvInterval, 0, meteorographSideElements - 1);
 	return data.Load(uint3(dataIndex, 0));
 }
 

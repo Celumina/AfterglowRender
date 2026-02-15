@@ -1,4 +1,6 @@
 #include "AfterglowComputeCommandBuffer.h"
+#include "AfterglowComputePipeline.h"
+#include "AfterglowDescriptorSetReferences.h"
 #include "AfterglowShaderAsset.h"
 
 AfterglowComputeCommandBuffer::AfterglowComputeCommandBuffer(AfterglowCommandPool& commandPool) : 

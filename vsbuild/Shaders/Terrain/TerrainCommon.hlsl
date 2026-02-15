@@ -1,12 +1,15 @@
 #ifndef TERRAIN_COMMON_HLSL
 #define TERRAIN_COMMON_HLSL
 
+#include "../ColorConversion.hlsl"
 #include "../WorldDefinitions.hlsl"
 
 // Terrain parameters
 static const float terrainMeshInterval = 4.0;
 static const uint terrainMeshSideElements = 256;
 static const uint terrainDataSideElements = 4096;
+
+static const float terrainTexCoordScaling = 0.05;
 
 static const float waterMeshInterval = 4.0;
 static const uint waterMeshSideElements = 256;
@@ -42,7 +45,7 @@ static const float terrainInvMeshSideElements = 1.0 / float(terrainMeshSideEleme
 template<typename ElementType>
 ElementType LoadTerrain(Texture2D<ElementType> data, in float2 worldPosition) {
 	// Clamp in the edges.
-	uint2 dataIndex = clamp((worldPosition - worldCenterOffset) * terrainInvDataInterval, 0, terrainDataSideElements);
+	uint2 dataIndex = clamp((worldPosition - worldCenterOffset) * terrainInvDataInterval, 0, terrainDataSideElements - 1);
 	// Mirror addressing
 	// int2 dataIndex = (worldPosition - worldCenterOffset) * terrainInvDataInterval;
 	// dataIndex = abs((dataIndex % ((terrainDataSideElements) * 2)) - (terrainDataSideElements) + 1);	
@@ -60,7 +63,7 @@ ElementType SampleTerrain(Texture2D<ElementType> data, SamplerState dataSampler,
 }
 
 // @param height: .x terrainHeight; .y waterHeight
-float4 calculateTerrainNormal(float2 height, float2 heightR, float2 heightT) {
+float4 CalculateTerrainNormal(float2 height, float2 heightR, float2 heightT) {
 	// .RG: TerrainNormal;
 	// .BA: WaterNormal;
 	float4 adjacentHeight = float4(heightR.x, heightT.x, heightR.y, heightT.y);
@@ -69,6 +72,17 @@ float4 calculateTerrainNormal(float2 height, float2 heightR, float2 heightT) {
 		normalize(float3(deltaTerrainHeight.xy, 1.0)).xy, 
 		normalize(float3(deltaTerrainHeight.zw, 1.0)).xy
 	);
+}
+
+float3 VariantTerrainSurface(float3 srcColor, float4 terrainSurface, float temperature) {
+	float3 outColor = 0.0;
+	// Beach
+	outColor = lerp(srcColor, Desaturation(HueShift(srcColor, 0.95), 0.5) * 4.0, terrainSurface.g);
+	// Humidity
+	outColor = lerp(outColor, Desaturation(HueShift(outColor, 0.95), -0.35) * 4.0, terrainSurface.b);
+	// Snow
+	outColor = lerp(outColor, float3(0.7, 0.7, 0.75), saturate(-temperature * 0.5));
+	return outColor;
 }
 
 #endif

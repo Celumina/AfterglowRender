@@ -3,13 +3,14 @@
 #include <memory>
 #include <format>
 
-#include "AfterglowUtilities.h"
 #include "AfterglowShaderAsset.h"
+#include "AfterglowPassInterface.h"
 #include "VertexStructs.h"
 #include "ShaderDefinitions.h"
-#include "RenderDefinitions.h"
 #include "ComputeDefinitions.h"
 #include "UniformBufferObjects.h"
+#include "AfterglowUtilities.h"
+#include "ExceptionUtilities.h"
 
 class AfterglowMaterial;
 class AfterglowStructLayout;
@@ -44,7 +45,7 @@ public:
 	// TODO: Overload by shared storage buffer pool
 	std::string generateShaderCode(
 		shader::Stage shaderStage, 
-		util::OptionalRef<render::InputAttachmentInfos> inputAttachmentInfos = std::nullopt, 
+		util::OptionalRef<AfterglowPassInterface> pass = std::nullopt, 
 		util::OptionalRef<std::vector<const AfterglowSSBOInfo*>> externalSSBOInfoRefs = std::nullopt
 	) const;
 
@@ -78,6 +79,8 @@ private:
 	void initMaterial();
 	void initMaterialComputeTask();
 
+	inline void initMaterialStencilInfo(std::string_view srcFaceName, render::StencilInfo& dstStencilInfo);
+
 	void loadShaderAssets();
 
 	// HLSL shader declarations.
@@ -88,8 +91,10 @@ private:
 		StageDeclarations<StorageBufferDeclaration>& destStorageBufferDeclarations, 
 		const StageDeclarations<TextureDeclaration>& textureDeclarations
 	);
-
-	inline std::string makeInputAttachmentDeclaration(const render::InputAttachmentInfos& inputAttachmentInfos) const;
+	
+	// @param bindingIndex: This bindingIndex will be accumulated by attachments.
+	inline std::string makeImportAttachmentDeclaration(const AfterglowPassInterface& pass, uint32_t& bindingIndex) const;
+	inline std::string makeInputAttachmentDeclaration(const render::InputAttachmentInfos& inputAttachmentInfos, uint32_t& bindingIndex) const;
 
 	template<typename UniformType>
 	static inline std::string makeUniformMemberDeclarationContext();
@@ -148,7 +153,7 @@ inline std::string AfterglowMaterialAsset::vertexInputStructDeclaration(std::typ
 		return vertexInputStructDeclaration<index + 1>(vertexTypeIndex);
 	}
 	else {
-		throw std::runtime_error("Not suitable vertex type, check type index value is from vertex type and the vertex type is registered.");
+		EXCEPT_CLASS_RUNTIME("Not suitable vertex type, check type index value is from vertex type and the vertex type is registered.");
 	}
 }
 
@@ -197,6 +202,6 @@ inline std::type_index AfterglowMaterialAsset::vertexTypeIndex(uint32_t index) {
 		return vertexTypeIndex<tupleIndex + 1>(index);
 	}
 	else {
-		throw std::runtime_error("Invalid index parameter, can not cast it to vertexTypeID.");
+		EXCEPT_TYPE_INVALID_ARG(AfterglowMaterialAsset, "Invalid index parameter, can not cast it to vertexTypeID.");
 	}
 }

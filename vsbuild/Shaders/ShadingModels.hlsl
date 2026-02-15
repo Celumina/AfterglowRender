@@ -116,9 +116,9 @@ LightingResult EnvLighting(half3 reflectionVector, half3 baseColor, half3 specul
 	BxDFContext bxdfContext; \
 	initBxDFExpression; \
 	\
-	/* Why UE don't do that inside the Init function, but everywhere? */ \
+	/* Why don't UE clamp these factor inside the Init function? */ \
 	bxdfContext.nol = saturate(bxdfContext.nol); \
-	bxdfContext.nov = saturate(bxdfContext.nov); \
+	bxdfContext.nov = saturate(abs(bxdfContext.nov) + 1e-6); \
 	\
 	/* TODO: Multiply falloff and falloff color here. */ \
 	/* TODO: Area light support. */ \
@@ -159,7 +159,14 @@ LightingResult DefaultLitBxDFAnisotropic(in ShadingContext shadingContext, half3
 	)	
 }
 
+/* Fast subsurface
+	> Parameter subsurfaceDistortion: which forces the vector -L to point towards N. 
+	> When the subsurfaceDistortion equal to 1, normalize(lightDir + normal * subsurfaceDistortion) indicates the half vector of lightDir and normal.
 
+	float backLighting = dot(view, normalize(lightDir + normal * subsurfaceDistortion));
+	float3 scatterColor = pow(saturate(backLighting), p) * s;
+	> Parameter p and s for modification.
+*/ 
 #define __SUBSURFACE_BXDF_BODY(defaultBxDFFunc) \
 	LightingResult lighting = defaultBxDFFunc(shadingContext, lightDirection, specularColor); \
 	\
@@ -230,8 +237,9 @@ LightingResult SubsurfaceBxDFAnisotropic(in ShadingContext shadingContext, half3
 		shadingContext.roughness, \
 		shadingContext.metallic \
 	); \
-	lighting.diffuse += envLighting.diffuse; \
-	lighting.specular += envLighting.specular; \
+	/* Ambient occlusion for env lighting */ \
+	lighting.diffuse += envLighting.diffuse * shadingContext.ambientOcclusion; \
+	lighting.specular += envLighting.specular * shadingContext.ambientOcclusion; \
 	\
 	return lighting; 
 

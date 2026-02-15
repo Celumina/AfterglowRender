@@ -14,6 +14,11 @@ void AfterglowUniformBuffer::updateMemory() {
 	memcpy(_mapped, _uniform, _uniformSize);
 }
 
+void AfterglowUniformBuffer::updateMemory(const void* uniform) {
+	_uniform = uniform;
+	updateMemory();
+}
+
 uint64_t AfterglowUniformBuffer::byteSize() {
 	return _uniformSize;
 }

@@ -1,8 +1,13 @@
 #pragma once
 #include "AfterglowFramebuffer.h"
-#include "AfterglowRenderPass.h"
 #include "AfterglowColorImage.h"
 #include "AfterglowDepthImage.h"
+#include "AfterglowPassInterface.h"
+
+class AfterglowSwapchain;
+class AfterglowSynchronizer;
+class AfterglowPassManager;
+
 class AfterglowFramebufferManager :  public AfterglowObject {
 public:
 	struct AcquireState{
@@ -11,30 +16,51 @@ public:
 		};
 	};
 
-	using ImageArray = std::vector<std::unique_ptr<AfterglowObject>>;
+	//struct AttachmentImage {
+	//	std::unique_ptr<AfterglowObject> _image;
+	//	AfterglowPassInterface::ImportAttachment* importAttachment = nullptr;
+	//};
+	// using AttachmentImages = std::vector<AttachmentImage>;
 
-	AfterglowFramebufferManager(AfterglowRenderPass& renderPass);
+	AfterglowFramebufferManager(AfterglowPassManager& passManager, AfterglowSwapchain& swapchain);
 
 	inline AfterglowDevice& device() noexcept;
 	inline AfterglowSwapchain& swapchain() noexcept;
-	inline AfterglowRenderPass& renderPass() noexcept;
 
 	// If window size is changed, call this function.
-	void recreate();
+	void recreateSwapchain();
 	// If returns -1, means failed to acquire image index, should interrupt this draw.
 	int acquireNextImage(AfterglowSynchronizer& synchronizer);
 
-	AfterglowFramebuffer& framebuffer(uint32_t index);
-	img::WriteInfoArray& imageWriteInfos();
+	//AfterglowFramebuffer& onScreenFramebuffer(uint32_t index);
+	render::PassUnorderedMap<img::ImageReferences>& imageReferences() noexcept;
+	// @brief: if flag is true, return true once and then set the flag to false.
+	bool takeSwapchainImageSetOutdatedFlag() noexcept;
+
+	void recreateAllFramebuffers();
+	void recreateSwapchainFramebuffers();
 
 private:
-	void initFramebuffers();
+	using PerPassImages = std::vector<std::unique_ptr<AfterglowObject>>;
 
-	AfterglowFramebuffer::Array _framebuffers;
-	AfterglowRenderPass& _renderPass;
+	void recreatePassFramebuffers(AfterglowPassInterface& pass);
+	inline VkExtent2D passExtent(AfterglowPassInterface & pass);
 
-	ImageArray _images;
+	// @brief: RenderPass which is the last fixedPass has swapchin extent and export color attaachment.
+	//inline AfterglowRenderPass* findOnScreenRenderPass();
 
-	img::WriteInfoArray _imageWriteInfos;
+	AfterglowPassManager& _passManager;
+	AfterglowSwapchain& _swapchain;
+
+	// Seperate to offscreen and onscreen framebuffers. recreate onscreen attachment and framebuffer only.
+	// Multi-framebuffers for swapchain.
+	//AfterglowFramebuffer::Array _onScreenFramebuffers;
+
+	// Single framebuffer for off-screen render passes.
+	render::PassUnorderedMap<AfterglowFramebuffer::Array> _framebuffers;
+
+	render::PassUnorderedMap<PerPassImages> _images;
+	render::PassUnorderedMap<img::ImageReferences> _imageReferences;
+	
+	bool _swapchainImageSetOutdatedFlag = false;
 };
-

@@ -1,6 +1,5 @@
 #include "AfterglowModelAsset.h"
 
-#include <stdexcept>
 #include <iostream>
 #include <filesystem>
 
@@ -10,7 +9,7 @@
 
 #include "AfterglowModelAssetCache.h"
 #include "AfterglowUtilities.h"
-#include "DebugUtilities.h"
+#include "ExceptionUtilities.h"
 
 struct AfterglowModelAsset::Impl {
 	model::AssetInfo info = {};
@@ -93,6 +92,10 @@ void AfterglowModelAsset::printModelInfo() {
 	);
 }
 
+const model::AABB& AfterglowModelAsset::aabb() const noexcept {
+	return _impl->aabb;
+}
+
 inline void AfterglowModelAsset::initialize() {
 	// Generating AABB by default, due to camera culling and simple collision would use it.
 	// Also the default aiProcess_FlipUVs is most general situation for texture mapping.
@@ -105,6 +108,9 @@ inline void AfterglowModelAsset::initialize() {
 	}
 	if (static_cast<bool>(importFlagBits & model::ImportFlag::FlipUVs)) {
 		_impl->importSettings &= ~aiProcess_FlipUVs;
+	}
+	if (static_cast<bool>(importFlagBits & model::ImportFlag::RecomputeNormal)) {
+		_impl->importSettings |= aiProcess_ForceGenNormals;
 	}
 
 	// Try to load cache first.
@@ -137,8 +143,7 @@ inline void AfterglowModelAsset::Impl::initScene() {
 	}
 	scene = importer.ReadFile(info.path, importSettings);
 	if (!scene) {
-		DEBUG_CLASS_ERROR("Failed to import the model asset: " + info.path);
-		throw std::runtime_error("[AfterglowModelAsset] Failed to import the model asset.");
+		EXCEPT_CLASS_RUNTIME("Failed to import the model asset: " + info.path);
 	}
 	numMeshes = scene->mNumMeshes;
 }
@@ -186,6 +191,7 @@ inline void AfterglowModelAsset::Impl::initDataFromCache(const AfterglowModelAss
 		vertices[index] = std::make_shared<vert::VertexData>();
 		cache.read(index, *indices[index], *vertices[index]);
 	}
+	aabb = cache.aabb();
 }
 
 inline void AfterglowModelAsset::Impl::generateCache() {

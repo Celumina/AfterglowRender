@@ -27,7 +27,5 @@ FSOutput main(VSOutput input) {
 	float4 sceneColor = sceneColorTexture.Sample(sceneColorTextureSampler, clamp(screenUV + distribUV, invScreenResolution, 1.0 - invScreenResolution));
 	output.color.xyz = lerp(sceneColor.xyz, output.color.xyz, circleAlpha * 0.25);
 	output.color.a = input.color.a * circleAlpha;
-
-	// output.color = float4(distribUV, 0, 1);
 	return output;
 }

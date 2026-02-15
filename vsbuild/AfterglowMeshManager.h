@@ -14,7 +14,11 @@ class AfterglowStaticMeshComponent;
 
 class AfterglowMeshManager : public AfterglowObject {
 public:
-	AfterglowMeshManager(AfterglowCommandPool& commandPool, AfterglowGraphicsQueue& graphicsQueue);
+	AfterglowMeshManager(
+		AfterglowCommandPool& commandPool, 
+		AfterglowGraphicsQueue& graphicsQueue, 
+		AfterglowSynchronizer& synchronizer
+	);
 
 	AfterglowDevice& device() noexcept;
 
@@ -24,7 +28,9 @@ public:
 	void updateResources(AfterglowRenderableContext& renderableContext);
 
 private:
-	void fillMeshUniform(const AfterglowTransformComponent& transform, ubo::MeshUniform& destMeshUnifrom);
+	static inline void fillMeshUniform(const AfterglowTransformComponent& transform, ubo::MeshUniform& destMeshUnifrom);
+	static inline void fillMeshUniformAABB(AfterglowMeshResource& resource);
+	
 	/*
 	* @param staticMesh: dest static mesh component.
 	* @param compute: optional dest compute component.

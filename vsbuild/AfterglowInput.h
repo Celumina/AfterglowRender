@@ -306,3 +306,10 @@ inline void AfterglowInput::updateFromGLFWImpl(
 		unstables[index] = targetState;
 	}
 }
+
+namespace input {
+	using Key = AfterglowInput::Key;
+	using MouseButton = AfterglowInput::MouseButton;
+	using Modifier = AfterglowInput::Modifier;
+	using State = AfterglowInput::State;
+}

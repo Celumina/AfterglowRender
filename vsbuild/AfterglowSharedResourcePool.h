@@ -5,7 +5,12 @@
 #include "AfterglowCommandPool.h"
 #include "AfterglowGraphicsQueue.h"
 #include "AfterglowReferenceCounter.h"
+#include "AfterglowSynchronizer.h"
 #include "DebugUtilities.h"
+
+struct AfterglowSharedPoolResource {
+	AfterglowReferenceCount count;
+};
 
 template<typename KeyType, typename ResourceType>
 class AfterglowResourceReference {
@@ -33,14 +38,18 @@ private:
 };
 
 
-template  <typename ResourceReferenceType>
+template <typename ResourceReferenceType>
 class AfterglowSharedResourcePool {
 public:
 	using Key = ResourceReferenceType::Key;
 	using Resource = ResourceReferenceType::Resource;
 	using Resources = ResourceReferenceType::Resources;
 
-	AfterglowSharedResourcePool(AfterglowCommandPool& commandPool, AfterglowGraphicsQueue& graphicsQueue);
+	AfterglowSharedResourcePool(
+		AfterglowCommandPool& commandPool, 
+		AfterglowGraphicsQueue& graphicsQueue, 
+		AfterglowSynchronizer& synchronizer
+	);
 
 	AfterglowCommandPool& commandPool();
 	AfterglowGraphicsQueue& graphicsQueue();
@@ -48,6 +57,7 @@ public:
 	void update();
 
 protected:
+	// TODO: should be append back if one frame changed....or check exist when delete
 	inline void removeResource(const Key* key);
 
 	Resources _resources;
@@ -56,6 +66,7 @@ protected:
 private:
 	AfterglowCommandPool& _commandPool;
 	AfterglowGraphicsQueue& _graphicsQueue;
+	AfterglowSynchronizer& _synchronizer;
 };
 
 
@@ -93,9 +104,11 @@ inline AfterglowResourceReference<KeyType, ResourceType>::AfterglowResourceRefer
 template<typename ResourceReferenceType>
 inline AfterglowSharedResourcePool<ResourceReferenceType>::AfterglowSharedResourcePool(
 	AfterglowCommandPool& commandPool, 
-	AfterglowGraphicsQueue& graphicsQueue) : 
+	AfterglowGraphicsQueue& graphicsQueue, 
+	AfterglowSynchronizer& synchronizer) :
 	_commandPool(commandPool),
-	_graphicsQueue(graphicsQueue) {
+	_graphicsQueue(graphicsQueue), 
+	_synchronizer(synchronizer) {
 	
 }
 
@@ -111,8 +124,21 @@ inline AfterglowGraphicsQueue& AfterglowSharedResourcePool<ResourceReferenceType
 
 template<typename ResourceReferenceType>
 inline void AfterglowSharedResourcePool<ResourceReferenceType>::update() {
+	if (_removingCache.empty()) {
+		return;
+	}
+	// GPU synchronization.
+	_synchronizer.wait(AfterglowSynchronizer::FenceFlag::ComputeInFlight);
+	_synchronizer.wait(AfterglowSynchronizer::FenceFlag::RenderInFlight);
+	
 	for (const auto* key : _removingCache) {
-		_resources.erase(*key);
+		auto iterator = _resources.find(*key);
+		if (iterator->second.count.count() <= 0) {
+			_resources.erase(iterator);
+		}
+		else {
+			DEBUG_CLASS_INFO("Resource reference swap was happen.");
+		}
 	}
 	_removingCache.clear();
 }

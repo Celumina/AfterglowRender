@@ -14,10 +14,14 @@ class AfterglowScene;
 class AfterglowMaterial;
 class AfterglowComponentBase;
 class AfterglowCameraComponent;
+class AfterglowMaterialResource;
+class AfterglowDescriptorSetReferences;
+class AfterglowPassManager;
 
 namespace ubo{
 	// @see: UniformBufferObjects.h
 	struct GlobalUniform;
+	struct MeshUniform;
 };
 
 // For action entity call system functions.
@@ -56,6 +60,7 @@ public:
 	void unlockCursor() const;
 
 	/* Material Manager Interfaces */
+	AfterglowPassManager& passManager() const;
 	// @return: created material name of this asset.
 	std::string registerMaterialAsset(const std::string& materialPath) const;
 	// @return: created material instance name of this asset.
@@ -65,15 +70,20 @@ public:
 	void unregisterMaterialAsset(const std::string& materialPath) const;
 	void unregisterMaterialInstanceAsset(const std::string& materialInstancePath) const;
 
-	// @brief: Create material by name, if name exists, replace old material by new one.
-	// @return: Material handle;
-	// @thread_safety
+	/**
+	* @brief: Create material by name, if name exists, replace old material by new one.
+	* @return: Material handle;
+	* @param materialAsset [optional]: For existing material to reapply shaders;
+	* @thread_safety
+	*/
 	AfterglowMaterial& createMaterial(const std::string& name, util::OptionalRef<AfterglowMaterial> sourceMaterial = std::nullopt) const;
 
-	// @brief: Create materialInstance by name, if name exists, replace old material by new one.
-	// @desc: If parent not in this manager, manager will create a empty same named material for the instance.
-	// @return: Material Insrtance handle;
-	// @thread_safety
+	/**
+	* @brief: Create materialInstance by name, if name exists, replace old material by new one.
+	* @desc: If parent not in this manager, manager will create a empty same named material for the instance.
+	* @return: Material Insrtance handle;
+	* @thread_safety
+	*/
 	AfterglowMaterialInstance& createMaterialInstance(const std::string& name, const std::string& parentMaterialName) const;
 
 	// @return: Material handle;
@@ -82,6 +92,35 @@ public:
 
 	// @return: MaterialInstance  handle;
 	AfterglowMaterialInstance* materialInstance(const std::string& name) const;
+	// @note: These following functions use for custom pass submission.
+	AfterglowMaterialResource* materialResource(const std::string& name) const;
+	AfterglowDescriptorSetReferences* materialDescriptorSetReferences(const std::string& name, const ubo::MeshUniform& meshUniform) const;
+	bool materialSubmitMeshUniform(const std::string& materialInstanceName, const ubo::MeshUniform& meshUniform) const;
+
+	/**
+	* @brief: Apply material info to descriptors manually.
+	* @param: name MaterialContext's name.
+	* @return: true if update succefully.
+	* @thread-safety
+	*/
+	bool submitMaterial(const std::string& name) const;
+	/**
+	* @brief: Apply material info to descriptors manually.
+	* @param: name MaterialInstanceContext's name.
+	* @return: true if update succefully.
+	* @thred-safety
+	*/
+	bool submitMaterialInstance(const std::string& name) const;
+	/**
+	* @brief: Submit uniform buffer of material resource (exclude textures)
+	* @thread-safety
+	*/
+	bool submitMaterialInstanceUniformParams(const std::string& name) const;
+	/**
+	* @brief: Submit textures of material resource (exclude uniform buffer)
+	* @thread-safety
+	*/
+	bool submitMaterialInstanceTextureParams(const std::string& name) const;
 
 	const ubo::GlobalUniform& globalUniform() const noexcept;
 
@@ -113,6 +152,7 @@ INR_CLASS(AfterglowSystemUtilities) {
 		// INR_FUNC(input),
 		INR_FUNC(lockCursor), 
 		INR_FUNC(unlockCursor), 
+		INR_FUNC(passManager), 
 		INR_FUNC(registerMaterialAsset),
 		INR_FUNC(registerMaterialInstanceAsset),
 		INR_FUNC(unregisterMaterialAsset),
@@ -122,7 +162,14 @@ INR_CLASS(AfterglowSystemUtilities) {
 		INR_FUNC(material),
 		INR_FUNC(findMaterialByInstanceName), 
 		INR_FUNC(materialInstance),
-		// INR_FUNC(globalUniform),
+		INR_FUNC(materialResource), 
+		INR_FUNC(materialDescriptorSetReferences), 
+		INR_FUNC(materialSubmitMeshUniform), 
+		INR_FUNC(submitMaterial), 
+		INR_FUNC(submitMaterialInstance), 
+		INR_FUNC(submitMaterialInstanceUniformParams), 
+		INR_FUNC(submitMaterialInstanceTextureParams),
+		INR_FUNC(globalUniform),
 		INR_FUNC(fps), 
 		INR_FUNC(timeSec),
 		INR_FUNC(deltaTimeSec),

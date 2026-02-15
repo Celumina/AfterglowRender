@@ -8,6 +8,9 @@ public:
 
 	// append a attachment info should before create object.
 	void appendImageView(VkImageView imageView);
+	// @return: The extent size of framebuffer.
+	// @note: Availiable only is framebuffer is created.
+	inline VkExtent2D extent() const noexcept { return _extent; }
 
 proxy_protected:
 	void initCreateInfo();
@@ -16,5 +19,6 @@ proxy_protected:
 private:
 	AfterglowRenderPass& _renderPass;
 	std::unique_ptr<ImageViewArray> _imageViewAttachments;
+	VkExtent2D _extent = { 0, 0 };
 };
 

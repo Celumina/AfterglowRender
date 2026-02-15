@@ -7,17 +7,16 @@
 
 struct ImDrawData;
 class AfterglowSSBOInfo;
-class AfterglowRenderPass;
+class AfterglowPassManager;
 class AfterglowMaterialResource;
 class AfterglowDescriptorSetReferences;
 class AfterglowIndexBuffer;
 class AfterglowStorageBuffer;
-class AfterglowFramebuffer;
 struct AfterglowVertexBufferHandle;
 
 class AfterglowCommandManager : public AfterglowObject {
 public:
-	AfterglowCommandManager(AfterglowRenderPass& renderPass);
+	AfterglowCommandManager(AfterglowPassManager& passManager);
 
 	AfterglowCommandPool& commandPool() noexcept;
 
@@ -50,18 +49,24 @@ public:
 		AfterglowStorageBuffer* indirectBuffer = nullptr
 	);
 
-	// @brief: Apply all commands to device. Call it every ticks.
-	void applyDrawCommands(AfterglowFramebuffer& frameBuffer);
+	/**
+	* @brief: Apply all commands to device. Call it every ticks.
+	* @param imageIndex: Current swapchain imageIndex.
+	*/
+	void applyDrawCommands(int32_t imageIndex);
 
 	void recordCompute(
 		AfterglowMaterialResource& matResource,
 		AfterglowDescriptorSetReferences& setRefs
 	);
 
-	// @brief: Apply all commands to device. Call it every ticks.
+	/**
+	* @brief: Apply all commands to device. Call it every ticks.
+	*/ 
 	void applyComputeCommands();
 
 	void recordUIDraw(ImDrawData* uiDrawData);
+	void installFixedPasses();
 
 private:
 	struct Impl;

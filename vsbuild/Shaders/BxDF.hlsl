@@ -20,10 +20,12 @@ struct BxDFContext {
 	half yoh;	// dot(tangentBasisY, halfVec)
 };
 
+static const float bxdfTolerance = 1.0e-10;
+
 void InitBxDFContext(inout BxDFContext context, half3 normal, half3 view, half3 light) {
 	context.nol = dot(normal, light);
 	context.nov = dot(normal, view);
-	context.vol = dot(view, light);
+	context.vol = clamp(dot(view, light), -1, 1);
 	float invLenH = rsqrt(2 + 2 * context.vol);
 	context.noh = saturate((context.nol + context.nov) * invLenH);
 	context.voh = saturate(invLenH + invLenH * context.vol);
@@ -39,7 +41,7 @@ void InitBxDFContext(inout BxDFContext context, half3 normal, half3 view, half3 
 void InitBxDFContext(inout BxDFContext context, half3 normal, half3 tangent, half3 bitangent, half3 view, half3 light) {
 	context.nol = dot(normal, light);
 	context.nov = dot(normal, view);
-	context.vol = dot(view, light);
+	context.vol = clamp(dot(view, light), -1, 1);
 	float invLenH = rsqrt(2 + 2 * context.vol);
 	context.noh = saturate((context.nol + context.nov) * invLenH);
 	context.voh = saturate(invLenH + invLenH * context.vol);
@@ -50,6 +52,12 @@ void InitBxDFContext(inout BxDFContext context, half3 normal, half3 tangent, hal
 	context.yov = dot(bitangent, view);
 	context.yol = dot(bitangent, light);
 	context.yoh = (context.yov + context.yol) * invLenH;
+
+	// Re-normalize to prevent unexcepted cusps from GGXAnisotropic.
+	float3 hTangent = normalize(float3(context.xoh, context.yoh, context.noh)); 
+	context.xoh = hTangent.x;
+ 	context.yoh = hTangent.y;
+ 	context.noh = hTangent.z;
 }
 
 
@@ -83,14 +91,16 @@ float DistributionBeckmann(float a2, float noh) {
 // [Walter el al. 2007, "Microfacet models for refraction through rough surfaces"]
 float DistributionGGX(float a2, float noh) {
 	float d = (noh * a2 - noh) * noh + 1;
-	return a2 / (pi * d * d);
+	// @note: Here use a very small number to handle NaN error from / 0.
+	return a2 / (pi * d * d + bxdfTolerance);
 }
 
 // [Burley 2012, "Physically-Based Shading at Disney"]
 float DistributionAnisotropicGGX(float ax, float ay, float noh, float xoh, float yoh) {
 	float a2 = ax * ay;
 	float3 v = float3(ay * xoh, ax * yoh, a2 * noh);
-	float s = dot(v, v);
+	// @note: Here use a very small number to handle NaN error from / 0.
+	float s = max(dot(v, v), bxdfTolerance);
 	return invPi * a2 * Square(a2 / s);
 
 	// This implementation is closer to original format:
@@ -124,21 +134,21 @@ float VisibilitySmithJointApprox(float a2, float nov, float nol) {
 	float smithV = nol * (nov * (1 - a) + a);
 	float smithL = nov * (nol * (1 - a) + a);
 	// @note: Here use a very small number to handle rcp NaN error from 1 / 0.
-	return 0.5 * rcp(smithV + smithL + minimumPositive);
+	return 0.5 * rcp(smithV + smithL + bxdfTolerance);
 }
 
 float VisibilitySmithJoint(float a2, float nov, float nol) {
 	float smithV = nol * sqrt(nov * (nov - nov * a2) + a2);
 	float smithL = nov * sqrt(nol * (nol - nol * a2) + a2);
 	// @note: Here use a very small number to handle rcp NaN error from 1 / 0.
-	return 0.5 * rcp(smithV + smithL + minimumPositive);
+	return 0.5 * rcp(smithV + smithL + bxdfTolerance);
 }
 
 float VisibilityAnisotropicSmithJoint(float ax, float ay, float nov, float nol, float xov, float xol, float yov, float yol) {
 	float smithV = nol * length(float3(ax * xov, ay * yov, nov));
 	float smithL = nov * length(float3(ax * xol, ay * yol, nol));
 	// @note: Here use a very small number to handle rcp NaN error from 1 / 0.
-	return 0.5 * rcp(smithV + smithL + minimumPositive);	
+	return 0.5 * rcp(smithV + smithL + bxdfTolerance);	
 }
 
 
@@ -211,7 +221,7 @@ float2 AnisotropicRoughness(float roughness, float anisotropy) {
 	return anisotropicRoughness;
 }
 
-// Sursurface utilities
+// Subsurface utilities
 // MFP: Mean Free Path
 static const float participatingMediaMinMFPMeter = 1e-12f;
 static const float participatingMediaMinTransmittance = 1e-12f;

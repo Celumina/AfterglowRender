@@ -1,7 +1,7 @@
 #include "../ShadingModels.hlsl"
-#include "../Common.hlsl"
-#include "TerrainCommon.hlsl"
+#include "../Random.hlsl"
 #include "../Depth.hlsl"
+#include "TerrainCommon.hlsl"
 
 struct VSOutput {
 	[[vk::location(0)]] float4 position : SV_POSITION;
@@ -32,18 +32,20 @@ FSOutput main(VSOutput input) {
 	float waterSpeedFactor = saturate(length(waterVelocity * max(rcp(deltaTime), 60.0)) * 0.5);
 
 	half4 baseColor = lerp(
-		half4(0.2, 0.4, 0.5, 1.0), 
+		half4(0.25, 0.4, 0.45, 1.0), 
 		half4(0.4, 0.3, 0.2, 1.0), 
 		saturate(waterSediment * waterInvSedimentCapability * 100.0)
 	);
 
 	baseColor = lerp(baseColor, half4(0.6, 0.6, 0.65, 1.0), waterSpeedFactor);
 
-	float matallic = lerp(0.5, 0.1, waterSpeedFactor);
+	float matallic = lerp(0.25, 0.1, waterSpeedFactor);
 	float specular = lerp(0.5, 0.1, waterSpeedFactor);
-	float roughness = lerp(0.01, 0.25, waterSpeedFactor);
+	float roughness = lerp(0.15, 0.3, waterSpeedFactor);
 
-	float3 normal = ReconstructNormal(SampleTerrain(TerrainNormal, TerrainNormalSampler, input.worldPosition.xy).zw);
+	// Dither coord offset to reduce aliasing.
+	float2 coordOffset = Snorm(Hash2D(ceil((input.position.xy + input.worldPosition.xy) * 128.0) * 0.001, randomSeed0)) * 0.35;
+	float3 normal = ReconstructNormal(SampleTerrain(TerrainNormal, TerrainNormalSampler, input.worldPosition.xy + coordOffset).zw);
 	normal = lerp(normal, normalize(float3(normal.xy * 2.0, normal.z)), waterSpeedFactor);
 
 	// TODO: foam
@@ -66,11 +68,15 @@ FSOutput main(VSOutput input) {
 
 	finalColor.w = 
 		input.isFrontFace 
-		? clamp(pow(saturate(depthFade * 0.25), 0.2), 0.0, 1.0)
+		? clamp(pow(saturate(depthFade * 0.1), 0.25), 0.0, 1.0)
 		: clamp(-deltaHeightToCamera * 0.01 + 0.5, 0.8, 1.0);
 
 	finalColor.w -= 1.0 - clamp(depthFade, 0.0, edgeFadeDistance) * (1.0 / edgeFadeDistance);
 	finalColor.w = max(finalColor.w, 0.0);
+
+	// Camera fade for underwater
+	float cameraHorizontality = pow(length(cameraVector.xy), 0.2);
+	finalColor.w *= saturate(9.0 + 6.0 * log(length(input.worldPosition.xyz - cameraPosition.xyz)) * cameraHorizontality);
 
 	output.color = finalColor;
 	return output;

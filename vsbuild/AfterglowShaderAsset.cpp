@@ -1,19 +1,16 @@
 #include "AfterglowShaderAsset.h"
 
 #include <fstream>
-#include <stdexcept>
 #include <filesystem>
-#include "DebugUtilities.h"
+#include "ExceptionUtilities.h"
 
 AfterglowShaderAsset::AfterglowShaderAsset(const std::string& path) {
 	if (!std::filesystem::exists(path)) {
-		DEBUG_CLASS_ERROR(std::format("Shader file not exists: \"{}\"",  path));
-		throw std::runtime_error("[AfterglowShderAsset] Shader file not exists.");
+		EXCEPT_CLASS_RUNTIME(std::format("Shader file not exists: \"{}\"",  path));
 	}
 	std::ifstream file(path, std::ios::in | std::ios::binary);
 	if (!file.is_open()) {
-		DEBUG_CLASS_ERROR(std::format("Failed to load shader file: \"{}\"", path));
-		throw std::runtime_error("[AfterglowShderAsset] Failed to load shader file.");
+		EXCEPT_CLASS_RUNTIME(std::format("Failed to load shader file: \"{}\"", path));
 	}
 	// std::string(iterator_begin, iterator_end);
 	_code = std::string(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>());

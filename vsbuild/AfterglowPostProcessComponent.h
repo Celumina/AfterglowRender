@@ -1,37 +1,40 @@
 #pragma once
 #include <memory>
-#include "AfterglowComponent.h"
+#include <glm/glm.hpp>
+#include "AfterglowActionComponent.h"
 
-class AfterglowShapeMeshResource;
+class AfterglowPassSetBase;
+class AfterglowBloomPassSet;
 
-class AfterglowPostProcessComponent : public AfterglowComponent<AfterglowPostProcessComponent> {
+class AfterglowPostProcessComponent : public AfterglowActionComponent<AfterglowPostProcessComponent> {
 public:
-	AfterglowPostProcessComponent();
-	~AfterglowPostProcessComponent();
+	// @param index: 0 to n, from high resolution to low.
+	void setBloomIntensity(uint32_t downSamplingIndex, glm::vec4 intensity);
 
-	AfterglowPostProcessComponent(AfterglowPostProcessComponent&&) noexcept;
-	AfterglowPostProcessComponent& operator=(AfterglowPostProcessComponent&&) noexcept;
+	void enableBloom() noexcept;
+	void disableBloom() noexcept;
 
-	AfterglowPostProcessComponent(const AfterglowPostProcessComponent& other);
-	AfterglowPostProcessComponent& operator=(const AfterglowPostProcessComponent& other);
-
-	void setPostProcessMaterial(const std::string& materialName);
-	const std::string& postProcessMaterialName() const;
-
-	inline std::unique_ptr<AfterglowShapeMeshResource>& shapeResource() noexcept { return _shapeResource; }
-	inline const std::unique_ptr<AfterglowShapeMeshResource>& shapeResource() const noexcept { return _shapeResource; }
+	void awake();
+	void onEnable();
+	void onDisable();
+	void onRenderBegin();
 
 private:
-	std::string _materialName;
-	std::unique_ptr<AfterglowShapeMeshResource> _shapeResource;
+	/**
+	* @brief Set fragment stage scalar of the post process material instance.
+	* @note To modify a amount of scalars, set scalars from sysUtils directly are better for performance.
+	*/ 
+	inline void setMaterialInstanceScalar(const std::string& name, float value);
+
+	std::string _postProcessMaterialName;
+	AfterglowBloomPassSet* _bloomPassSet;
 };
 
 INR_CLASS(AfterglowPostProcessComponent) {
-	INR_BASE_CLASSES<AfterglowComponent<AfterglowPostProcessComponent>>;
+	INR_BASE_CLASSES<AfterglowActionComponent<AfterglowPostProcessComponent>>;
 	INR_FUNCS(
-		INR_FUNC(setPostProcessMaterial), 
-		INR_FUNC(postProcessMaterialName), 
-		INR_OVERLOADED_FUNC(std::unique_ptr<AfterglowShapeMeshResource>& (AfterglowPostProcessComponent::*)(), shapeResource),
-		INR_OVERLOADED_FUNC(const std::unique_ptr<AfterglowShapeMeshResource>& (AfterglowPostProcessComponent::*)() const, shapeResource)
+		INR_FUNC(setBloomIntensity), 
+		INR_FUNC(enableBloom), 
+		INR_FUNC(disableBloom)
 	);
 };

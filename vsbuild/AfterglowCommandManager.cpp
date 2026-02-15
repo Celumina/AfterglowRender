@@ -6,8 +6,8 @@
 #include "AfterglowFramebuffer.h"
 #include "AfterglowMaterialResource.h"
 #include "AfterglowIndexBuffer.h"
-
 #include "AfterglowComputePipeline.h"
+#include "AfterglowPassManager.h"
 #include "ComputeDefinitions.h"
 #include "AfterglowComputeTask.h"
 
@@ -35,30 +35,33 @@ struct AfterglowCommandManager::Impl {
 		std::unique_ptr<PreparingComputeDependency> preparing;
 	};
 
-	using DrawRecordDependencies = std::array<std::vector<RecordDependency<AfterglowPipeline, AfterglowDrawCommandBuffer::RecordInfo>>, util::EnumValue(render::Domain::EnumCount)>;
+	using DrawRecordDependency = RecordDependency<AfterglowPipeline, AfterglowDrawCommandBuffer::RecordInfo>;
+
+	using PerSubpassRecordDependencies = std::vector<DrawRecordDependency>;
+	using PerPassRecordDependencies = std::vector<PerSubpassRecordDependencies>;
+	using DrawRecordDependencies = std::array<std::unique_ptr<PerPassRecordDependencies>, util::EnumValue(render::Domain::EnumCount)>;
 	using ComputeRecordDependencies = std::vector<ComputeRecordDependency>;
 
-	Impl(AfterglowRenderPass& renderPass);
+	Impl(AfterglowPassManager& inPassManager);
 
 	inline AfterglowDrawCommandBuffer::RecordInfo* aquireDrawRecordInfo(
 		AfterglowMaterialResource& matResource, AfterglowDescriptorSetReferences& setRefs
 	);
 
-	/**
-	* @brief: Init ComputePipelineRecordInfoContext if it's not exists.
-	* @return: pipelineIndex.
-	*/ 
-	// inline uint32_t computePipelineIndex(AfterglowComputePipeline& pipeline);
-
-	inline void applyDrawCommands(AfterglowFramebuffer& frameBuffer);
+	inline void drawCustomPassSets(uint32_t domainIndex);
+	inline void applyPassDrawCommands(AfterglowPassInterface& pass, PerPassRecordDependencies& passRecordInfos, int32_t imageIndex);
+	inline void applyDrawCommands(int32_t imageIndex);
 	inline void applyComputeCommands();
 
-	AfterglowRenderPass& renderPass;
+	// @brief: If material is defined in a custom pass, return false. (don't draw them in the command manager directly)
+	inline bool verifyMaterialDomain(AfterglowMaterialResource& matResource) const noexcept;
+
+	AfterglowPassManager& passManager;
 	AfterglowCommandPool commandPool;
 
 	AfterglowDrawCommandBuffer drawCommandBuffer;
 	DrawRecordDependencies drawRecordInfos;
-	std::array<bool, util::EnumValue(render::Domain::EnumCount)> domainImplementationFlags = { false };
+	// std::array<bool, util::EnumValue(render::Domain::EnumCount)> domainImplementationFlags = { false };
 
 	AfterglowComputeCommandBuffer computeCommandBuffer;
 	ComputeRecordDependencies computeRecordInfos;
@@ -66,72 +69,90 @@ struct AfterglowCommandManager::Impl {
 	ImDrawData* uiDrawData = nullptr;
 };
 
-AfterglowCommandManager::Impl::Impl(AfterglowRenderPass& renderPass) :
-	renderPass(renderPass),
-	commandPool(renderPass.device()),
+AfterglowCommandManager::Impl::Impl(AfterglowPassManager& inPassManager) :
+	passManager(inPassManager),
+	commandPool(passManager.device()),
 	drawCommandBuffer(commandPool),
 	computeCommandBuffer(commandPool) {
-	for (uint32_t index = 0; index < util::EnumValue(render::Domain::EnumCount); ++index) {
-		if (renderPass.subpassContext().subpassExists(static_cast<render::Domain>(index))) {
-			domainImplementationFlags[index] = true;
-			// _drawRecordInfos[static_cast<render::Domain>(index)] = {};
-		}
-	}
 }
 
 inline AfterglowDrawCommandBuffer::RecordInfo* AfterglowCommandManager::Impl::aquireDrawRecordInfo(
-	AfterglowMaterialResource& matResource, AfterglowDescriptorSetReferences& setRefs) {
-	auto& pipeline = matResource.materialLayout().pipeline();
-	auto domain = matResource.materialLayout().material().domain();
-	if (!renderPass.subpassContext().subpassExists(domain)) {
-		DEBUG_CLASS_WARNING("Failed to record the draw, due to this material domain is not declared in RenderPass.");
+	AfterglowMaterialResource& matResource, AfterglowDescriptorSetReferences& setRefs
+) {
+	if (!verifyMaterialDomain(matResource)) {
 		return nullptr;
 	}
-	// return &drawRecordInfos[util::EnumValue(domain)].descSetRecordInfos(pipeline)[&setRefs].emplace_back();
-	return &drawRecordInfos[util::EnumValue(domain)].emplace_back(&pipeline, &setRefs, AfterglowDrawCommandBuffer::RecordInfo{}).recordInfo;
+	auto& matLayout = matResource.materialLayout();
+	auto& pipeline = matLayout.pipeline();
+	render::Domain domain = matLayout.material().domain();
+	uint32_t subpassIndex = matLayout.subpassIndex();
+	
+	if (!drawRecordInfos[util::EnumValue(domain)]) {
+		DEBUG_CLASS_WARNING("Failed to record the draw, due to this material domain is not implemented in PassManager.");
+		return nullptr;
+	}
+	auto& subpassDrawRecordInfos = (*drawRecordInfos[util::EnumValue(domain)])[subpassIndex];
+	return &subpassDrawRecordInfos.emplace_back(&pipeline, &setRefs, AfterglowDrawCommandBuffer::RecordInfo{}).recordInfo;
 }
 
-inline void AfterglowCommandManager::Impl::applyDrawCommands(AfterglowFramebuffer& frameBuffer) {
-	drawCommandBuffer.reset(commandPool.device().currentFrameIndex());
+inline void AfterglowCommandManager::Impl::drawCustomPassSets(uint32_t domainIndex) {
+	auto* domainCustomPassSets = passManager.domainCustomPassSets(render::Domain(domainIndex));
+	if (!domainCustomPassSets) {
+		return;
+	}
+	for (auto& customPassSet : *domainCustomPassSets) {
+		customPassSet->submitCommands(drawCommandBuffer);
+	}
+}
 
-	auto& subpassContext = renderPass.subpassContext();
+inline void AfterglowCommandManager::Impl::applyPassDrawCommands(AfterglowPassInterface& pass, PerPassRecordDependencies& passRecordInfos, int32_t imageIndex) {
+	drawCommandBuffer.beginRenderPass(pass, imageIndex);
 
-	VkExtent2D extent = renderPass.swapchain().extent();
-	AfterglowDrawCommandBuffer::BeginInfo beginInfo;
-	beginInfo.renderPassBegin.renderPass = renderPass;
-	beginInfo.renderPassBegin.framebuffer = frameBuffer;
-	beginInfo.renderPassBegin.renderArea.extent = extent;
-	beginInfo.renderPassBegin.clearValueCount = subpassContext.clearValueCount();
-	beginInfo.renderPassBegin.pClearValues = subpassContext.clearValues().data();
-	beginInfo.viewport.width = static_cast<float>(extent.width);
-	beginInfo.viewport.height = static_cast<float>(extent.height);
-	beginInfo.scissor.extent = extent;
-	drawCommandBuffer.beginRecord(beginInfo);
-
-	bool isFirstDomain = true;
-	for (uint32_t domainIndex = 0; domainIndex < drawRecordInfos.size(); ++domainIndex) {
-		if (!domainImplementationFlags[domainIndex]) {
-			continue;
+	bool isFirstSubpass = true;
+	for (auto& subpassRecordInfos : passRecordInfos) {
+		if (!isFirstSubpass) {
+			drawCommandBuffer.nextSubpass();
 		}
-		if (!isFirstDomain) {
-			drawCommandBuffer.nextSubpassRecord();
-		}
-		isFirstDomain = false;
-
-		for (auto& [pipeline, setRefs, recordInfo] : drawRecordInfos[domainIndex]) {
+		isFirstSubpass = false;
+		for (auto& [pipeline, setRefs, recordInfo] : subpassRecordInfos) {
 			drawCommandBuffer.setupPipeline(*pipeline);
 			drawCommandBuffer.setupDescriptorSets(*setRefs);
-			drawCommandBuffer.dispatch(recordInfo);
+			drawCommandBuffer.draw(recordInfo);
 		}
 	}
+
 	// Draw UI
-	ImGui_ImplVulkan_RenderDrawData(uiDrawData, drawCommandBuffer.current());
+	if (passManager.isFinalPass(pass)) {
+		ImGui_ImplVulkan_RenderDrawData(uiDrawData, drawCommandBuffer.current());
+	}
+
+	drawCommandBuffer.endRenderPass();
+	drawCommandBuffer.barrier(pass);
+}
+
+inline void AfterglowCommandManager::Impl::applyDrawCommands(int32_t imageIndex) {
+	drawCommandBuffer.reset(commandPool.device().currentFrameIndex());
+	drawCommandBuffer.beginRecord();
+
+	for (uint32_t index = 0; index < drawRecordInfos.size(); ++index) {
+		auto& passRecordInfos = drawRecordInfos[index];
+		if (!passRecordInfos) {
+			continue;
+		}
+		// Apply per pass commands.
+		auto* pass = passManager.findPass(render::Domain(index));
+		applyPassDrawCommands(*pass, *passRecordInfos, imageIndex);
+
+		// Apply custom pass set commands only if input domain exists.
+		drawCustomPassSets(index);
+
+		// Clear record infos.
+		for (auto& subpassRecordInfos : *passRecordInfos) {
+			subpassRecordInfos.clear();
+		}
+	}
 
 	drawCommandBuffer.endRecord();
-
-	for (auto& elem : drawRecordInfos) {
-		elem.clear();
-	}
 }
 
 inline void AfterglowCommandManager::Impl::applyComputeCommands() {
@@ -160,7 +181,15 @@ inline void AfterglowCommandManager::Impl::applyComputeCommands() {
 	computeCommandBuffer.endRecord();
 }
 
-AfterglowCommandManager::AfterglowCommandManager(AfterglowRenderPass& renderPass) : _impl(std::make_unique<Impl>(renderPass)) {
+inline bool AfterglowCommandManager::Impl::verifyMaterialDomain(AfterglowMaterialResource& matResource) const noexcept {
+	if (matResource.materialLayout().material().customPassName().empty()) {
+		return true;
+	}
+	return false;
+}
+
+AfterglowCommandManager::AfterglowCommandManager(AfterglowPassManager& passManager) : 
+	_impl(std::make_unique<Impl>(passManager)) {
 }
 
 AfterglowCommandPool& AfterglowCommandManager::commandPool() noexcept {
@@ -181,8 +210,8 @@ bool AfterglowCommandManager::recordDraw(
 	AfterglowVertexBufferHandle& vertexBufferHandle,
 	AfterglowIndexBuffer* indexBuffer,
 	AfterglowStorageBuffer* indirectBuffer,
-	uint32_t instanceCount) {
-
+	uint32_t instanceCount
+) {
 	auto* recordInfo = _impl->aquireDrawRecordInfo(matResource, setRefs);
 	if (!recordInfo) {
 		return false;
@@ -212,19 +241,19 @@ bool AfterglowCommandManager::recordDraw(
 	AfterglowStorageBuffer& vertexData,
 	const AfterglowSSBOInfo* indexSSBOInfo,
 	AfterglowStorageBuffer* indexData, 
-	AfterglowStorageBuffer* indirectBuffer) {
-
+	AfterglowStorageBuffer* indirectBuffer
+) {
 	auto* recordInfo = _impl->aquireDrawRecordInfo(matResource, setRefs);
 	if (!recordInfo) {
 		return false;
 	}
 	recordInfo->vertexBuffer = vertexData;
-	recordInfo->vertexCount = vertexSSBOInfo.numElements();
+	recordInfo->vertexCount = static_cast<uint32_t>(vertexSSBOInfo.numElements());
 	recordInfo->instanceCount = 1;
 
 	if (indexSSBOInfo && indexData) {
 		recordInfo->indexBuffer = *indexData;
-		recordInfo->indexCount = indexSSBOInfo->numUnpackedIndices();
+		recordInfo->indexCount = static_cast<uint32_t>(indexSSBOInfo->numUnpackedIndices());
 	}
 
 	if (indirectBuffer) {
@@ -235,8 +264,8 @@ bool AfterglowCommandManager::recordDraw(
 }
 
 // TODO: GPU Instancing
-void AfterglowCommandManager::applyDrawCommands(AfterglowFramebuffer& frameBuffer) {
-	_impl->applyDrawCommands(frameBuffer);
+void AfterglowCommandManager::applyDrawCommands(int32_t imageIndex) {
+	_impl->applyDrawCommands(imageIndex);
 }
 
 void AfterglowCommandManager::recordCompute(AfterglowMaterialResource& matResource, AfterglowDescriptorSetReferences& setRefs) {
@@ -282,4 +311,17 @@ void AfterglowCommandManager::applyComputeCommands() {
 
 void AfterglowCommandManager::recordUIDraw(ImDrawData* uiDrawData) {
 	_impl->uiDrawData = uiDrawData;
+}
+
+void AfterglowCommandManager::installFixedPasses() {
+	for (uint32_t index = 0; index < util::EnumValue(render::Domain::EnumCount); ++index) {
+		auto* pass = _impl->passManager.findPass(render::Domain(index));
+		if (pass) {
+			_impl->drawRecordInfos[index] = std::make_unique<Impl::PerPassRecordDependencies>();
+			_impl->drawRecordInfos[index]->resize(pass->subpassContext().subpassCount());
+		}
+		else {
+			_impl->drawRecordInfos[index].reset();
+		}
+	}
 }

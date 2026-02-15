@@ -4,6 +4,7 @@
 // TODO: Generate the reggistered tuple Automatically.
 #include "AfterglowCameraComponent.h"
 #include "AfterglowStaticMeshComponent.h"
+#include "AfterglowShapeMeshComponent.h"
 #include "AfterglowTransformComponent.h"
 #include "AfterglowDirectionalLightComponent.h"
 #include "AfterglowPostProcessComponent.h"
@@ -18,17 +19,22 @@ namespace reg {
 	using RegisteredComponentTypes = std::tuple<
 		AfterglowCameraComponent, 
 		AfterglowStaticMeshComponent, 
+		AfterglowShapeMeshComponent, 
 		AfterglowTransformComponent, 
 		AfterglowDirectionalLightComponent, 
 		AfterglowPostProcessComponent, 
 		AfterglowComputeComponent, 
 		acl::EntityRotator, 
 		acl::SimpleController, 
-		acl::InteractiveTest
+		acl::InteractiveTest, 
+		acl::MaterialObjectStateParamUpdater
 	>;
 
 	template<typename ComponentType>
 	concept ActionComponentType = std::is_base_of_v<AfterglowActionComponent<ComponentType>, ComponentType>;
+
+	template<typename ComponentType>
+	concept RenderableComponentType = std::is_base_of_v<AfterglowRenderableComponent<ComponentType>, ComponentType>;
 
 	template<typename ComponentType>
 	constexpr bool IsComponentRegistered();

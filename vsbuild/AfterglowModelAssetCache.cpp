@@ -1,7 +1,6 @@
 #include "AfterglowModelAssetCache.h"
 #include <fstream>
-#include <stdexcept>
-#include "DebugUtilities.h"
+#include "ExceptionUtilities.h"
 
 struct AfterglowModelAssetCache::Impl {
 	// Generic
@@ -27,13 +26,11 @@ AfterglowModelAssetCache::AfterglowModelAssetCache(Mode mode, const std::string&
 		auto& inFile = *_impl->inFile;
 		auto& fileHead = _impl->fileHead;
 		if (!inFile) {
-			DEBUG_CLASS_ERROR("Failed to open cache file: " + path);
-			throw std::runtime_error("Failed to open cache file.");
+			EXCEPT_CLASS_RUNTIME("Failed to open cache file: " + path);
 		}
 		inFile.read(reinterpret_cast<char*>(&fileHead), sizeof(FileHead));
 		if (std::string(fileHead.flag) != _fileHeadFlag) {
-			DEBUG_CLASS_ERROR("Invaild file head: " + path);
-			throw std::runtime_error("Invaild file head.");
+			EXCEPT_CLASS_RUNTIME("Invaild file head: " + path);
 		}
 		_impl->indexedTable = std::make_unique<IndexedTable>(fileHead.indexedTableByteSize / sizeof(IndexedTableElement));
 		auto& indexedTable = *_impl->indexedTable;
@@ -84,9 +81,13 @@ void AfterglowModelAssetCache::read(uint32_t meshIndex, vert::IndexArray & destI
 	inFile.read(destVertexData.data(), tableElement.vertexDataSize);
 }
 
+const model::AABB& AfterglowModelAssetCache::aabb() const {
+	return _impl->fileHead.aabb;
+}
+
 void AfterglowModelAssetCache::recordWrite(const vert::IndexArray& indexArray, const vert::VertexData& vertexData) {
 	if (_impl->mode != Mode::Write) {
-		throw std::runtime_error("Mode is not Matched, recordWrite for Write only.");
+		EXCEPT_CLASS_RUNTIME("Mode is not Matched, recordWrite for Write only.");
 	}
 	_impl->meshRefs.push_back({indexArray, vertexData});
 }
@@ -118,8 +119,7 @@ void AfterglowModelAssetCache::write(const model::AssetInfo& info, TimeStamp sou
 
 	std::ofstream outFile(_impl->filePath, std::ios::binary);
 	if (!outFile) {
-		DEBUG_CLASS_ERROR("Failed to write file, invalid file path: " + _impl->filePath);
-		throw std::runtime_error("Failed to write file.");
+		EXCEPT_CLASS_RUNTIME("Failed to write file, invalid file path: " + _impl->filePath);
 	}
 	outFile.write(reinterpret_cast<const char*>(&fileHead), sizeof(FileHead));
 	outFile.write(reinterpret_cast<const char*>(indexedTable.data()), fileHead.indexedTableByteSize);

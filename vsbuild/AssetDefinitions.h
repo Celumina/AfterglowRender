@@ -120,6 +120,7 @@ namespace model {
 		VertexBitsMask = PositionOnly,
 
 		FlipUVs = 1 << 5, 
+		RecomputeNormal = 1 << 6
 	};
 
 	bool IsFlagVertexType(ImportFlag flags, ImportFlag vertexFlag) noexcept;

@@ -5,6 +5,7 @@
 #include "AfterglowWindow.h"
 #include "AfterglowSurface.h"
 #include "AfterglowPhysicalDevice.h"
+#include "SwapchainConfigurations.h"
 
 
 AfterglowSwapchain::AfterglowSwapchain(AfterglowDevice& device, AfterglowWindow& window, AfterglowSurface& surface) :
@@ -143,10 +144,8 @@ void AfterglowSwapchain::initImageViews() {
 
 VkSurfaceFormatKHR AfterglowSwapchain::chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats) {
 	for (const auto& availableFormat : availableFormats) {
-		// TODO: HDR Surface format support
-		// @note: Due to the GUI problem, Gamma correct (EOTF) here instead of LUT.
-		if (availableFormat.format == /*VK_FORMAT_B8G8R8A8_UNORM*/ VK_FORMAT_B8G8R8A8_SRGB &&
-			availableFormat.colorSpace == /*VK_COLOR_SPACE_PASS_THROUGH_EXT*/ VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
+		if (availableFormat.format == swapchain::presentFormat &&
+			availableFormat.colorSpace == swapchain::presentColorSpace) {
 			return availableFormat;
 		}
 	}

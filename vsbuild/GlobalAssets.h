@@ -10,9 +10,20 @@ namespace img {
 }
 
 namespace shader {
-	img::AssetInfo GlobalSetBindingTextureInfo(shader::GlobalSetBindingIndex bindingIndex);
+	using Text = const char*;
 
-	constexpr const char* indirectResetShaderPath = "Shaders/IndirectResetInstanceCount_CS.hlsl";
+	img::AssetInfo GlobalSetBindingTextureInfo(shader::GlobalSetBindingIndex bindingIndex);
+	
+	// VS: Vertex Shader, FS: Fragment Shader,  CS: Compute Shader.
+	constexpr Text errorVSPath = "Shaders/Error_VS.hlsl";
+	constexpr Text errorFSPath = "Shaders/Error_FS.hlsl";
+	constexpr Text errorCSPath = "Shaders/Error_CS.hlsl";
+	constexpr Text defaultForwardVSPath = "Shaders/Unlit_VS.hlsl";
+	constexpr Text defaultForwardFSPath = "Shaders/Unlit_FS.hlsl";
+	constexpr Text emptyPostprocessVSPath = "Shaders/EmptyPostProcess_VS.hlsl";
+	constexpr Text emptyPostprocessFSPath = "Shaders/EmptyPostProcess_FS.hlsl";
+
+	constexpr Text indirectResetCSPath = "Shaders/IndirectResetInstanceCount_CS.hlsl";
 }
 
 namespace font {

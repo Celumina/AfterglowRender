@@ -30,6 +30,12 @@ public:
 	template<typename Type>
 	using Parameters = std::unordered_map<shader::Stage, std::vector<Parameter<Type>>>;
 
+	template<typename ParamType>
+	using GetParamFunc = Parameter<ParamType>* (AfterglowMaterial::*)(shader::Stage, const std::string&);
+
+	template<typename ParamType>
+	using GetParamFuncConst = const Parameter<ParamType>* (AfterglowMaterial::*)(shader::Stage, const std::string&) const;
+
 	// Constructor (exclude copy constructor) will never init compute task, compute task be initialized only if it been used.
 	AfterglowMaterial();
 	AfterglowMaterial(
@@ -42,6 +48,11 @@ public:
 	);
 
 	AfterglowMaterial(const AfterglowMaterial& other);
+	void operator=(const AfterglowMaterial& other);
+
+	AfterglowMaterial(AfterglowMaterial&& rval) noexcept;
+	void operator=(AfterglowMaterial&& rval) noexcept;
+
 	~AfterglowMaterial();
 
 	// @brief: Address based compare.
@@ -55,25 +66,29 @@ public:
 	static const AfterglowMaterial& errorMaterial();
 	static const AfterglowMaterial& emptyPostProcessMaterial();
 
-	void operator=(const AfterglowMaterial& other);
-
 	void setVertexTypeIndex(std::type_index vertexTypeIndex) noexcept;
-	void setTwoSided(bool twoSided) noexcept;
+	void setCullMode(render::CullMode cullMode) noexcept;
 	void setWireframe(bool wireframe) noexcept;
 	void setDepthWrite(bool depthWrite) noexcept;
 	void setTopology(render::Topology topology) noexcept;
 
 	void setVertexShader(const std::string& shaderPath);
 	void setFragmentShader(const std::string& shaderPath);
+	void setCustomPass(const std::string& passName);
+	void setSubpass(const std::string& subpassName);
 
 	void setScalar(shader::Stage stage, const std::string& name, Scalar defaultValue);
 	void setVector(shader::Stage stage, const std::string& name, Vector defaultValue);
 	void setTexture(shader::Stage stage, const std::string& name, const TextureInfo& textureInfo);
 
+	render::Domain domain() const noexcept;
 	void setDomain(render::Domain domain) noexcept;
 
+	const render::FaceStencilInfos& faceStencilInfos() const noexcept;
+	void setFaceStencilInfo(const render::FaceStencilInfos& faceStencilInfo) noexcept;
+
 	std::type_index vertexTypeIndex() const noexcept;
-	bool twoSided() const noexcept;
+	render::CullMode cullMode() const noexcept;
 	bool wireframe() const noexcept;
 	bool depthWrite() const noexcept;
 
@@ -96,7 +111,9 @@ public:
 	const std::string& vertexShaderPath() const noexcept;
 	const std::string& fragmentShaderPath() const noexcept;
 
-	render::Domain domain() const noexcept;
+	const std::string& customPassName() const noexcept;
+	const std::string& subpassName() const noexcept;
+
 	render::Topology topology() const noexcept;
 
 	// @brief: Padding element size for alignment before vector.
@@ -133,15 +150,19 @@ private:
 
 	render::Domain _domain = render::Domain::Forward;
 	render::Topology _topology = render::Topology::TriangleList;
+	render::CullMode _cullMode = render::CullMode::Back;
 
-	bool _twoSided = false;
 	bool _wireframe = false;
 	bool _depthWrite = true;
+
+	render::FaceStencilInfos _faceStencilInfos{};
 
 	std::type_index _vertexTypeIndex;
 
 	std::string _vertexShaderPath;
 	std::string _fragmentShaderPath;
+	std::string _customPassName;
+	std::string _subpassName;
 
 	Parameters<Scalar> _scalars;
 	Parameters<Vector> _vectors;

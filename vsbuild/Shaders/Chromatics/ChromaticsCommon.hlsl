@@ -22,7 +22,7 @@ float3 LinearToLogColor(float3 linearColor) {
 }
 
 float3 LUTMapping(float3 srcColor) {
-	// TODO: Normalize HDR Color
+	// Normalize HDR Color
 	return ColorLUTIn.Sample(ColorLUTInSampler, LinearToLogColor(srcColor) + lutSampleOffset).xyz;
 }
 

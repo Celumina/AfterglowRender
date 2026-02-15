@@ -12,22 +12,42 @@ AfterglowMaterialInstance::AfterglowMaterialInstance(const AfterglowMaterialInst
 	AfterglowMaterial(other), _parent(other._parent) {
 }
 
+void AfterglowMaterialInstance::operator=(const AfterglowMaterialInstance& other) {
+	AfterglowMaterial::operator=(other);
+	_parent = other._parent;
+}
+
+AfterglowMaterialInstance::AfterglowMaterialInstance(AfterglowMaterialInstance&& rval) noexcept :
+	AfterglowMaterial(std::forward<AfterglowMaterial>(rval)), _parent(rval._parent) {
+}
+
+void AfterglowMaterialInstance::operator=(AfterglowMaterialInstance&& rval) noexcept {
+	AfterglowMaterial::operator=(std::forward<AfterglowMaterial>(rval));
+	_parent = rval._parent;
+}
+
 AfterglowMaterialInstance AfterglowMaterialInstance::makeRedirectedInstance(const AfterglowMaterial& newParent) {
 	AfterglowMaterialInstance instance(newParent);
 	for (const auto& [stage, scalarParams] : scalars()) {
 		for (const auto& scalarParam : scalarParams) {
-			instance.setScalar(stage, scalarParam.name, scalarParam.value);
+			// Find old scalar for preserving instance configs.
+			auto* value = &scalarParam.value;
+			tryPreserve<static_cast<GetParamFuncConst<Scalar>>(&AfterglowMaterial::scalar)>(stage, scalarParam, value);
+			instance.setScalar(stage, scalarParam.name, *value);
 		}
 	}
 	for (const auto& [stage, vectorParams] : vectors()) {
 		for (const auto& vectorParam : vectorParams) {
-			instance.setVector(stage, vectorParam.name, vectorParam.value);
+			auto* value = &vectorParam.value;
+			tryPreserve<static_cast<GetParamFuncConst<Vector>>(&AfterglowMaterial::vector)>(stage, vectorParam, value);
+			instance.setVector(stage, vectorParam.name, *value);
 		}
-		
 	}
 	for (const auto& [stage, textureParams] : textures()) {
 		for (const auto& textureParam : textureParams) {
-			instance.setTexture(stage, textureParam.name, textureParam.value);
+			auto* value = &textureParam.value;
+			tryPreserve<static_cast<GetParamFuncConst<TextureInfo>>(&AfterglowMaterial::texture)>(stage, textureParam, value);
+			instance.setTexture(stage, textureParam.name, *value);
 		}
 	}
 	return instance;
@@ -35,7 +55,8 @@ AfterglowMaterialInstance AfterglowMaterialInstance::makeRedirectedInstance(cons
 
 bool AfterglowMaterialInstance::setScalar(shader::Stage stage, const std::string& name, Scalar value) {
 	auto*oldScalar = scalar(stage, name);
-	if (oldScalar) {
+	// @note: _parent->scalar(stage, name) handle parent material changed case.
+	if (oldScalar || _parent->scalar(stage, name)) {
 		AfterglowMaterial::setScalar(stage, name, value);
 		return true;
 	}
@@ -44,7 +65,7 @@ bool AfterglowMaterialInstance::setScalar(shader::Stage stage, const std::string
 
 bool AfterglowMaterialInstance::setVector(shader::Stage stage, const std::string& name, Vector value) {
 	auto* oldVector = vector(stage, name);
-	if (oldVector) {
+	if (oldVector || _parent->vector(stage, name)) {
 		AfterglowMaterial::setVector(stage, name, value);
 		return true;
 	}
@@ -53,7 +74,7 @@ bool AfterglowMaterialInstance::setVector(shader::Stage stage, const std::string
 
 bool AfterglowMaterialInstance::setTexture(shader::Stage stage, const std::string& name, const TextureInfo& assetInfo) {
 	auto* oldTexture = texture(stage, name);
-	if (!oldTexture) {
+	if (!oldTexture || !_parent->texture(stage, name)) {
 		return false;
 	}
 	auto targetColorSpace = 
@@ -97,11 +118,6 @@ const AfterglowMaterialInstance::Parameters<AfterglowMaterialInstance::Vector>& 
 
 const AfterglowMaterialInstance::Parameters<AfterglowMaterialInstance::TextureInfo>& AfterglowMaterialInstance::textures() const {
 	return AfterglowMaterial::textures();
-}
-
-void AfterglowMaterialInstance::operator=(const AfterglowMaterialInstance& other) {
-	AfterglowMaterial::operator=(other);
-	_parent = other._parent;
 }
 
 const AfterglowMaterial& AfterglowMaterialInstance::parentMaterial() const noexcept {

@@ -159,12 +159,24 @@ AfterglowEuler AfterglowTransformComponent::globalEuler() const noexcept {
 	return glm::eulerAngles(globalRotation());
 }
 
-AfterglowDirection AfterglowTransformComponent::globalDirection() const noexcept {
+AfterglowDirection AfterglowTransformComponent::globalViewDirection() const noexcept {
 	// Rotate foward vector by quat.
 	// vec4 vq = {0, v};
 	// vq' = q * vq * inverse(q).
 	// But in glm, just q * vq, inverse(q) is not required. 
-	return globalRotation() * glm::vec4{0.0f, cardinal::Forward};
+	return glm::normalize(globalRotation() * cardinal::Up); 
+}
+
+AfterglowDirection AfterglowTransformComponent::globalForward() const noexcept {
+	return glm::normalize(globalRotation() * cardinal::Forward);
+}
+
+AfterglowDirection AfterglowTransformComponent::globalRight() const noexcept {
+	return glm::normalize(globalRotation() * cardinal::Right);
+}
+
+AfterglowDirection AfterglowTransformComponent::globalUp() const noexcept {
+	return glm::normalize(globalRotation() * cardinal::Up);
 }
 
 // #include "DebugUtilities.h"

@@ -4,10 +4,9 @@
 #include "AssetDefinitions.h"
 
 
-struct AfterglowTexturePoolResource {
+struct AfterglowTexturePoolResource : public AfterglowSharedPoolResource {
 	img::Info info;
 	AfterglowTextureImage::AsElement buffer;
-	AfterglowReferenceCount count;
 };
 
 
@@ -23,16 +22,21 @@ public:
 
 class AfterglowSharedTexturePool : public AfterglowSharedResourcePool<AfterglowTextureReference> {
 public: 
-	AfterglowSharedTexturePool(AfterglowCommandPool& commandPool, AfterglowGraphicsQueue& graphicsQueue);
+	AfterglowSharedTexturePool(
+		AfterglowCommandPool& commandPool, 
+		AfterglowGraphicsQueue& graphicsQueue, 
+		AfterglowSynchronizer& synchronizer
+	);
 
 	// @brief: Get ref of texture resource, if resource not exists, it will create texture from file automatically.
 	AfterglowTextureReference texture(const img::AssetInfo& assetInfo);
+	AfterglowTextureReference texture(img::AssetInfo&& rval);
 	
 	// TODO: 
 	// AfterglowSampler& sharedSampler();
 
 private:
-	Resource* createTexture(const img::AssetInfo& assetInfo);
+	Resource* createTexture(img::AssetInfo& assetInfo);
 
 	// TODO: 
 	// AfterglowSampler::AsElement _sharedSampler;

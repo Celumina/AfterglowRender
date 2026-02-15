@@ -90,20 +90,21 @@ const AfterglowStorageBuffer* AfterglowMaterialResource::indirectStorageBuffer()
 	return const_cast<AfterglowMaterialResource*>(this)->indirectStorageBuffer();
 }
 
-void AfterglowMaterialResource::update() {
-	submitUniforms();
-	submitTextures();
-}
+//void AfterglowMaterialResource::update(uint32_t frameIndex) {
+//	updateUniforms(frameIndex);
+//	updateTextures(frameIndex);
+//}
 
 void AfterglowMaterialResource::reloadMaterialLayout() {
 	_shouldReregisterTextures = true;
 	// Update material parent and inheritance material instance modification.
-	if (!_materialInstance.parentMaterial().is(_materialLayout.material())) {
-		_materialInstance = _materialInstance.makeRedirectedInstance(_materialLayout.material());
-	}
+	//DEBUG_COST_BEGIN("Redirect material instance");
+	_materialInstance = _materialInstance.makeRedirectedInstance(_materialLayout.material());
+	//DEBUG_COST_END;
 
 	// Recreate descriptor sets
 	for (int index = 0; index < cfg::maxFrameInFlight; ++index) {
+		// Recreate descriptor sets
 		_inFlightDescriptorSets[index].recreate(
 			_descriptorPool,
 			AfterglowDescriptorSets::RawLayoutArray{
@@ -114,6 +115,11 @@ void AfterglowMaterialResource::reloadMaterialLayout() {
 			// e.g. global and per object.
 			shader::materialSetIndexBegin
 		);
+
+		// Clear uniform buffers
+		for (auto& [stage, resource]:_stageResources) {
+			resource.uniformBuffers[index].reset();
+		}
 	}
 
 	// Storage buffers relative to Material, instead of MaterialInstance.
@@ -144,8 +150,12 @@ inline AfterglowMaterialResource::TextureResource* AfterglowMaterialResource::aq
 	return &(iterator->second);
 }
 
-void AfterglowMaterialResource::submitUniforms() {
-	// TODO: Considering .modified, don't clear every update.
+void AfterglowMaterialResource::updateUniforms(uint32_t frameIndex) {
+	// Clear old uniforms
+	for (auto& [stage, resources] : _stageResources) {
+		resources.uniforms.clear();
+	}
+
 	// Fill scalars.
 	for (const auto& [stage, scalarParams] : _materialInstance.scalars()) {
 		for (const auto& scalarParam : scalarParams) {
@@ -174,35 +184,50 @@ void AfterglowMaterialResource::submitUniforms() {
 		if (uniforms.empty()) {
 			continue;
 		}
-		for (uint32_t index = 0; index < cfg::maxFrameInFlight; ++index) {
-			resources.uniformBuffers[index].recreate(device(), uniforms.data(), uniforms.size() * sizeof(AfterglowMaterial::Scalar));
+		auto& uniformBuffer = resources.uniformBuffers[frameIndex];
+		if (!uniformBuffer) {
+			uniformBuffer.recreate(device(), uniforms.data(), uniforms.size() * sizeof(AfterglowMaterial::Scalar));
 		}
-	}
-
-	// Write DescriptorSets
-	for (uint32_t frameIndex = 0; frameIndex < cfg::maxFrameInFlight; ++frameIndex) {
-		auto& descriptorSets = _inFlightDescriptorSets[frameIndex];
-		// 0 is global descriptor set.
-		for (auto& [stage, resource] : _stageResources) {
-			if (resource.uniforms.empty()) {
-				continue;
-			}
-			auto& uniformBuffer = resource.uniformBuffers[frameIndex];
-			// First binding (index = 0) is always uniform, after then all texture bindings behind it.
-			auto& setLayout = _materialLayout.descriptorSetLayouts()[stage];
-			_descriptorSetWriter.registerBuffer(*uniformBuffer, setLayout, descriptorSets[util::EnumValue(stage)], 0);
+		else {
+			(*uniformBuffer).updateMemory(uniforms.data());
 		}
 	}
 }
 
-void AfterglowMaterialResource::submitTextures() {
+void AfterglowMaterialResource::updateTextures(uint32_t frameIndex) {
 	// Load and submit Textures.
 	synchronizeTextures();
 	if (_shouldReregisterTextures) {
 		reregisterUnmodifiedTextures();
 		_shouldReregisterTextures = false;
 	}
-	reloadModifiedTextures();
+	reloadModifiedTextures(frameIndex);
+}
+
+void AfterglowMaterialResource::submitDescriptorSets(uint32_t frameIndex) {
+	//DEBUG_COST_BEGIN("Submit descriptor sets.");
+	// Write DescriptorSets
+	auto& descriptorSets = _inFlightDescriptorSets[frameIndex];
+	// 0 is global descriptor set.
+	for (auto& [stage, resource] : _stageResources) {
+		if (!resource.uniforms.empty()) {
+			auto& uniformBuffer = resource.uniformBuffers[frameIndex];
+			// First binding (index = 0) is always uniform, after then all texture bindings behind it.
+			auto& setLayout = _materialLayout.descriptorSetLayouts()[stage];
+			_descriptorSetWriter.registerBuffer(*uniformBuffer, setLayout, descriptorSets[util::EnumValue(stage)], 0);
+		}
+
+		for (auto& [textureName, textureResource] : resource.textureResources) {
+			auto& setLayout = (*_materialLayout.descriptorSetLayouts()[stage]);
+			_descriptorSetWriter.registerImage(
+				textureResource.textureRef->texture(),
+				setLayout,
+				*(*_inFlightDescriptorSets[frameIndex]).find(setLayout),  // Ugly find, try to remove it.
+				textureResource.bindingIndex
+			);
+		}
+	}
+	//DEBUG_COST_END;
 }
 
 inline void AfterglowMaterialResource::submitStorageBuffers() {
@@ -259,40 +284,37 @@ inline void AfterglowMaterialResource::reregisterUnmodifiedTextures() {
 	}
 }
 
-inline void AfterglowMaterialResource::reloadModifiedTextures() {
+inline void AfterglowMaterialResource::reloadModifiedTextures(uint32_t frameIndex) {
 	auto& textures = _materialInstance.textures();
 	for (auto& [stage, textureParams] : textures) {
 		for (auto& textureParam : textureParams) {
-			std::string texturePath = textureParam.value.path;
+			const std::string* texturePath = &textureParam.value.path;
 			// Handle no texture condition.
-			if (texturePath == "") {
+			if (*texturePath == "") {
 				DEBUG_CLASS_WARNING("Material texture path is empty, texture name: " + textureParam.name);
-				texturePath = img::defaultTextureInfo.path;
+				const std::string* texturePath = &img::defaultTextureInfo.path;
 				textureParam.modified = true;
 			}
 			if (textureParam.value.colorSpace == img::ColorSpace::Undefined) {
 				textureParam.value.colorSpace = img::ColorSpace::SRGB;
 				DEBUG_CLASS_WARNING("Material texture color space is redirected to SRGB, due to it is undefined, texture name:" + textureParam.name);
 			}
-			if (!textureParam.modified) {
+
+			auto& textureResource = *aquireTextureResource(stage, textureParam.name);
+			if (textureParam.modified) {
+				std::fill(textureResource.inFlightModifiedFlags.begin(), textureResource.inFlightModifiedFlags.end(), true);
+				textureParam.modified = false;
+			}
+
+			if (!textureResource.inFlightModifiedFlags[frameIndex]) {
 				continue;
 			}
 
-			auto& textureResource = *aquireTextureResource(stage, textureParam.name);
 			textureResource.textureRef = std::make_unique<AfterglowTextureReference>(
-				_texturePool.texture({ textureParam.value.colorSpace , texturePath })
+				_texturePool.texture({ textureParam.value.colorSpace , *texturePath })
 			);
 
-			auto& setLayout = (*_materialLayout.descriptorSetLayouts()[stage]);
-			for (uint32_t index = 0; index < cfg::maxFrameInFlight; ++index) {
-				_descriptorSetWriter.registerImage(
-					textureResource.textureRef->texture(),
-					setLayout,
-					*(*_inFlightDescriptorSets[index]).find(setLayout),  // Ugly find, try to remove it.
-					textureResource.bindingIndex
-				);
-			}
-			textureParam.modified = false;
+			textureResource.inFlightModifiedFlags[frameIndex] = false;
 		}
 	}
 }

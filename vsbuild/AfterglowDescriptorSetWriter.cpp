@@ -45,9 +45,7 @@ void AfterglowDescriptorSetWriter::write() {
 void AfterglowDescriptorSetWriter::createDescriptorWrites() {
 	for (const auto& bufferWriteContext : _writeDescriptorInfos.bufferWriteContexts) {
 		if (bufferWriteContext.bindingIndex >= bufferWriteContext.setLayout.bindings().size()) {
-			//DEBUG_INFO("_____________________BUFIDX" + std::to_string(bufferWriteContext.bindingIndex));
-			//DEBUG_INFO("_____________________BNDSZE" + std::to_string(bufferWriteContext.setLayout.bindings().size()));
-			DEBUG_CLASS_WARNING("bufferWriteContext.bindingIndex out of range.");
+			DEBUG_CLASS_ERROR("bufferWriteContext.bindingIndex out of range.");
 			continue;
 		}
 		auto& binding = bufferWriteContext.setLayout.bindings()[bufferWriteContext.bindingIndex];
@@ -65,7 +63,7 @@ void AfterglowDescriptorSetWriter::createDescriptorWrites() {
 	}
 	for (const auto& imageWriteContext : _writeDescriptorInfos.imageWriteContexts) {
 		if (imageWriteContext.bindingIndex >= imageWriteContext.setLayout.bindings().size()) {
-			DEBUG_CLASS_WARNING("imageWriteContext.bindingIndex out of range.");
+			DEBUG_CLASS_ERROR("imageWriteContext.bindingIndex out of range.");
 			continue;
 		}
 		auto& binding = imageWriteContext.setLayout.bindings()[imageWriteContext.bindingIndex];

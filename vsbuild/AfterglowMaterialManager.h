@@ -8,13 +8,14 @@
 #include "AfterglowImage.h"
 #include "AfterglowUtilities.h"
 #include "AfterglowMaterialInstance.h"
+#include "AfterglowPassInterface.h"
 
 
 class AfterglowSynchronizer;
 class AfterglowMaterialAsset;
 class AfterglowCommandPool;
 class AfterglowGraphicsQueue;
-class AfterglowRenderPass;
+class AfterglowPassManager;
 class AfterglowAssetMonitor;
 class AfterglowDevice;
 class AfterglowDescriptorPool;
@@ -31,12 +32,16 @@ public:
 	AfterglowMaterialManager(
 		AfterglowCommandPool& commandPool, 
 		AfterglowGraphicsQueue& graphicsQueue, 
-		AfterglowRenderPass& renderPass, 
-		AfterglowAssetMonitor& assetMonitor
+		AfterglowPassManager& passManager, 
+		AfterglowAssetMonitor& assetMonitor, 
+		AfterglowSynchronizer& synchronizer
 	);
 	~AfterglowMaterialManager();
 
+	void initGlobalDescriptorSets(render::PassUnorderedMap<img::ImageReferences>& allPassImages);
+
 	AfterglowDevice& device() noexcept;
+	AfterglowPassManager& passManager() noexcept;
 	AfterglowDescriptorPool& descriptorPool();
 	AfterglowDescriptorSetWriter& descriptorSetWriter();
 
@@ -78,7 +83,7 @@ public:
 	* @return: Ture if remove successfully.
 	* @thread_safety
 	*/
-	bool removeMaterialInstance(const std::string& name);
+	void removeMaterialInstance(const std::string& name);
 
 	// @return: Material handle;
 	AfterglowMaterial* material(const std::string& name);
@@ -101,6 +106,7 @@ public:
 	* @brief: Apply material info to descriptors manually.
 	* @param: name MaterialContext's name.
 	* @return: true if update succefully.
+	* @thread-safety
 	*/
 	bool submitMaterial(const std::string& name);
 
@@ -108,19 +114,33 @@ public:
 	* @brief: Apply material info to descriptors manually.
 	* @param: name MaterialInstanceContext's name.
 	* @return: true if update succefully.
+	* @thred-safety
 	*/
 	bool submitMaterialInstance(const std::string& name);
+	/**
+	* @brief: Submit uniform buffer of material resource (exclude textures)
+	* @thread-safety
+	*/ 
+	bool submitMaterialInstanceUniformParams(const std::string& name);
+	/**
+	* @brief: Submit textures of material resource (exclude uniform buffer)
+	* @thread-safety
+	*/
+	bool submitMaterialInstanceTextureParams(const std::string& name);
 
 	/**
 	* @brief: set and update mesh uniform to material instance.
 	* @note: If material instance is not exists, it will initialize form material automatically.
-	* @param: name MaterialInstanceContext's name.
+	* @param: name from material (instance).
 	* @return: true if materialInstanceContext exists and set successfully.
 	*/
 	bool submitMeshUniform(const std::string& materialInstanceName, const ubo::MeshUniform& meshUniform);
 
 	// @brief: write descritptor sets to device.
-	void updateMaterials(img::WriteInfoArray& imageWriteInfos, AfterglowSynchronizer& synchronizer);
+	void updateMaterials(
+		render::PassUnorderedMap<img::ImageReferences>& allPassImages, 
+		bool swapchainImageSetOutdated
+	);
 	// @brief: Update it when the GPU is not in flight.
 	void updateResources();
 
@@ -141,6 +161,9 @@ public:
 	template<typename FuncType, typename ...ParamTypes>
 	void lockedAccess(FuncType&& func, ParamTypes&& ...params);
 
+	// @warning: Make sure it be invoked in render thread only, and never invoke it between reset() and queue submit().
+	void waitGPU() const;
+
 private:
 	struct Impl;
 	std::unique_ptr<Impl> _impl;
@@ -151,5 +174,5 @@ private:
 template<typename FuncType, typename ...ParamTypes>
 inline void AfterglowMaterialManager::lockedAccess(FuncType&& func, ParamTypes && ...params) {
 	LockGuard lockGuard{ _mutex };
-	func(params...);
+	func(std::forward<ParamTypes>(params)...);
 }

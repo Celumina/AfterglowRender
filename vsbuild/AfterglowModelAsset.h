@@ -22,6 +22,8 @@ public:
 	template<typename CallbackType, uint32_t index = 0>
 	static auto AsType(model::ImportFlag importFlags, CallbackType&& callback);
 
+	const model::AABB& aabb() const noexcept;
+
 private:
 	inline void initialize();
 

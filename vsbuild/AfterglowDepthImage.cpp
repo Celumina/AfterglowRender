@@ -2,7 +2,7 @@
 
 #include "AfterglowCommandPool.h"
 #include "AfterglowGraphicsQueue.h"
-
+#include "ExceptionUtilities.h"
 #include "Configurations.h"
 
 AfterglowDepthImage::AfterglowDepthImage(
@@ -74,7 +74,7 @@ void AfterglowDepthImage::cmdPipelineBarrier(VkCommandBuffer commandBuffer, VkIm
 		destinationStage = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
 	}
 	else {
-		throw std::invalid_argument("[AfterglowDepthImage] Unsupported layout transition.");
+		EXCEPT_CLASS_INVALID_ARG("Unsupported layout transition.");
 	}
 
 	vkCmdPipelineBarrier(commandBuffer, sourceStage, destinationStage, 0, 0, nullptr, 0, nullptr, 1, &barrier);

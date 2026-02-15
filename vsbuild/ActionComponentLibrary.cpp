@@ -6,7 +6,7 @@
 #include "AfterglowTransformComponent.h"
 #include "DebugUtilities.h"
 #include "AfterglowInput.h"
-
+#include "AfterglowMaterialInstance.h"
 #include "AfterglowCameraComponent.h"
 #include "AfterglowStaticMeshComponent.h"
 
@@ -29,50 +29,50 @@ void acl::SimpleController::update() {
 	glm::vec2 deltaCursorPos = input.cursorPosition() - _cursorPosLastUpdate;
 	float deltaTime = float(sysUtils().deltaTimeSec());
 
-	AfterglowDirection forward = -transform.globalDirection();
-	AfterglowDirection right = glm::cross(forward, cardinal::Up);
+	AfterglowDirection cameraForward = -transform.globalViewDirection();
+	AfterglowDirection cameraRight = glm::cross(cameraForward, cardinal::Up);
 	
 	AfterglowTranslation targetMoveVelocity{};
 
 	// Update movement.
-	if (input.pressed(AfterglowInput::Key::W)) {
-		targetMoveVelocity += forward * _movementSpeed;
+	if (input.pressed(input::Key::W)) {
+		targetMoveVelocity += cameraForward * _movementSpeed;
 	}
-	if (input.pressed(AfterglowInput::Key::S)) {
-		targetMoveVelocity -= forward * _movementSpeed;
+	if (input.pressed(input::Key::S)) {
+		targetMoveVelocity -= cameraForward * _movementSpeed;
 	}
-	if (input.pressed(AfterglowInput::Key::A)) {
-		targetMoveVelocity -= right * _movementSpeed;
+	if (input.pressed(input::Key::A)) {
+		targetMoveVelocity -= cameraRight * _movementSpeed;
 	}
-	if (input.pressed(AfterglowInput::Key::D)) {
-		targetMoveVelocity += right * _movementSpeed;
+	if (input.pressed(input::Key::D)) {
+		targetMoveVelocity += cameraRight * _movementSpeed;
 	}
-	if (input.pressed(AfterglowInput::Key::Q)) {
+	if (input.pressed(input::Key::Q)) {
 		targetMoveVelocity += cardinal::Down * _movementSpeed;
 	}
-	if (input.pressed(AfterglowInput::Key::E)) {
+	if (input.pressed(input::Key::E)) {
 		targetMoveVelocity += cardinal::Up * _movementSpeed;
 	}
 
-	if (input.pressed(AfterglowInput::Key::LeftShift)) {
+	if (input.pressed(input::Key::LeftShift)) {
 		targetMoveVelocity *= 8.0f;
 	}
 
-	if (input.pressDown(AfterglowInput::Key::Minus, AfterglowInput::Modifier::Control)
+	if (input.pressDown(input::Key::Minus, input::Modifier::Control)
 		&& _movementSpeed > _movementSpeedMin) {
 		_movementSpeed *= 0.5;
 	}
-	if (input.pressDown(AfterglowInput::Key::Equal, AfterglowInput::AfterglowInput::Modifier::Control)
+	if (input.pressDown(input::Key::Equal, input::Modifier::Control)
 		&& _movementSpeed < _movementSpeedMax) {
 		_movementSpeed *= 2.0;
 	}
 
 	// Update zooming.
-	if (input.pressed(AfterglowInput::Key::Equal)) {
+	if (input.pressed(input::Key::Equal)) {
 		_currentZoomingSpeed = (_fov > _fovMin)
 			? util::Lerp(_currentZoomingSpeed, -_zoomingSpeed * deltaTime, 0.5f * deltaTime) : 0.0f;
 	}
-	else if (input.pressed(AfterglowInput::Key::Minus)) {
+	else if (input.pressed(input::Key::Minus)) {
 		_currentZoomingSpeed = (_fov < _fovMax)
 			? util::Lerp(_currentZoomingSpeed, _zoomingSpeed * deltaTime, 0.5f * deltaTime) : 0.0f;
 	}
@@ -88,18 +88,30 @@ void acl::SimpleController::update() {
 	}
 
 	// Apply movement.
-	_currentMoveVelocity = util::Lerp(_currentMoveVelocity, targetMoveVelocity, std::clamp(4.0f * deltaTime, 0.0f, 1.0f));
+	_currentMoveVelocity = util::Lerp(
+		_currentMoveVelocity, 
+		targetMoveVelocity, 
+		std::clamp(_movementAcceleration * deltaTime, 0.0f, 1.0f)
+	);
 	transform.setGlobalTranslation(transform.globalTranslation() + _currentMoveVelocity * deltaTime);
 
-	// Apply rotation.
-	if (input.pressed(AfterglowInput::MouseButton::Left) || _fpvMode) {
-		// Here had use delta curosor pos ,  so don't require to multiply deltaTime any more.
-		// TODO: relative deltaCursorPos for different window size.
-		float zoomedRotationSpeed = -_rotationSpeed * std::min(_fov, float(45_deg));
-		transform.setGlobalEuler(transform.globalEuler() + AfterglowEuler{ deltaCursorPos.y * zoomedRotationSpeed, 0.0f, deltaCursorPos.x * zoomedRotationSpeed });
+	glm::vec2 targetRotationVelocity{ 0.0f, 0.0f };
+	if (input.pressed(input::MouseButton::Left) || _fpvMode) {
+		// FOV relavant rotation.
+		// @note: Here we divide deltaTime first to solve this issue:
+		//		"Very fast when the culling happend and sysThread is high framerate.
+		// We apply deltaTime for velocity at the final setGlobalEuler(..)
+		targetRotationVelocity = (deltaCursorPos / deltaTime) * (-_rotationSpeed * std::min(_fov, float(45_deg)));
 	}
+	_currentRotationVelocity = util::Lerp(
+		_currentRotationVelocity, 
+		targetRotationVelocity, 
+		std::clamp(_rotationAcceleration * deltaTime, 0.0f, 1.0f)
+	);
+	// Apply rotation.
+	transform.setGlobalEuler(transform.globalEuler() + AfterglowEuler{ _currentRotationVelocity.y, 0.0f, _currentRotationVelocity.x } * deltaTime);
 
-	if (input.pressDown(AfterglowInput::Key::Tab)) {
+	if (input.pressDown(input::Key::Tab)) {
 		_fpvMode = !_fpvMode;
 		if (_fpvMode) {
 			sysUtils().lockCursor();
@@ -124,7 +136,7 @@ void acl::InteractiveTest::awake() {
 void acl::InteractiveTest::update() {
 	auto& input = sysUtils().input();
 	// Create Entity Test
-	if (input.pressDown(AfterglowInput::Key::F, AfterglowInput::Modifier::Control)) {
+	if (input.pressDown(input::Key::F, input::Modifier::Control)) {
 		DEBUG_COST_BEGIN("Create Boxes");
 		static std::random_device randomDevice;
 		static std::default_random_engine randomEngine(randomDevice());
@@ -149,16 +161,16 @@ void acl::InteractiveTest::update() {
 		DEBUG_COST_END;
 	}
 
-	if (input.pressDown(AfterglowInput::Key::G, AfterglowInput::Modifier::Control)) {
+	if (input.pressDown(input::Key::G, input::Modifier::Control)) {
 		sysUtils().unregisterMaterialAsset(
-			"Assets/Shared/Materials/Standard.mat"
+			"Assets/Shared/Materials/ArcToon.mat"
 		);
 		sysUtils().unregisterMaterialInstanceAsset(
-			"Assets/Characters/BattleMage/MaterialInstances/BattleMageWeapon.mati"
+			"Assets/Characters/BattleMage/Materials/BattleMageWeapon.mati"
 		);
 	}
 	
-	if (input.pressDown(AfterglowInput::Key::H, AfterglowInput::Modifier::Control | AfterglowInput::Modifier::Shift)) {
+	if (input.pressDown(input::Key::H, input::Modifier::Control | input::Modifier::Shift)) {
 		sysUtils().unregisterMaterialAsset(
 			"Assets/Shared/Materials/BoidInstancing.mat"
 		);
@@ -168,19 +180,20 @@ void acl::InteractiveTest::update() {
 		}
 	}
 
-	if (input.pressed(AfterglowInput::Key::T, AfterglowInput::Modifier::Control)) {
-		auto* grasses = sysUtils().findEntity("GrassInstances");
-		if (grasses) {
-			auto& grassesTransform = grasses->get<AfterglowTransformComponent>();
-			grassesTransform.setGlobalTranslation(util::Lerp(
-				grassesTransform.globalTranslation(),
-				sysUtils().mainCamera()->entity().get<AfterglowTransformComponent>().globalTranslation(),
-				static_cast<float>(sysUtils().deltaTimeSec())
-			));
-		}
-	}
+	// @deprecated
+	//if (input.pressed(input::Key::T, input::Modifier::Control)) {
+	//	auto* grasses = sysUtils().findEntity("GrassInstances");
+	//	if (grasses) {
+	//		auto& grassesTransform = grasses->get<AfterglowTransformComponent>();
+	//		grassesTransform.setGlobalTranslation(util::Lerp(
+	//			grassesTransform.globalTranslation(),
+	//			sysUtils().mainCamera()->entity().get<AfterglowTransformComponent>().globalTranslation(),
+	//			static_cast<float>(sysUtils().deltaTimeSec())
+	//		));
+	//	}
+	//}
 
-	if (input.pressDown(AfterglowInput::Key::D, AfterglowInput::Modifier::Control)) {
+	if (input.pressDown(input::Key::D, input::Modifier::Control)) {
 		AfterglowTranslation translation{};
 		AfterglowQuaternion rotation{};
 		auto* camera = sysUtils().mainCamera();
@@ -200,4 +213,47 @@ void acl::InteractiveTest::update() {
 		debugBoxMesh.setMaterial(debugViewMaterialName);
 		debugBoxMesh.setModel("Assets/Shared/Models/DebugBox.fbx");
 	}
+}
+
+void acl::MaterialObjectStateParamUpdater::bindMaterial(const std::string& name) {
+	if (name != _materialName) {
+		_materialInstanceNames.clear();
+		_materialName = name;
+		DEBUG_CLASS_INFO(std::format("Binding Material was changed, new material name:{}", _materialName));
+	}
+	initializeMaterialParams();
+}
+
+void acl::MaterialObjectStateParamUpdater::bindMaterialInstance(const std::string& name) {
+	_materialInstanceNames.push_back(name);
+}
+
+void acl::MaterialObjectStateParamUpdater::update() {
+	auto& transformComponent = entity().get<AfterglowTransformComponent>();
+	for (auto& name : _materialInstanceNames) {
+		auto* materialInstance = sysUtils().materialInstance(name);
+		if (!materialInstance) {
+			DEBUG_CLASS_WARNING(std::format("Material instance not found: {}", name));
+			continue;
+		}
+		materialInstance->setVector(shader::Stage::Shared, "objectForward", AfterglowMaterial::Vector(transformComponent.globalForward(), 0.0f));
+		materialInstance->setVector(shader::Stage::Shared, "objectRight", AfterglowMaterial::Vector(transformComponent.globalRight(), 0.0f));
+		materialInstance->setVector(shader::Stage::Shared, "objectUp", AfterglowMaterial::Vector(transformComponent.globalUp(), 0.0f));
+		// TODO: Something happend if apply UniformParams only?
+		sysUtils().submitMaterialInstanceUniformParams(name);
+		//sysUtils().submitMaterialInstance(name);
+	}
+}
+
+void acl::MaterialObjectStateParamUpdater::initializeMaterialParams() {
+	auto* material = sysUtils().material(_materialName);
+	if (!material) {
+		DEBUG_CLASS_ERROR("Material not found, make sure material was created before binding.");
+		return;
+	}
+	// We don't need to write these declarations to asset file manually, benefit by material shader reload asset from memory.
+	material->setVector(shader::Stage::Shared, "objectForward", {});
+	material->setVector(shader::Stage::Shared, "objectRight", {});
+	material->setVector(shader::Stage::Shared, "objectUp", {});
+	sysUtils().submitMaterial(_materialName);
 }

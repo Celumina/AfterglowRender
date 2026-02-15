@@ -183,7 +183,7 @@ namespace aces {
 		alignas(16) float3x4 limitJMh_aabToConeResponse;
 	};
 
-	class OutputTransformParamsWrapper {
+	class OutputTransformParamWrapper {
 	public:
 		const OutputTransformParamsSSBO takeSSBO();
 		const std::unique_ptr<ReachMTable> takeReachMTable();
@@ -201,7 +201,7 @@ namespace aces {
 		bool _gamutCuspsTableTaken = false;
 	};
 
-	OutputTransformParamsWrapper& OutputTransformContext();
+	OutputTransformParamWrapper& OutputTransformContext();
 
 	// Base Functions 
 	template<typename Type>

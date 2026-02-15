@@ -1,6 +1,5 @@
 #pragma once 
 #include "AfterglowImageView.h"
-#include "AfterglowSynchronizer.h"
 
 class AfterglowSurface;
 class AfterglowWindow;

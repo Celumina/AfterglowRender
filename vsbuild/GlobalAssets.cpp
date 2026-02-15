@@ -1,5 +1,5 @@
 #include "GlobalAssets.h"
-#include <stdexcept>
+#include "ExceptionUtilities.h"
 
 img::AssetInfo shader::GlobalSetBindingTextureInfo(shader::GlobalSetBindingIndex bindingIndex) {
 	switch (bindingIndex) {
@@ -14,5 +14,5 @@ img::AssetInfo shader::GlobalSetBindingTextureInfo(shader::GlobalSetBindingIndex
 			.path = "Assets/Shared/Textures/EnergyConservation/Diffuse_Energy.EXR"
 		};
 	}
-	throw std::runtime_error("TexturePath of this binding index is not defined.");
+	EXCEPT_RUNTIME("TexturePath of this binding index is not defined.");
 }

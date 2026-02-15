@@ -2,7 +2,7 @@
 #include <stdexcept>
 
 #include "AfterglowApplication.h"
-#include "Inreflect.h"
+#include "DebugUtilities.h"
 //
 //#define DEBUG_MODE true
 //
@@ -14,13 +14,13 @@
 
 int main() {
 	std::setlocale(LC_ALL, "en_US.utf8");
-	AfterglowApplication application;
 
 	try {
+		AfterglowApplication application;
 		application.run();
 	}
-	catch (const std::exception& e) {
-		std::cerr << e.what() << std::endl;
+	catch (const std::exception& error) {
+		DEBUG_FATAL(error.what());
 		return EXIT_FAILURE;
 	}
 

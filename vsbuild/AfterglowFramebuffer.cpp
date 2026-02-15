@@ -22,8 +22,9 @@ void AfterglowFramebuffer::create() {
 	info().pAttachments = _imageViewAttachments->data();
 	info().attachmentCount = static_cast<uint32_t>(_imageViewAttachments->size());
 
+	_extent = { info().width, info().height }; 
+
 	if (vkCreateFramebuffer(_renderPass.device(), &info(), nullptr, &data()) != VK_SUCCESS) {
 		throw runtimeError("Failed to create framebuffer.");
 	}
-	// _imageViewAttachments.reset();
 }

@@ -16,6 +16,7 @@
 #include "AfterglowMaterialInstance.h"
 #include "AfterglowTransform.h"
 #include "AfterglowColor.h"
+#include "UniformBufferObjects.h"
 ////////////
 
 
@@ -98,11 +99,14 @@ private:
 
 	static bool renderInput(bool& bindingValue);
 	static bool renderInput(int& bindingValue);
+	static bool renderInput(uint8_t& bindingValue); 
+	static bool renderInput(uint16_t& bindingValue);
 	static bool renderInput(uint32_t& bindingValue);
 	static bool renderInput(float& bindingValue);
 	static bool renderInput(double& bindingValue);
 	static bool renderInput(std::string& bindingValue);
 	static bool renderInput(glm::vec3& bindingValue);
+	static bool renderInput(glm::vec4& bindingValue);
 	static bool renderInput(glm::quat& bindingValue);
 	static bool renderInput(AfterglowTransform& bindingValue);
 	static bool renderInput(AfterglowColor& bindingValue);

@@ -22,9 +22,10 @@ public:
 	AfterglowTransform globalTransform() const noexcept;
 
 	AfterglowEuler globalEuler() const noexcept;
-	AfterglowDirection globalDirection() const noexcept;
+	AfterglowDirection globalViewDirection() const noexcept;
 	AfterglowDirection globalForward() const noexcept;
 	AfterglowDirection globalRight() const noexcept;
+	AfterglowDirection globalUp() const noexcept;
 
 
 	void setGlobalTranslation(const AfterglowTranslation& globalTranslation) noexcept;
@@ -84,9 +85,10 @@ INR_CLASS(AfterglowTransformComponent) {
 		INR_FUNC(globalScaling),
 		INR_FUNC(globalTransform),
 		INR_FUNC(globalEuler),
-		INR_FUNC(globalDirection),
-		//INR_FUNC(globalForward),
-		//INR_FUNC(globalRight),
+		INR_FUNC(globalViewDirection),
+		INR_FUNC(globalForward),
+		INR_FUNC(globalRight),
+		INR_FUNC(globalUp),
 		INR_FUNC(setGlobalTranslation),
 		INR_FUNC(setGlobalRotation),
 		INR_FUNC(setGlobalScaling),

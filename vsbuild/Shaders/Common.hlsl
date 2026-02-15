@@ -2,6 +2,7 @@
 #define COMMON_HLSL
 
 #include "Constants.hlsl"
+#include "Chromatics/ACESCommon.hlsl"
 
 template<typename Type>
 Type Snorm(Type unromVal) {
@@ -13,22 +14,58 @@ Type Unorm(Type snormVal) {
 	return snormVal * 0.5 + 0.5;
 }
 
-float3 EncodeNormal(float3 normal) {
+template<typename Type>
+Type EncodeNormal(Type normal) {
 	return Unorm(normal);
 }
 
-float3 DecodeNormal(float3 normal) {
+template<typename Type>
+Type DecodeNormal(Type normal) {
 	return Snorm(normal);
 }
 
+float3 ScaleNormal(float3 normal, float intensity) {
+	return normalize(float3(normal.xy * intensity, normal.z));
+}
+
 float3 ReconstructNormal(float2 normalXY) {
-	return float3(normalXY, sqrt(1.0 - (normalXY.x * normalXY.x + normalXY.y * normalXY.y)));
+	return float3(normalXY, sqrt(max(1.0 - (normalXY.x * normalXY.x + normalXY.y * normalXY.y), 0.0)));
+}
+
+float3 LoadNormalTexture(Texture2D normalTex, SamplerState texSampler, float2 uv) {
+	return DecodeNormal(normalTex.Sample(texSampler, uv).xyz);
+}
+
+float3 LoadNormalTextureFromXY(Texture2D normalTex, SamplerState texSampler, float2 uv) {
+	return ReconstructNormal(DecodeNormal(normalTex.Sample(texSampler, uv).xy));
+}
+
+// Normal TangentSpace -> WorldSpace
+float3 NormalMap(float3 normalTS, float3x3 tbn, bool isFrontFace) {
+	float3 tangent = isFrontFace ? tbn[0] : -tbn[0];
+	return normalTS.x * tangent.xyz + normalTS.y * tbn[1] + normalTS.z * tbn[2];
 }
 
 float3 BlendAngleCorrectedNormals(float3 baseNormal, float3 additionalNormal) {
 	float3 n0 = float3(baseNormal.xy, baseNormal.z + 1.0);
 	float3 n1 = float3(-additionalNormal.xy, additionalNormal.z);
 	return normalize(dot(n0, n1) * n0 - n0.z * n1);
+}
+
+// TODO: Use shared sampler instead.
+float2 MirrorTexCoord(float2 texCoord) {
+	return abs((texCoord - 1.0) % 2.0 - 1.0);
+}
+
+// @return: vector which is projected on the plane.
+float3 ProjectVector(float3 vec, float3 planeNormal) {
+	planeNormal = normalize(planeNormal);
+	return vec - dot(vec, planeNormal) * planeNormal;
+}
+
+// @return: direction(normalized) which is projected on the plane.
+float3 ProjectDirection(float3 vec, float3 planeNormal) {
+	return normalize(vec - dot(vec, planeNormal) * planeNormal);
 }
 
 template<typename Type>
@@ -54,15 +91,22 @@ Type Pow5(Type x) {
 }
 
 template<typename Type>
-Type ClampVectorWithLength(Type v, float len) {
+Type ClampVectorWithLength(Type v, float maxLen) {
 	float sqrLenV = dot(v, v);
 	float invLenV = rsqrt(sqrLenV);
-	return v * min(invLenV * len, 1.0);
+	return v * min(invLenV * maxLen, 1.0);
 }
 
-// TODO: Supports sRGB only, support more colorspaces.
+template<typename Type>
+Type ClampVectorWithLength(Type v, float minLen, float maxLen) {
+	float sqrLenV = dot(v, v);
+	float invLenV = rsqrt(sqrLenV);
+	return v * max(min(invLenV * maxLen, 1.0), invLenV * minLen);
+}
+
+// Rendering working space: AP1 (ACEScg)
 float3 LuminanceFactors() {
-	return float3(0.33, 0.60, 0.06);
+	return AP1ToXYZMat._m10_m11_m12;
 }
 
 float Luminance(float3 linearColor) {

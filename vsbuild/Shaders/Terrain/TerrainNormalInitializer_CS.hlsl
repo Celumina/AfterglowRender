@@ -5,7 +5,7 @@ void main(uint3 threadID : SV_DispatchThreadID) {
 	float2 height = TerrainHeightOut[threadID.xy];
 	float2 heightR = TerrainHeightOut[min(threadID.xy + uint2(1, 0), terrainDataSideElements)];
 	float2 heightT = TerrainHeightOut[min(threadID.xy + uint2(1, 0), terrainDataSideElements)];
-	TerrainNormalOut[threadID.xy] = calculateTerrainNormal(height, heightR, heightT);
+	TerrainNormalOut[threadID.xy] = CalculateTerrainNormal(height, heightR, heightT);
 
 	// Another method:
 	// uint2 indexR = min(threadID.xy + uint2(1, 0), terrainDataSideElements);

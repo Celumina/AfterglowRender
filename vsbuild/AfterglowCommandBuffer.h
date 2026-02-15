@@ -1,8 +1,6 @@
 #pragma once
 #include "AfterglowProxyArray.h"
-#include "AfterglowPipeline.h"
 #include "AfterglowCommandPool.h"
-#include "AfterglowDescriptorSetReferences.h"
 #include "Configurations.h"
 
 // Because we need a continious command buffer array, so never make this class as a proxy object.

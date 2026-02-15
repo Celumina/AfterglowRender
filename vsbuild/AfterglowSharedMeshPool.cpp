@@ -26,13 +26,20 @@ std::vector<AfterglowVertexBufferHandle>& AfterglowMeshReference::vertexBufferHa
 	return _value->vertexBufferHandles;
 }
 
+const model::AABB& AfterglowMeshReference::aabb() const noexcept {
+	return _value->aabb;
+}
+
 // @deprecated: std::unordered_map rehash will not change the element address.
 //const model::AssetInfo& AfterglowMeshReference::assetInfo() const {
 //	return _key;
 //}
 
-AfterglowSharedMeshPool::AfterglowSharedMeshPool(AfterglowCommandPool& commandPool, AfterglowGraphicsQueue& graphicsQueue) : 
-	AfterglowSharedResourcePool(commandPool, graphicsQueue) {
+AfterglowSharedMeshPool::AfterglowSharedMeshPool(
+	AfterglowCommandPool& commandPool, 
+	AfterglowGraphicsQueue& graphicsQueue, 
+	AfterglowSynchronizer& synchronizer) :
+	AfterglowSharedResourcePool(commandPool, graphicsQueue, synchronizer) {
 }
 
 AfterglowMeshReference AfterglowSharedMeshPool::mesh(const model::AssetInfo& assetInfo) {

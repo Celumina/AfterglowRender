@@ -11,10 +11,13 @@ public:
 	void enable();
 	void disable();
 
-	bool enabled() const;
+	bool enabled() const noexcept;
 
 	inline AfterglowEntity& entity();
 	inline const AfterglowEntity& entity() const;
+
+protected:
+	uint8_t _customProperties[7] = {};
 
 private:
 	void setEntity(AfterglowEntity& entity);
@@ -43,7 +46,7 @@ inline void AfterglowComponent<DerivedType>::disable() {
 }
 
 template<typename DerivedType>
-inline bool AfterglowComponent<DerivedType>::enabled() const {
+inline bool AfterglowComponent<DerivedType>::enabled() const  noexcept {
 	return _enabled;
 }
 

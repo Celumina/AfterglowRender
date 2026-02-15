@@ -8,6 +8,7 @@
 #include "AfterglowMaterialResource.h"
 #include "AfterglowMaterialUtilities.h"
 #include "AfterglowComputeTask.h"
+#include "ExceptionUtilities.h"
 
 struct AfterglowMaterialAssetRegistrar::Impl {
 	using UpdateShaderAssetReferencesFunc = void(Impl::*)(const std::string&, const std::string&);
@@ -45,6 +46,7 @@ AfterglowMaterialAssetRegistrar::~AfterglowMaterialAssetRegistrar() {
 }
 
 std::string AfterglowMaterialAssetRegistrar::registerMaterialAsset(const std::string& materialPath) {
+	// TODO: Handle smae mateiral name from different asset.
 	std::string materialName = mat::ErrorMaterialName();
 	try {
 		AfterglowMaterialAsset materialAsset(materialPath);
@@ -270,6 +272,8 @@ void AfterglowMaterialAssetRegistrar::Impl::modifiedShaderAssetCallback(Impl& co
 		auto& material = matLayout->material();
 		auto materialAsset = AfterglowMaterialAsset(material);
 
+		// Make sure pipeline was released before we update it.
+		materialManager.waitGPU();
 		materialManager.safeApplyShaders(*matLayout, materialAsset);
 
 		// When shader changed, only pipeline need to rebuild, resources are same.
@@ -289,7 +293,7 @@ inline void AfterglowMaterialAssetRegistrar::Impl::increaseShaderAssetReference(
 		assetInfo = assetMonitor.registerAsset(AfterglowAssetMonitor::AssetType::Shader, assetPath);
 	}
 	if (!assetInfo) {
-		throw std::runtime_error("[AfterglowMaterialAssetRegistrar] Shader file is not exists.");
+		EXCEPT_CLASS_RUNTIME("Shader file is not exists.");
 	}
 	// Reverse tag and context, due to many material refs are required.
 	assetInfo->tagInfos[materialName] = materialNameTag;

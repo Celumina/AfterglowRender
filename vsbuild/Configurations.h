@@ -48,9 +48,9 @@ namespace cfg {
 	constexpr static uint32_t maxFrameInFlight = 2;
 
 	// This extent size remain for dynamic material.
-	constexpr static uint32_t uniformDescriptorSize = 512;
-	constexpr static uint32_t samplerDescriptorSize = 256;
-	constexpr static uint32_t descriptorSetSize = 512;
+	constexpr static uint32_t uniformDescriptorSize = 1024;
+	constexpr static uint32_t samplerDescriptorSize = 512;
+	constexpr static uint32_t descriptorSetSize = 1024;
 
 	constexpr static Text shaderEntryName = "main";
 	constexpr static Text shaderRootDirectory = "Shaders/";
