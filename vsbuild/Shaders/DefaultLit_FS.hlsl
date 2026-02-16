@@ -62,7 +62,7 @@ FSOutput main(StandardFSInput input) {
 	shadingContext.tangent = tangent;
 	shadingContext.bitangent = bitangent;
 	shadingContext.view = view;
-	shadingContext.subsurfaceColor = baseColor;
+	shadingContext.subsurfaceColor = baseColor.xyz;
 	shadingContext.opacity = subsurfaceOpacity;
 
 	LightingResult lightingResult = SubsurfaceShadingAnisotropic(shadingContext);

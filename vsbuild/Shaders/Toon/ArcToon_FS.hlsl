@@ -20,7 +20,7 @@ FSOutput main(StandardFSInput input) {
 	float3 view = normalize(cameraPosition.xyz - input.worldPosition);
 
 	BxDFContext bxdfContext = (BxDFContext)0;
-	InitBxDFContext(bxdfContext, normal, view, dirLightDirection);
+	InitBxDFContext(bxdfContext, normal, view, dirLightDirection.xyz);
 	bxdfContext.nol = saturate(bxdfContext.nol);
 	bxdfContext.nov = saturate(abs(bxdfContext.nov) + 1e-6);
 	float diffuse = bxdfContext.nol * input.color.x;
@@ -30,13 +30,12 @@ FSOutput main(StandardFSInput input) {
 	float metallic = baseColor.a;
 	float roughness = 0.5;
 
-	half3 specularColor  = ComputeF0(specular, baseColor, metallic);
+	half3 specularColor  = ComputeF0(specular, baseColor.xyz, metallic);
 
 	half3 reflectionVector = reflect(-view, normal);
 	LightingResult envLighting = EnvLighting( 
-		reflectionVector, baseColor, specularColor, bxdfContext.nov, 1.0, metallic
+		reflectionVector, baseColor.xyz, specularColor, bxdfContext.nov, 1.0, metallic
 	);
-	diffuse += envLighting.diffuse;
 
 	float3 ggx = SpecularGGX(bxdfContext, roughness, specularColor);
 	ggx = smoothstep(0.04, 0.05, ggx * ilm.z);
@@ -44,7 +43,7 @@ FSOutput main(StandardFSInput input) {
 
 	float3 finalColor = lerp(sssColor, baseColor, diffuse).xyz;
 	finalColor += ggx;
-
+	finalColor += envLighting.diffuse;
 
 	// Internal lines
 	finalColor *= ilm.w;

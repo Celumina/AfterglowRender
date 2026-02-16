@@ -43,7 +43,7 @@ float DiffuseEnergyLookup(float roughness, float nov) {
 	|
 	|______> nov
 	*/
-	return diffuseEnergyTexture.SampleLevel(diffuseEnergyTextureSampler, float2(nov, roughness), 0);
+	return diffuseEnergyTexture.SampleLevel(diffuseEnergyTextureSampler, float2(nov, roughness), 0).x;
 }
 
 template<typename EnergyType>
