@@ -19,5 +19,5 @@ Additionally, AfterglowRender offers a general-purpose computation development w
 - [Deployment](https://Celumina.github.io/AfterglowRender/C01_Deployment.html)
   - Step-by-step instructions for setting up *AfterglowRender* on your system.
   - Includes prerequisites, dependencies, build processes, and installation steps.
-- [StartGuide](https://Celumina.github.io/AfterglowRender/C02_StartGuide.html)
+- [GettingStarted](https://Celumina.github.io/AfterglowRender/C02_GettingStarted.html)
   - Learn how to operate the  demonstration scene, create entity for material debugging, and declare a custom component to implement specific funtionalities. 
