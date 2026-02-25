@@ -365,9 +365,9 @@ void AfterglowMaterialAsset::parseShaderDeclarations() {
 
 	// Vertex Shader
 	std::string& vertexShaderDeclaration = _impl->shaderDeclarations[shader::Stage::Vertex];
-	// Vertex Shader: global uniform
+	// Vertex Shader: Global uniform
 	vertexShaderDeclaration += globalUniformStructDeclaration;
-	// Vertex Shader: Mesh uniform	
+	// Vertex Shader: Mesh uniform
 	vertexShaderDeclaration += perObjectUniformStructDeclaration;
 	// Vertex Shader: Vertex stage uniform declaration.
 	vertexShaderDeclaration += makeUniformStructDeclaration(
@@ -393,9 +393,11 @@ void AfterglowMaterialAsset::parseShaderDeclarations() {
 	
 	// Fragment Shader
 	std::string& fragmentShaderDeclaration = _impl->shaderDeclarations[shader::Stage::Fragment];
-	// Fragment Shader: global uniform
+	// Fragment Shader: Global uniform
 	fragmentShaderDeclaration += globalUniformStructDeclaration;
-	// Fragment Shader: global textures
+	// Fragment Shader: Mesh uniform
+	fragmentShaderDeclaration += perObjectUniformStructDeclaration;
+	// Fragment Shader: Global textures
 	fragmentShaderDeclaration += makeGlobalCombinedTextureSamplerDeclarations();
 	// Fragment Shader: Fragment stage uniform declaration.
 	fragmentShaderDeclaration += makeUniformStructDeclaration(
@@ -554,7 +556,7 @@ inline void AfterglowMaterialAsset::fillStorageBufferDeclarations(
 			if (nameIndex == declarationNames.size() - 1) {
 				accessMode = ssboInfo.accessMode();
 			}
-			if (ssboInfo.isBuffer() || accessMode != compute::SSBOAccessMode::ReadOnly) {
+			if (ssboInfo.isBuffer() || accessMode != compute::SSBOAccessMode::ReadOnly || !compute::IsSamplableTexture(ssboInfo.textureMode())) {
 				storageBufferDeclaration->declaration += makeStorageBufferDeclaration(
 					util::EnumValue(ssboInfo.stage()),
 					storageBufferDeclaration->BindingEndIndex,
@@ -718,7 +720,7 @@ inline std::string AfterglowMaterialAsset::makeComputeExternalSSBODeclarations(c
 		declarations += makeStorageBufferStructDeclaration(ssboInfo);
 
 		std::string typeName = storageBufferTypeName(ssboInfo);
-		if (ssboInfo.isBuffer()) {
+		if (ssboInfo.isBuffer() || !compute::IsSamplableTexture(ssboInfo.textureMode())) {
 			declarations += makeStorageBufferDeclaration(
 				util::EnumValue(shader::SetIndex::ExternalStorage),
 				index,

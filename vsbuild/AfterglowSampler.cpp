@@ -16,7 +16,17 @@ void AfterglowSampler::setAddressModes(VkSamplerAddressMode mode) noexcept {
 		info().addressModeW = mode;
 	}
 	else {
-		throw runtimeError("Unable to set address mode, due to vkSampler was created. ");
+		throw runtimeError("Unable to set the address modes, due to vkSampler was created. ");
+	}
+}
+
+void AfterglowSampler::setFilters(VkFilter filter) noexcept {
+	if (!isDataExists()) {
+		info().magFilter = filter;
+		info().minFilter = filter;
+	}
+	else {
+		throw runtimeError("Unable to set the sampler filters, due to vkSampler was created. ");
 	}
 }
 

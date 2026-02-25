@@ -60,6 +60,8 @@ namespace compute {
 	enum class SSBOTextureSampleMode : uint16_t {
 		LinearRepeat, 
 		LinearClamp, 
+		NearestRepeat,
+		NearestClamp,
 		// TODO: More sample modes support if it's required.
 
 		EnumCount
@@ -104,6 +106,11 @@ namespace compute {
 
 	std::string HLSLTypeName(SSBOTextureMode textureMode) noexcept;
 	uint32_t TexelByteSize(SSBOTextureMode textureMode) noexcept;
+
+	// @warning: Pay attention to the addition of new enum.
+	constexpr bool IsSamplableTexture(SSBOTextureMode textureMode) noexcept { 
+		return textureMode != SSBOTextureMode::Unused && textureMode != SSBOTextureMode::RGBA8Uint; 
+	}
 
 	struct DispatchGroup {
 		uint32_t x = 1;

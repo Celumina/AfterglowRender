@@ -9,6 +9,7 @@
 #include "AfterglowMaterialInstance.h"
 #include "AfterglowCameraComponent.h"
 #include "AfterglowStaticMeshComponent.h"
+#include "AfterglowComputeComponent.h"
 
 void acl::EntityRotator::update() {
 	auto& transform = *entity().component<AfterglowTransformComponent>();
@@ -30,7 +31,19 @@ void acl::SimpleController::update() {
 	float deltaTime = float(sysUtils().deltaTimeSec());
 
 	AfterglowDirection cameraForward = -transform.globalViewDirection();
-	AfterglowDirection cameraRight = glm::cross(cameraForward, cardinal::Up);
+	AfterglowDirection horizontalForward { cameraForward.x, cameraForward.y, 0.0f };
+	// @note: Normalize to avoid length issues (critical if forward was nearly vertical)
+	if (glm::length(horizontalForward) > 1.0e-4f) {
+		horizontalForward = glm::normalize(horizontalForward);
+	}
+	//else {
+	//	// Fallback: if camera is straight up/down, use world forward (e.g., -Z)
+	//	horizontalForward = cardinal::Forward;
+	//}
+
+	// Calculate camera right using the STABILIZED horizontal forward vector
+	AfterglowDirection cameraRight = glm::normalize(glm::cross(horizontalForward, cardinal::Up));
+	//AfterglowDirection cameraRight = glm::normalize(glm::cross(cameraForward, cardinal::Up));
 	
 	AfterglowTranslation targetMoveVelocity{};
 
@@ -109,7 +122,9 @@ void acl::SimpleController::update() {
 		std::clamp(_rotationAcceleration * deltaTime, 0.0f, 1.0f)
 	);
 	// Apply rotation.
-	transform.setGlobalEuler(transform.globalEuler() + AfterglowEuler{ _currentRotationVelocity.y, 0.0f, _currentRotationVelocity.x } * deltaTime);
+	auto currentEuler = transform.globalEuler() + AfterglowEuler{ _currentRotationVelocity.y, 0.0f, _currentRotationVelocity.x } *deltaTime;
+	currentEuler.x = glm::clamp(currentEuler.x, 1.0_degf, 179.0_degf);
+	transform.setGlobalEuler(currentEuler);
 
 	if (input.pressDown(input::Key::Tab)) {
 		_fpvMode = !_fpvMode;
@@ -251,9 +266,59 @@ void acl::MaterialObjectStateParamUpdater::initializeMaterialParams() {
 		DEBUG_CLASS_ERROR("Material not found, make sure material was created before binding.");
 		return;
 	}
-	// We don't need to write these declarations to asset file manually, benefit by material shader reload asset from memory.
+	// We don't need to write these declarations to asset file manually, thanks to material shader reload asset from memory.
 	material->setVector(shader::Stage::Shared, "objectForward", {});
 	material->setVector(shader::Stage::Shared, "objectRight", {});
 	material->setVector(shader::Stage::Shared, "objectUp", {});
 	sysUtils().submitMaterial(_materialName);
+}
+
+void acl::GreedySnakeSpawner::awake() {
+	_greedySnakeMaterialName = sysUtils().registerMaterialAsset("Assets/Shared/Materials/GreedySnake.mat");
+}
+
+void acl::GreedySnakeSpawner::update() {
+	auto& input = sysUtils().input();
+	if (input.pressDown(input::Key::Num1, input::Modifier::Shift)) {
+		auto& greedySnakeEntity = sysUtils().createEntity(
+			"GreedySnake", 
+			{ util::TypeIndex<AfterglowComputeComponent>(), util::TypeIndex<AfterglowStaticMeshComponent>() },
+			entity()
+		);
+		auto* camera = sysUtils().mainCamera();
+		if (camera) {
+			auto& cameraTransform = camera->entity().get<AfterglowTransformComponent>();
+			auto& greedySnakeTransform = greedySnakeEntity.get<AfterglowTransformComponent>();
+			greedySnakeTransform.setGlobalTranslation(cameraTransform.globalTranslation() + AfterglowTranslation{ 0.0f, 0.0f, -2.0f });
+			greedySnakeTransform.setGlobalEuler({ 0.0_deg, 0.0_deg, cameraTransform.globalEuler().z });
+		}
+		greedySnakeEntity.get<AfterglowComputeComponent>().setComputeMaterial(_greedySnakeMaterialName);
+		auto& greedySnakeBoxMesh = greedySnakeEntity.get<AfterglowStaticMeshComponent>();
+		greedySnakeBoxMesh.setModel("Assets/Shared/Models/Box.fbx");
+		greedySnakeBoxMesh.setMaterial(_greedySnakeMaterialName);
+	}
+
+	if (input.pressDown(input::Key::Escape)) {
+		setMaterialInputParam(static_cast<float>(InputFlag::Reset));
+	}
+	else if (input.pressDown(input::Key::Up)) {
+		setMaterialInputParam(static_cast<float>(InputFlag::Up));
+	}
+	else if (input.pressDown(input::Key::Down)) {
+		setMaterialInputParam(static_cast<float>(InputFlag::Down));
+	}
+	else if (input.pressDown(input::Key::Right)) {
+		setMaterialInputParam(static_cast<float>(InputFlag::Right));
+	}
+	else if (input.pressDown(input::Key::Left)) {
+		setMaterialInputParam(static_cast<float>(InputFlag::Left));
+	}
+}
+
+void acl::GreedySnakeSpawner::setMaterialInputParam(float value) const {
+	auto* matInst = sysUtils().materialInstance(_greedySnakeMaterialName);
+	if (matInst) {
+		matInst->setScalar(shader::Stage::Compute, "input", value);
+		sysUtils().submitMaterialInstance(_greedySnakeMaterialName);
+	}
 }

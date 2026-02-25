@@ -289,7 +289,6 @@ void AfterglowCommandManager::recordCompute(AfterglowMaterialResource& matResour
 	}
 	// Dispatch regular comptue shader.
 	else {
-		// @note for {}
 		auto& info = _impl->computeRecordInfos.emplace_back(
 			&matLayout.computePipeline(),
 			&setRefs,

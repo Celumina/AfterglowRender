@@ -27,7 +27,8 @@ namespace reg {
 		acl::EntityRotator, 
 		acl::SimpleController, 
 		acl::InteractiveTest, 
-		acl::MaterialObjectStateParamUpdater
+		acl::MaterialObjectStateParamUpdater, 
+		acl::GreedySnakeSpawner
 	>;
 
 	template<typename ComponentType>

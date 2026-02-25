@@ -20,7 +20,7 @@ FSOutput main(VSOutput input) {
 
 	// Storage image test.
 	// Texture2D.Load(int3(x, y, miplevel));
-	output.color.rg = lerp(output.color.rg, TestTextureIn.Load(int3(0, 0, 0)).rg, 0.5);
+	// output.color.rg = lerp(output.color.rg, TestTextureIn.Load(int3(0, 0, 0)).rg, 0.5);
 
 	float2 screenUV = input.position.xy * invScreenResolution;
 	float2 distribUV = ((0.1 + input.centerPosition.xy - input.position.xy) / input.transferPointSize) * (1.0 - circleAlpha) * 0.2;

@@ -83,7 +83,7 @@ void AfterglowComputeTask::setDispatchFrequency(compute::DispatchFrequency dispa
 	for (auto& status : _inFlightDispatchStatuses) {
 		if (dispatchFrequency == compute::DispatchFrequency::Once &&
 			status == DispatchStatus::OnceCompleted) {
-			status = DispatchStatus::Initialized;	
+			status = DispatchStatus::Initialized;
 		}
 	}
 	_dispatchFrequency = dispatchFrequency;

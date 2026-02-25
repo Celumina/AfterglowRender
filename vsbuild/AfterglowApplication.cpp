@@ -29,20 +29,6 @@ AfterglowApplication::AfterglowApplication() :
 	std::string standardMaterialName = materialManager.registerMaterialAsset("Assets/Shared/Materials/Standard.mat");
 	std::string ignoreMaterialName = materialManager.registerMaterialAsset("Assets/Shared/Materials/Ignore.mat");
 	std::string skySphereMaterialName = materialManager.registerMaterialAsset("Assets/Shared/Materials/SkySphere.mat");
-	
-	// Create skyshpere
-	auto& skySphere = _system.createEntity<AfterglowStaticMeshComponent>("SkySphere");
-	skySphere.get<AfterglowTransformComponent>().setScaling({0.01f, 0.01f, 0.01f});
-	auto& skySphereMesh = skySphere.get<AfterglowStaticMeshComponent>();
-	skySphereMesh.setModel("Assets/Shared/Models/SkySphere.fbx");
-	skySphereMesh.setProperty(renderable::Property::DynamicCulling, false);
-	skySphereMesh.addImportFlags(model::ImportFlag::IgnoreLighting | model::ImportFlag::IgnoreVertexColor);
-	auto skyMaterialName = materialManager.registerMaterialInstanceAsset(
-		"Assets/Shared/MaterialInstances/DefaultSky.mati"
-	);
-	skySphereMesh.setMaterial(skyMaterialName);
-	// Remind that createEntity may reallocte memory, cause dangling handle, so just do all of these thing in its own slope.
-	// e.g. create skySphere -> get<skySphereMesh> -> create battleMage, now the skySphereMesh& is dangling, require to skySphere->get<...>() again.
 
 	// Create battle mage's static mesh.
 	std::string arcToonMaterialName = materialManager.registerMaterialAsset("Assets/Shared/Materials/ArcToon.mat");
@@ -327,6 +313,22 @@ AfterglowApplication::AfterglowApplication() :
 	ankhaFurMesh.setMaterial(ankhaFurMaterialName);
 	ankhaFurMesh.setInstanceCount(ankhaFurInstanceCount);
 
+	// Greedy Snake Spawner
+	auto& greedySnakeSpawner = _system.createEntity<acl::GreedySnakeSpawner>("GreedySnakeSpawner");
+
+	// Create skyshpere
+	auto& skySphere = _system.createEntity<AfterglowStaticMeshComponent>("SkySphere");
+	skySphere.get<AfterglowTransformComponent>().setScaling({ 0.01f, 0.01f, 0.01f });
+	auto& skySphereMesh = skySphere.get<AfterglowStaticMeshComponent>();
+	skySphereMesh.setModel("Assets/Shared/Models/SkySphere.fbx");
+	skySphereMesh.setProperty(renderable::Property::DynamicCulling, false);
+	skySphereMesh.addImportFlags(model::ImportFlag::IgnoreLighting | model::ImportFlag::IgnoreVertexColor);
+	auto skyMaterialName = materialManager.registerMaterialInstanceAsset(
+		"Assets/Shared/MaterialInstances/DefaultSky.mati"
+	);
+	skySphereMesh.setMaterial(skyMaterialName);
+	// Remind that createEntity may reallocte memory, cause dangling handle, so just do all of these thing in its own slope.
+	// e.g. create skySphere -> get<skySphereMesh> -> create battleMage, now the skySphereMesh& is dangling, require to skySphere->get<...>() again.
 	DEBUG_WARNING("---------------------");
 }
 

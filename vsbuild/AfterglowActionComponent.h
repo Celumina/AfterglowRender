@@ -27,7 +27,7 @@ public:
 	void onRenderBegin();
 
 protected:
-	const AfterglowSystemUtilities& sysUtils();
+	const AfterglowSystemUtilities& sysUtils() const;
 
 private:
 	void bindSystemUtilities(const AfterglowSystemUtilities& sysUtils);
@@ -99,7 +99,7 @@ inline void AfterglowActionComponent<DerivedType>::onRenderBegin() {
 }
 
 template<typename DerivedType>
-inline const AfterglowSystemUtilities& AfterglowActionComponent<DerivedType>::sysUtils() {
+inline const AfterglowSystemUtilities& AfterglowActionComponent<DerivedType>::sysUtils() const {
 	return *_sysUtils;
 }
 

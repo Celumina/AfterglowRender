@@ -345,7 +345,7 @@ void AfterglowMaterialLayout::appendDescriptorSetLayout(shader::Stage stage) {
 				setLayout.appendBinding(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, vulkanStage);
 			}
 			else if (index < numSSBOs - 1) {
-				// ReadOnly image
+				// ReadOnly & Samplable image
 				// For linear interpolation without shared sampler.
 				setLayout.appendBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, vulkanStage);
 			}

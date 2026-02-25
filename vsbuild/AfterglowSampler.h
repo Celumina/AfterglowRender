@@ -8,6 +8,7 @@ public:
 
 	// Set address mode to uvw dimensions.
 	void setAddressModes(VkSamplerAddressMode mode) noexcept;
+	void setFilters(VkFilter filter) noexcept;
 
 proxy_protected:
 	void initCreateInfo();

@@ -168,12 +168,13 @@ fill resource identification str.
 
 ### "textureSampleMode"
 > Enabled only if the textureMode is not "Unsued".
+
 |EnumName|Value|
 |-|-|
 |[Default] LinearRepeat|0|
 |LinearClamp|1|
-
-
+|NearestRepeat|2|
+|NearestClamp|3|
 
 ### "elementLayout"
 	

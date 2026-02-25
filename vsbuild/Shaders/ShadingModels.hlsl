@@ -203,7 +203,7 @@ LightingResult SubsurfaceBxDFAnisotropic(in ShadingContext shadingContext, half3
 	__SUBSURFACE_BXDF_BODY(DefaultLitBxDFAnisotropic)
 }
 
-
+// TODO: Implement a function to accumulate intensity and color of lights (for custom shading models).
 #define __SHADING_BODY(bxdfFunc) \
 	LightingResult lighting = (LightingResult)0; \
 	\

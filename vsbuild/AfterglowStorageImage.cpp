@@ -39,11 +39,23 @@ AfterglowStorageImage::AfterglowStorageImage(
 
 	// Sample modes
 	switch (sampleMode) {
+	case compute::SSBOTextureSampleMode::NearestRepeat: 
+		sampler().setAddressModes(VK_SAMPLER_ADDRESS_MODE_REPEAT);
+		sampler().setFilters(VK_FILTER_NEAREST);
+		sampler()->mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+		break;
+	case compute::SSBOTextureSampleMode::NearestClamp:
+		sampler().setAddressModes(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE);
+		sampler().setFilters(VK_FILTER_NEAREST);
+		sampler()->mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+		break;
 	case compute::SSBOTextureSampleMode::LinearRepeat:
 		sampler().setAddressModes(VK_SAMPLER_ADDRESS_MODE_REPEAT);
+		sampler().setFilters(VK_FILTER_LINEAR);
 		break;
 	case compute::SSBOTextureSampleMode::LinearClamp:
 		sampler().setAddressModes(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE);
+		sampler().setFilters(VK_FILTER_LINEAR);
 		break;
 	default:
 		DEBUG_CLASS_WARNING("Unknown sample mode, the storage image will apply the default sample mode: LinearRepeat.");

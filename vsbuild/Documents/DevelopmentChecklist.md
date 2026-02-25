@@ -28,8 +28,8 @@ IndirectDraw ->
 - [x] Anisotropic BRDF looks bad.
 - [x] windows + up or windows + down will never recreate swapchain framebuffer.
 - [x] Screenshot crash.
-- [ ] Material instance parameter doesn't work for compute shader.
-- [ ] Key signal residual.
+- [x] Material instance parameter doesn't work for compute shader.
+- [ ] Key input residual.
 - [x] TerrainNormal Priority flicking
 - [x] Grass camera movement flicking. // Increase the camera near from 0.1 -> 1.0 for precision.
 - [x] Remain that now the scene scale is too big, due to the ref model (BattleMage) has 100x size.
@@ -39,7 +39,7 @@ IndirectDraw ->
 ## TODO
 - [x] Shared Stage
 - [x] Particle example -> dynamic spawn particle and wind particle
-- [ ] Storage Buffer Checker Box (Material to fetch)
+- [x] Storage Buffer Checker Box (Material visualization)
 
 ## Dev Plans
 ### Core
@@ -129,6 +129,7 @@ IndirectDraw ->
 - Compute Pipeline
 - GPU Driven
 - - [x] GPU Instancing
+  
 
 
 ## Scene
@@ -149,6 +150,7 @@ IndirectDraw ->
 ``` 
     Shader0 -> Shader1 -> ... -> ShaderN (Only the ShaderN RW needs double buffering.)
 ```
+- [ ] Only the first object uses the compute task can be dispatch in multiple object - single compute task scene?
 
 ## GUI
 - [ ] Interactive input types  e.g. slider... these types do not need to apply function manually.

@@ -64,7 +64,12 @@ constexpr long double operator"" _deg(unsigned long long degrees) {
 
 // @return: radians
 constexpr long double operator"" _deg(long double degrees) {
-	return degrees * constant::pi_double / 180.0f;
+	return degrees * constant::pi_double / 180.0;
+};
+
+// @return: radians
+constexpr float operator"" _degf(long double degrees) {
+	return static_cast<float>(degrees) * constant::pi / 180.0f;
 };
 
 constexpr size_t util::Align(size_t value, size_t alignment) noexcept {

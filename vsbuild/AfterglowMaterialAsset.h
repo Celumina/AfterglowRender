@@ -153,7 +153,7 @@ inline std::string AfterglowMaterialAsset::vertexInputStructDeclaration(std::typ
 		return vertexInputStructDeclaration<index + 1>(vertexTypeIndex);
 	}
 	else {
-		EXCEPT_CLASS_RUNTIME("Not suitable vertex type, check type index value is from vertex type and the vertex type is registered.");
+		EXCEPT_CLASS_RUNTIME("Not a suitable vertex type, check if type index value from vertex type and the vertex type was registered.");
 	}
 }
 

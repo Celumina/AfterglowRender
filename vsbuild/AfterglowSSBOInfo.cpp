@@ -83,6 +83,16 @@ void AfterglowSSBOInfo::setTextureDimension(compute::SSBOTextureDimension textur
 }
 
 compute::SSBOTextureSampleMode AfterglowSSBOInfo::textureSampleMode() const noexcept {
+	// Force nearest filter if texture elements are integer.
+	if (!compute::IsSamplableTexture(_textureMode)) {
+		switch (_textureSampleMode) {
+		// TODO: Care about cubic filter enums once they are implemented.
+		case compute::SSBOTextureSampleMode::LinearRepeat:
+			return compute::SSBOTextureSampleMode::NearestRepeat;
+		case compute::SSBOTextureSampleMode::LinearClamp:
+			return compute::SSBOTextureSampleMode::NearestClamp;
+		}
+	}
 	return _textureSampleMode;
 }
 

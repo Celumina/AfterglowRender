@@ -426,6 +426,9 @@ template<reg::RenderableComponentType Type>
 inline bool AfterglowRenderer::Impl::recordDraw(const Type& renderableComponent, const std::string& materialName, uint32_t meshIndex) {
 	
 	auto& meshResource = *renderableComponent.meshResource();
+	//DEBUG_COST_BEGIN("Find DescSetRefs");
+	//materialManager->descriptorSetReferences(materialName, meshResource.meshUniform());
+	//DEBUG_COST_END;
 	auto* setRefs = materialManager->descriptorSetReferences(materialName, meshResource.meshUniform());
 	auto* matResource = materialManager->materialResource(materialName);
 	if (!matResource) {
@@ -548,6 +551,7 @@ void AfterglowRenderer::Impl::updateGlobalUniform() {
 
 	globalUniform.screenAspectRatio = globalUniform.screenResolution.x / globalUniform.screenResolution.y;
 	globalUniform.invScreenAspectRatio = globalUniform.screenResolution.y / globalUniform.screenResolution.x;
+	globalUniform.frameIndex = (*device).currentFrameIndex();
 }
 
 inline void AfterglowRenderer::Impl::updateCamera() {

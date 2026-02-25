@@ -44,7 +44,7 @@ namespace ubo {
 		alignas(4) float cameraFov;
 		alignas(4) float screenAspectRatio; // screenResolution.x / screenResolution.y
 		alignas(4) float invScreenAspectRatio; // screenResolution.y / screenResolution.x
-		alignas(4) float __padding2;
+		alignas(4) float frameIndex;
 	};
 
 	INR_CLASS(GlobalUniform) {
@@ -74,7 +74,8 @@ namespace ubo {
 			INR_ATTR(frustumPlaneF),
 			INR_ATTR(cameraFov), 
 			INR_ATTR(screenAspectRatio), 
-			INR_ATTR(invScreenAspectRatio)
+			INR_ATTR(invScreenAspectRatio), 
+			INR_ATTR(frameIndex)
 		);
 	};
 
@@ -84,24 +85,20 @@ namespace ubo {
 		// Row-major matrices
 		alignas(16) glm::mat4 model;			// Model to World maxtrix
 		alignas(16) glm::mat4 invTransModel; // model.inverse().transpose()
+		alignas(4) glm::vec3 minAABB; // Object space AABB
 		alignas(4) uint32_t objectID;
-		alignas(4) uint32_t indexCount; 
-		alignas(4) float __padding0;
-		alignas(4) float __padding1;
-		alignas(16) glm::vec3 minAABB; // Object space AABB
-		alignas(16) glm::vec3 maxAABB; // Object space AABB
+		alignas(4) glm::vec3 maxAABB; // Object space AABB
+		alignas(4) uint32_t indexCount;
 	};
 
 	INR_CLASS(MeshUniform) {
 		INR_ATTRS (
 			INR_ATTR(model), 
 			INR_ATTR(invTransModel), 
-			INR_ATTR(objectID), 
-			INR_ATTR(indexCount), 
-			INR_ATTR(__padding0), 
-			INR_ATTR(__padding1), 
 			INR_ATTR(minAABB), 
-			INR_ATTR(maxAABB)
+			INR_ATTR(objectID),
+			INR_ATTR(maxAABB), 
+			INR_ATTR(indexCount)
 		);
 	};
 

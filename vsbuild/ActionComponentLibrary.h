@@ -9,6 +9,7 @@ namespace acl {
 	class SimpleController;
 	class InteractiveTest; 
 	class MaterialObjectStateParamUpdater;
+	class GreedySnakeSpawner;
 };
 
 
@@ -141,4 +142,28 @@ INR_CLASS(acl::MaterialObjectStateParamUpdater) {
 		INR_FUNC(bindMaterial), 
 		INR_FUNC(bindMaterialInstance)
 	);
+};
+
+class acl::GreedySnakeSpawner : public AfterglowActionComponent<acl::GreedySnakeSpawner> {
+public:
+	enum InputFlag {
+		None = 0, 
+		Reset = 1, 
+		Up = 2, 
+		Down = 3, 
+		Right = 4, 
+		Left = 5
+	};
+
+	void awake();
+	void update();
+
+private:
+	void setMaterialInputParam(float value) const;
+
+	std::string _greedySnakeMaterialName;
+};
+
+INR_CLASS(acl::GreedySnakeSpawner) {
+	INR_BASE_CLASSES<AfterglowActionComponent<acl::GreedySnakeSpawner>>;
 };

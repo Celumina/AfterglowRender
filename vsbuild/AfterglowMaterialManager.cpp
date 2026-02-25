@@ -51,13 +51,14 @@ struct AfterglowMaterialManager::Impl {
 	};
 
 	// One material instance support multi objects.
-	using PerObjectSetContextArray = std::vector<PerObjectSetContext>;
-	using MaterialPerObjectSetContexts = std::unordered_map<AfterglowMaterialResource*, PerObjectSetContextArray>;
+	// TODO: Here refs from container are DANGEROUS due to PerObjectSetContextArray use std::vector.
+	// <ObjectID, SetContext>
+	using PerObjectSetContexts = std::unordered_map<uint32_t, PerObjectSetContext>;
+	using MaterialPerObjectSetContexts = std::unordered_map<AfterglowMaterialResource*, PerObjectSetContexts>;
 
 	using DatedMaterialLayouts = std::unordered_set<AfterglowMaterialLayout*>;
 	using DatedMaterialResources = std::array<std::unordered_map<AfterglowMaterialResource*, MaterialResourceUpdateFlag>, cfg::maxFrameInFlight>;
-	// TODO: Here refs from container are DANGEROUS due to PerObjectSetContextArray use std::vector.
-	using DatedPerObjectSetContexts = std::unordered_map<AfterglowMaterialResource*, PerObjectSetContextArray*>;
+	using DatedPerObjectSetContexts = std::unordered_map<AfterglowMaterialResource*, PerObjectSetContexts*>;
 
 	// ComputeTask external ssbo context
 	struct ComputeExternalSSBOContext {
@@ -95,7 +96,7 @@ struct AfterglowMaterialManager::Impl {
 
 	inline void applyMaterialLayout(AfterglowMaterialLayout& matLayout);
 	inline void applyMaterialResource(AfterglowMaterialResource& matResource, MaterialResourceUpdateFlag updateFlag, uint32_t frameIndex);
-	inline void applyPerObjectGlobalSetContext(AfterglowMaterialResource& matResource, PerObjectSetContextArray& perObjectSetContexts, uint32_t frameIndex);
+	inline void applyPerObjectGlobalSetContext(AfterglowMaterialResource& matResource, PerObjectSetContexts& perObjectSetContexts, uint32_t frameIndex);
 	inline void applyGlobalUniformSet(uint32_t frameIndex);
 
 	inline void applyPassImageSets(AfterglowPassInterface& pass, img::ImageReferences& passImages, uint32_t frameIndex);
@@ -103,7 +104,7 @@ struct AfterglowMaterialManager::Impl {
 
 	inline void appendGlobalSetTextureResource(shader::GlobalSetBindingIndex textureBindingIndex);
 
-	inline PerObjectSetContextArray* perObjectSetContexts(AfterglowMaterialResource* matResource);
+	inline PerObjectSetContexts* perObjectSetContexts(AfterglowMaterialResource* matResource);
 
 	// @brief: If current layout is compute task, append it and its associated context as dated.
 	inline void appendDatedComputeExternalSSBOContext(AfterglowMaterialLayout& matLayout);
@@ -143,7 +144,7 @@ struct AfterglowMaterialManager::Impl {
 	DatedMaterialLayouts datedMaterialLayouts;
 	DatedMaterialResources datedMaterialResources;
 	DatedPerObjectSetContexts datedPerObjectSetContexts;
-	std::vector<PerObjectSetContextArray*> perObjectSetContextRemovingCache;
+	std::vector<PerObjectSetContexts*> perObjectSetContextRemovingCache;
 	std::vector<std::string> materialRemovingCache;
 	std::vector<std::string> materialInstanceRemovingCache;
 
@@ -177,7 +178,7 @@ AfterglowMaterialManager::Impl::Impl(
 	//initGlobalDescriptorSets();
 
 	// Initialize PerOjbect set binding[0] : mesh uniform
-	// All stage support, hardcoded yet.
+	// All stages are supported, hardcoded yet.
 	(*perObjectDescriptorSetLayout).appendBinding(
 		VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
 		VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT
@@ -379,20 +380,20 @@ inline void AfterglowMaterialManager::Impl::applyMaterialResource(AfterglowMater
 	// Update perObject set material changed flag.
 	auto objectSetIterator = materialPerObjectSetContexts.find(&matResource);
 	if (objectSetIterator != materialPerObjectSetContexts.end()) {
-		for (auto& setContext : objectSetIterator->second) {
+		for (auto& [id, setContext] : objectSetIterator->second) {
 			setContext.inFlightMaterialChangedFlags[frameIndex] = true;
 		}
 	}
 }
 
-inline void AfterglowMaterialManager::Impl::applyPerObjectGlobalSetContext(AfterglowMaterialResource& matResource, PerObjectSetContextArray& perObjectSetContexts, uint32_t frameIndex) {
+inline void AfterglowMaterialManager::Impl::applyPerObjectGlobalSetContext(AfterglowMaterialResource& matResource, PerObjectSetContexts& perObjectSetContexts, uint32_t frameIndex) {
 	/*uint32_t frameIndex = manager.device().currentFrameIndex();*/
 	auto& matResourceSets = matResource.inFlightDescriptorSets()[frameIndex];
 	auto& matLayout = matResource.materialLayout();
 
 	bool inactivatedExists = false;
 	// Many objects using same material instance.
-	for (auto& perObjectSetContext : perObjectSetContexts) {
+	for (auto& [id, perObjectSetContext] : perObjectSetContexts) {
 		// Initialize set.
 		auto& sets = perObjectSetContext.inFlightSets[frameIndex];
 		auto& buffer = perObjectSetContext.inFlightUniformBuffers[frameIndex];
@@ -574,7 +575,7 @@ inline void AfterglowMaterialManager::Impl::appendGlobalSetTextureResource(shade
 	}
 }
 
-inline AfterglowMaterialManager::Impl::PerObjectSetContextArray* AfterglowMaterialManager::Impl::perObjectSetContexts(AfterglowMaterialResource* matResource) {
+inline AfterglowMaterialManager::Impl::PerObjectSetContexts* AfterglowMaterialManager::Impl::perObjectSetContexts(AfterglowMaterialResource* matResource) {
 	auto perObjectSetIterator = materialPerObjectSetContexts.find(matResource);
 	if (perObjectSetIterator == materialPerObjectSetContexts.end()) {
 		DEBUG_CLASS_WARNING("Have not SetContext was created from this material resource.");
@@ -707,8 +708,8 @@ inline bool AfterglowMaterialManager::Impl::submitMaterialInstanceWithoutLock(co
 
 inline void AfterglowMaterialManager::Impl::markAsDated(AfterglowMaterialResource& matResource, MaterialResourceUpdateFlag flag) {
 	for (uint32_t frameIndex = 0; frameIndex < cfg::maxFrameInFlight; ++frameIndex) {
-		auto [iterator, inserted] = datedMaterialResources[frameIndex].try_emplace(&matResource);
-		if (inserted) { // New one inserted case
+		auto [iterator, isNewElement] = datedMaterialResources[frameIndex].try_emplace(&matResource);
+		if (isNewElement) { // New one inserted case
 			iterator->second = flag;
 		}
 		else { // Element existed case
@@ -950,21 +951,16 @@ bool AfterglowMaterialManager::submitMeshUniform(const std::string& materialInst
 	auto& materialResource = matResourceIterator->second;
 	auto& perObjectSetContexts = _impl->materialPerObjectSetContexts[&materialResource];
 
-	bool contextExists = false;
-	for (auto& perObjectSetContext : perObjectSetContexts) {
-		if (perObjectSetContext.meshUniform->objectID == meshUniform.objectID) {
-			perObjectSetContext.meshUniform = &meshUniform;
-			perObjectSetContext.activated = true;
-			contextExists = true;
-			break;
-		}
-	}
-	if (!contextExists) {
-		auto& perObjectSetContext = perObjectSetContexts.emplace_back();
+	// TODO: Here meshUniform.objectID uses uint32_t is dangerous.
+	auto [contextIterator, isNewContextElement] = perObjectSetContexts.try_emplace(meshUniform.objectID);
+	auto& perObjectSetContext = contextIterator->second;
+	if (isNewContextElement) {
 		perObjectSetContext.meshUniform = &meshUniform;
-		perObjectSetContext.activated = true;
-		contextExists = true;
 	}
+	else {
+		perObjectSetContext.meshUniform = &meshUniform;
+	}
+	perObjectSetContext.activated = true;
 
 	_impl->datedPerObjectSetContexts[&materialResource] = &perObjectSetContexts;
 	return true;
@@ -1057,33 +1053,32 @@ AfterglowDescriptorSetReferences* AfterglowMaterialManager::descriptorSetReferen
 	if (!setContexts) {
 		return nullptr;
 	}
-	for (auto& setContext : *setContexts) {
-		//if (setContext.meshUniform == &meshUniform) {
-		if (setContext.meshUniform->objectID == meshUniform.objectID) {
-			// uint32_t frameIndex = device().currentFrameIndex();
-			/**
-			* @note:
-			* Here we use lastFrameIndex due to the draw execution order:
-			* func Draw:
-			*	-- frame 0 --
-			*	...;
-			*	materialManager.update();
-			*	prepareNextFrameContext(); // Here seperating old frameIndex and new frameIndex
-			*	-- frame 1 --
-			*	...;
-			*	auto& setRefs = descriptorSetReferences(); 
-			* 
-			* @see: 
-			*	AfterglowRenderer::Impl::draw();
-			*/
-			uint32_t frameIndex = device().lastFrameIndex();
-			auto& setRefs = setContext.inFlightSetReferences[frameIndex];
-			_impl->applyComputeExternalSSBOSetReference(matResource->materialLayout(), setRefs, frameIndex);
-			return &setRefs;
-		}
+	auto setContextIterator = setContexts->find(meshUniform.objectID);
+	if (setContextIterator == setContexts->end()) {
+		DEBUG_CLASS_WARNING("SetReferences was not found from this material instance: " + materialInstanceName);
+		return nullptr;
 	}
-	DEBUG_CLASS_WARNING("SetReferences was not found from this material instance: " + materialInstanceName);
-	return nullptr;
+
+	// uint32_t frameIndex = device().currentFrameIndex();
+	/**
+	* @note:
+	* Here we use lastFrameIndex due to the draw execution order:
+	* func Draw:
+	*	-- frame 0 --
+	*	...;
+	*	materialManager.update();
+	*	prepareNextFrameContext(); // Here seperating old frameIndex and new frameIndex
+	*	-- frame 1 --
+	*	...;
+	*	auto& setRefs = descriptorSetReferences();
+	*
+	* @see:
+	*	AfterglowRenderer::Impl::draw();
+	*/
+	uint32_t frameIndex = device().lastFrameIndex();
+	auto& setRefs = setContextIterator->second.inFlightSetReferences[frameIndex];
+	_impl->applyComputeExternalSSBOSetReference(matResource->materialLayout(), setRefs, frameIndex);
+	return &setRefs;
 }
 
 void AfterglowMaterialManager::applyShaders(AfterglowMaterialLayout& matLayout, const AfterglowMaterialAsset& matAsset, bool useGlobalResources) {

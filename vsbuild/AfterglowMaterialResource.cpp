@@ -354,10 +354,13 @@ inline void AfterglowMaterialResource::synchronizeStorageBuffers() {
 		AfterglowStagingBuffer stagingBuffer(device(), initializer.data(), initializer.byteSize());
 		for (auto& ssboResource : frameSSBOResources) {
 			if (ssboInfo.isBuffer()) {
+				// @note: Clear another type buffer to avoid data residue.
+				ssboResource.image.reset();
 				ssboResource.buffer.recreate(device(), initializer.data(), initializer.byteSize(), ssboInfo.usage());
 				(*ssboResource.buffer).submit(_texturePool.commandPool(), _texturePool.graphicsQueue(), stagingBuffer);
 			}
 			else {
+				ssboResource.buffer.reset();
 				ssboResource.image.recreate(
 					device(), 
 					computeTextureExtent(ssboInfo), 
