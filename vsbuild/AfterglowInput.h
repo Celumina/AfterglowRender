@@ -259,7 +259,7 @@ constexpr AfterglowInput::Modifier& operator|= (AfterglowInput::Modifier& left, 
 
 constexpr AfterglowInput::Modifier& operator&= (AfterglowInput::Modifier& left, AfterglowInput::Modifier right) {
 	left = left & right;
-	return right;
+	return left;
 }
 
 template<typename EnumType>

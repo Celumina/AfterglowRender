@@ -185,7 +185,10 @@ void acl::InteractiveTest::update() {
 		);
 	}
 	
-	if (input.pressDown(input::Key::H, input::Modifier::Control | input::Modifier::Shift)) {
+	// Multiple modifiers and destroy entity test
+	auto destoryModifier = input::Modifier::Control | input::Modifier::Shift | input::Modifier::Alt;
+	destoryModifier &= input::Modifier::Shift | input::Modifier::Control;
+	if (input.pressDown(input::Key::H, destoryModifier)) {
 		sysUtils().unregisterMaterialAsset(
 			"Assets/Shared/Materials/BoidInstancing.mat"
 		);
