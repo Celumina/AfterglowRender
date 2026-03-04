@@ -2,7 +2,6 @@
 
 #include <codecvt>
 
-// Damn it, my cross platform!!!
 #include "AfterglowDxcIncludeHandler.h"
 #include <wrl\implements.h>
 

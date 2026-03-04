@@ -60,7 +60,7 @@ class shape::NDCRectangle : public AfterglowShape<vert::VertexPT0> {
 public:
 	NDCRectangle(AfterglowCommandPool& commandPool, AfterglowGraphicsQueue& graphicsQueue);
 	// Polynormial desctruction test.
-	~NDCRectangle() {DEBUG_CLASS_INFO("Shape was destructed."); };
+	~NDCRectangle() { DEBUG_CLASS_INFO("Shape was destructed."); }
 };
 
 

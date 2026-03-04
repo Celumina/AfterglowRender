@@ -4,19 +4,19 @@
 #include <wrl/client.h>
 
 // Windows only.
-class AfterglowDxcIncludeHandler :public IDxcIncludeHandler {
+class AfterglowDxcIncludeHandler : public IDxcIncludeHandler {
 public:
-    // IUnknown
-    STDMETHODIMP QueryInterface(REFIID riid, void** ppvObject) override;
+	// IUnknown
+	STDMETHODIMP QueryInterface(REFIID riid, void** ppvObject) override;
 
-    STDMETHODIMP_(ULONG) AddRef() override;
+	STDMETHODIMP_(ULONG) AddRef() override;
 
-    STDMETHODIMP_(ULONG) Release() override;
+	STDMETHODIMP_(ULONG) Release() override;
 
-    // IDxcIncludeHandler
-    STDMETHODIMP LoadSource(LPCWSTR pFilename, IDxcBlob** ppIncludeSource) override;
+	// IDxcIncludeHandler
+	STDMETHODIMP LoadSource(LPCWSTR pFilename, IDxcBlob** ppIncludeSource) override;
 
 private:
-    ULONG _refCount = 1;
+	ULONG _refCount = 1;
 };
 
