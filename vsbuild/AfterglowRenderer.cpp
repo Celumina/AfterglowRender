@@ -399,14 +399,14 @@ void AfterglowRenderer::Impl::recordDispatches() {
 			continue;
 		}
 		const auto& materialName = computeComponent.computeMaterialName();
-		const auto* materialInstance = materialManager->materialInstance(materialName);
+		const auto* materialInstance = materialManager->unsafeMaterialInstance(materialName);
 		const AfterglowMaterial* material = nullptr;
 		if (materialInstance) {
 			material = &materialInstance->parentMaterial();
 		}
 		else {
 			// ComputeTask from .mat directly.
-			material = materialManager->material(materialName);
+			material = materialManager->unsafeMaterial(materialName);
 		}
 
 		if (!material || !material->hasComputeTask()) {
@@ -424,7 +424,6 @@ void AfterglowRenderer::Impl::recordDispatches() {
 
 template<reg::RenderableComponentType Type>
 inline bool AfterglowRenderer::Impl::recordDraw(const Type& renderableComponent, const std::string& materialName, uint32_t meshIndex) {
-	
 	auto& meshResource = *renderableComponent.meshResource();
 	//DEBUG_COST_BEGIN("Find DescSetRefs");
 	//materialManager->descriptorSetReferences(materialName, meshResource.meshUniform());
@@ -442,10 +441,10 @@ inline bool AfterglowRenderer::Impl::recordDraw(const Type& renderableComponent,
 
 	uint32_t instanceCount = renderableComponent.instanceCount();
 	AfterglowStorageBuffer* indirectBuffer = nullptr;
-	auto& material = matResource->materialLayout().material();
-	if (material.hasComputeTask()) {
+	auto* material = matResource->materialLayout().unsafeMaterial();
+	if (material->hasComputeTask()) {
 		// Compute instance count first if it's not default.
-		uint32_t computeInstanceCount = material.computeTask().instanceCount();
+		uint32_t computeInstanceCount = material->computeTask().instanceCount();
 		if (computeInstanceCount != 1) {
 			instanceCount = computeInstanceCount;
 		}
@@ -478,7 +477,7 @@ inline bool AfterglowRenderer::Impl::recordComputeDraw(const std::string& materi
 		DEBUG_CLASS_ERROR("Compute material setReferences were not found: " + materialName + "\n");
 		return false;
 	}
-	auto& computeTask = matResource->materialLayout().material().computeTask();
+	auto& computeTask = matResource->materialLayout().unsafeMaterial()->computeTask();
 	// SSBO mesh with index buffer support
 	commandManager->recordDraw(
 		*matResource,
@@ -501,7 +500,7 @@ inline void AfterglowRenderer::Impl::recordDispatch(const std::string& materialN
 	}
 	auto* matResource = materialManager->materialResource(materialName);
 
-	auto& computeTask = matResource->materialLayout().material().computeTask();
+	auto& computeTask = matResource->materialLayout().unsafeMaterial()->computeTask();
 	auto frameIndex = (*device).currentFrameIndex();
 	if (computeTask.queryDispatchable(frameIndex)) {
 		commandManager->recordCompute(*matResource, *setRefs);
@@ -534,7 +533,7 @@ void AfterglowRenderer::Impl::updateGlobalUniform() {
 			diectionalLight->intensity()
 		);
 		auto& directionalLightTransform = diectionalLight->entity().get<AfterglowTransformComponent>();
-		globalUniform.dirLightDirection = glm::vec4(directionalLightTransform.globalViewDirection(), diectionalLight->intensity());
+		globalUniform.dirLightDirection = glm::vec4(directionalLightTransform.globalViewDirection(), 0.0f);
 	}
 
 	globalUniform.screenResolution = glm::vec2((*swapchain).extent().width, (*swapchain).extent().height);

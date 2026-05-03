@@ -59,7 +59,7 @@ public:
 	* @param materialAsset [optional]: For existing material to reapply shaders;
 	* @thread_safety
 	*/
-	AfterglowMaterial& createMaterial(
+	std::weak_ptr<AfterglowMaterial> createMaterial(
 		const std::string& name, 
 		util::OptionalRef<AfterglowMaterial> sourceMaterial = std::nullopt, 
 		util::OptionalRef<AfterglowMaterialAsset> materialAsset = std::nullopt
@@ -71,7 +71,7 @@ public:
 	* @return: Material Insrtance handle;
 	* @thread_safety
 	*/
-	AfterglowMaterialInstance& createMaterialInstance(const std::string& name, const std::string& parentMaterialName);
+	std::weak_ptr<AfterglowMaterialInstance> createMaterialInstance(const std::string& name, const std::string& parentMaterialName);
 
 	/**
 	* @brief: Remove material and its instances.
@@ -86,16 +86,20 @@ public:
 	void removeMaterialInstance(const std::string& name);
 
 	// @return: Material handle;
-	AfterglowMaterial* material(const std::string& name);
-	// @return: Parent material from material instance name.
-	AfterglowMaterial* findMaterialByInstanceName(const std::string& name);
+	std::weak_ptr<AfterglowMaterial> material(const std::string& name);
+	AfterglowMaterial* unsafeMaterial(const std::string& name);
 
+	// @return: Parent material from material instance name.
+	std::weak_ptr<AfterglowMaterial> findMaterialByInstanceName(const std::string& name);
+
+	// TODO: Replace raw pointer to weak_ptr to prevent dangling pointer form different threads.
 	// @return: MaterialLayout handle;
 	AfterglowMaterialLayout* materialLayout(const std::string& name);
 	const AfterglowMaterialLayout* materialLayout(const std::string& name) const;
 
 	// @return: MaterialInstance handle;
-	AfterglowMaterialInstance* materialInstance(const std::string& name);
+	std::weak_ptr<AfterglowMaterialInstance> materialInstance(const std::string& name);
+	AfterglowMaterialInstance* unsafeMaterialInstance(const std::string& name);
 
 	// @return: MaterialResource handle;
 	AfterglowMaterialResource* materialResource(const std::string& name);

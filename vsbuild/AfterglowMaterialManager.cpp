@@ -79,7 +79,7 @@ struct AfterglowMaterialManager::Impl {
 		AfterglowSynchronizer& inSynchronizer
 	);
 
-	inline AfterglowMaterialInstance& createMaterialInstanceWithoutLock(const std::string& name, const std::string& parentMaterialName);
+	inline std::weak_ptr<AfterglowMaterialInstance> createMaterialInstanceWithoutLock(const std::string& name, const std::string& parentMaterialName);
 	inline bool removeMaterialInstanceWithoutLock(const std::string& name);
 	// @brief: Actual remove material implementation.
 	inline bool removeMaterialWithoutLock(const std::string& name);
@@ -185,7 +185,7 @@ AfterglowMaterialManager::Impl::Impl(
 	);
 }
 
-inline AfterglowMaterialInstance& AfterglowMaterialManager::Impl::createMaterialInstanceWithoutLock(const std::string& name, const std::string& parentMaterialName) {
+inline std::weak_ptr<AfterglowMaterialInstance> AfterglowMaterialManager::Impl::createMaterialInstanceWithoutLock(const std::string& name, const std::string& parentMaterialName) {
 	AfterglowMaterialLayout* matLayout = nullptr;
 	AfterglowMaterialResource* matResource = nullptr;
 	if (materialLayouts.find(parentMaterialName) == materialLayouts.end()) {
@@ -585,8 +585,8 @@ inline AfterglowMaterialManager::Impl::PerObjectSetContexts* AfterglowMaterialMa
 }
 
 inline void AfterglowMaterialManager::Impl::appendDatedComputeExternalSSBOContext(AfterglowMaterialLayout& matLayout) {
-	const auto& material = matLayout.material();
-	if (!material.hasComputeTask()) {
+	auto material = matLayout.material().lock();
+	if (!material->hasComputeTask()) {
 		return;
 	}
 
@@ -614,8 +614,8 @@ inline void AfterglowMaterialManager::Impl::applyComputeExternalSSBOContext(Afte
 	context.associatedMaterialResources.clear();
 	context.associatedSSBOInfos.clear();
 
-	const auto& material = matLayout.material();
-	const auto& externalSSBOs = material.computeTask().externalSSBOs();
+	auto material = matLayout.material().lock();
+	const auto& externalSSBOs = material->computeTask().externalSSBOs();
 
 	context.setLayout.recreate(manager.device());
 	for (const auto& [externalMaterialName, externalSSBOName] : externalSSBOs) {
@@ -624,12 +624,12 @@ inline void AfterglowMaterialManager::Impl::applyComputeExternalSSBOContext(Afte
 			continue;
 		}
 		auto& externalMatResource = externalMatResourceIterator->second;
-		const auto& externalMaterial = externalMatResource.materialLayout().material();
-		if (!externalMaterial.hasComputeTask()) {
+		auto externalMaterial = externalMatResource.materialLayout().material().lock();
+		if (!externalMaterial->hasComputeTask()) {
 			DEBUG_CLASS_WARNING(std::format("External material does not have a compute task: {}", externalMaterialName));
 			continue;	
 		}
-		const auto& externalComputeTask = externalMaterial.computeTask();
+		const auto& externalComputeTask = externalMaterial->computeTask();
 		const auto* externalSSBOInfo = externalComputeTask.findSSBOInfo(externalSSBOName);
 		if (!externalSSBOInfo) {
 			DEBUG_CLASS_WARNING(std::format("External ssbo is not exists: {}", externalSSBOName));
@@ -674,7 +674,7 @@ inline void AfterglowMaterialManager::Impl::applyComputeExternalSSBOContext(Afte
 		}
 	}
 
-	AfterglowMaterialAsset matAsset(matLayout.material());
+	AfterglowMaterialAsset matAsset(*material);
 	matLayout.activateComputeExternalSSBOSetLayout(context.setLayout);
 	// TODO: Initializer compute shader use external ssbo support?
 	manager.safeApplyShaders(matLayout, matAsset);
@@ -682,7 +682,8 @@ inline void AfterglowMaterialManager::Impl::applyComputeExternalSSBOContext(Afte
 }
 
 inline void AfterglowMaterialManager::Impl::applyComputeExternalSSBOSetReference(AfterglowMaterialLayout& matLayout, AfterglowDescriptorSetReferences& setRefs, uint32_t frameIndex) {
-	if (!matLayout.material().hasComputeTask() || matLayout.material().computeTask().externalSSBOs().empty()) {
+	auto* material = matLayout.unsafeMaterial();
+	if (!material->hasComputeTask() || material->computeTask().externalSSBOs().empty()) {
 		return;
 	}
 	// Shared storage set ref.
@@ -815,7 +816,7 @@ void AfterglowMaterialManager::unregisterMaterialInstanceAsset(const std::string
 	_impl->assetRegistrar.unregisterMaterialInstanceAsset(materialInstancePath);
 }
 
-AfterglowMaterial& AfterglowMaterialManager::createMaterial(
+std::weak_ptr<AfterglowMaterial> AfterglowMaterialManager::createMaterial(
 	const std::string& name, 
 	util::OptionalRef<AfterglowMaterial> sourceMaterial,
 	util::OptionalRef<AfterglowMaterialAsset> materialAsset) {
@@ -845,7 +846,7 @@ AfterglowMaterial& AfterglowMaterialManager::createMaterial(
 	return matLayout->material();
 }
 
-AfterglowMaterialInstance& AfterglowMaterialManager::createMaterialInstance(const std::string& name, const std::string& parentMaterialName) {
+std::weak_ptr<AfterglowMaterialInstance> AfterglowMaterialManager::createMaterialInstance(const std::string& name, const std::string& parentMaterialName) {
 	LockGuard lockGuard{ _mutex };
 	return _impl->createMaterialInstanceWithoutLock(name, parentMaterialName);
 }
@@ -860,22 +861,31 @@ void AfterglowMaterialManager::removeMaterialInstance(const std::string& name) {
 	_impl->materialInstanceRemovingCache.push_back(name);
 }
 
-AfterglowMaterial* AfterglowMaterialManager::material(const std::string& name) {
+std::weak_ptr<AfterglowMaterial> AfterglowMaterialManager::material(const std::string& name) {
 	auto& matLayouts = _impl->materialLayouts;
 	auto iterator = matLayouts.find(name);
 	if (iterator != matLayouts.end()) {
-		return &iterator->second.material();
+		return iterator->second.material();
+	}
+	return {};
+}
+
+AfterglowMaterial* AfterglowMaterialManager::unsafeMaterial(const std::string& name) {
+	auto& matLayouts = _impl->materialLayouts;
+	auto iterator = matLayouts.find(name);
+	if (iterator != matLayouts.end()) {
+		return iterator->second.unsafeMaterial();
 	}
 	return nullptr;
 }
 
-AfterglowMaterial* AfterglowMaterialManager::findMaterialByInstanceName(const std::string& name) {
+std::weak_ptr<AfterglowMaterial> AfterglowMaterialManager::findMaterialByInstanceName(const std::string& name) {
 	auto& matResources = _impl->materialResources;
 	auto iterator = matResources.find(name);
 	if (iterator != matResources.end()) {
-		return &iterator->second.materialLayout().material();
+		return iterator->second.materialLayout().material();
 	}
-	return nullptr;
+	return {};
 }
 
 AfterglowMaterialLayout* AfterglowMaterialManager::materialLayout(const std::string& name) {
@@ -892,11 +902,20 @@ const AfterglowMaterialLayout* AfterglowMaterialManager::materialLayout(const st
 	return const_cast<AfterglowMaterialManager*>(this)->materialLayout(name);
 }
 
-AfterglowMaterialInstance* AfterglowMaterialManager::materialInstance(const std::string& name) {
+std::weak_ptr<AfterglowMaterialInstance> AfterglowMaterialManager::materialInstance(const std::string& name) {
 	auto& matResources = _impl->materialResources;
 	auto iterator = matResources.find(name);
 	if (iterator != matResources.end()) {
-		return &iterator->second.materialInstance();
+		return iterator->second.materialInstance();
+	}
+	return {};
+}
+
+AfterglowMaterialInstance* AfterglowMaterialManager::unsafeMaterialInstance(const std::string& name) {
+	auto& matResources = _impl->materialResources;
+	auto iterator = matResources.find(name);
+	if (iterator != matResources.end()) {
+		return iterator->second.unsafeMaterialInstance();
 	}
 	return nullptr;
 }
@@ -1090,8 +1109,8 @@ void AfterglowMaterialManager::applyShaders(AfterglowMaterialLayout& matLayout, 
 		? _impl->computeExternalSSBOContexts[&matLayout].associatedSSBOInfos
 		: util::OptionalRef<AfterglowComputeTask::SSBOInfoRefs>(std::nullopt);
 
-	auto& material = matLayout.material();
-	if (!material.hasComputeTask() || !material.computeTask().isComputeOnly()) {
+	auto material = matLayout.material().lock();
+	if (!material->hasComputeTask() || !material->computeTask().isComputeOnly()) {
 		matLayout.compileVertexShader(matAsset.generateShaderCode(
 			shader::Stage::Vertex, pass, associatedSSBOInfos
 		));
@@ -1100,7 +1119,7 @@ void AfterglowMaterialManager::applyShaders(AfterglowMaterialLayout& matLayout, 
 		));
 	}
 
-	if (material.hasComputeTask()) {
+	if (material->hasComputeTask()) {
 		matLayout.compileComputeShader(matAsset.generateShaderCode(
 			shader::Stage::Compute, pass, associatedSSBOInfos
 		));

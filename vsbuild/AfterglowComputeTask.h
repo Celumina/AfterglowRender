@@ -33,8 +33,6 @@ public:
 	};
 	using ExternalSSBOs = std::vector<ExternalSSBO>;
 
-	// SSBOInfos& ssboInfos();
-
 	/**
 	* @brief: Append a ssboInfo into the compute task.
 	* @desc: 
@@ -66,7 +64,7 @@ public:
 	const AfterglowSSBOInfo* indexInputSSBOInfo() const;
 
 	const std::string& computeShaderPath() const  noexcept;
-	const compute::DispatchGroup dispatchGroup() const noexcept;
+	compute::DispatchGroup dispatchGroup() const noexcept;
 	compute::DispatchFrequency dispatchFrequency() const noexcept;
 	DispatchStatus dispatchStatus(uint32_t frameIndex) const;
 
@@ -105,12 +103,14 @@ private:
 	inline AfterglowStructLayout makeIndexedIndirectSSBOLayout();
 	// TODO: Other specified layout from callback functions.
 
-
 	bool _computeOnly = false;
 	compute::DispatchFrequency _dispatchFrequency = compute::DispatchFrequency::Never;
 	std::array<DispatchStatus, cfg::maxFrameInFlight> _inFlightDispatchStatuses = { DispatchStatus::None };
+
 	std::string _computeShaderPath;
+
 	compute::DispatchGroup _dispatchGroup = {};
+
 	SSBOInfos _ssboInfos;
 	ExternalSSBOs _externalSSBOs;
 };

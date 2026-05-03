@@ -10,7 +10,7 @@ FSOutput main(StandardInstancingFSInput input) {
 	static const float furThickness = 1.5;
 
 	FSOutput output;	
-	float2 furCoord = (input.texCoord0 - float2(0.0, input.instanceID * 0.0005)) * float2(16.0, 16.0);
+	float2 furCoord = (input.texCoord0 - float2(0.0, input.instanceID * 0.001)) * float2(16.0, 16.0);
 	float noise = FractalWorleyNoise.Sample(FractalWorleyNoiseSampler, furCoord, 0, 0.0);
 	// float noise = WorleyNoise(input.texCoord0 + float2(0.0, input.instanceID * 0.0002), float2(1000.0, 1000.0), randomSeed0);	
 	// @note: Here clip would disable early-z

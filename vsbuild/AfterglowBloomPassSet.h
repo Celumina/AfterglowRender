@@ -6,7 +6,6 @@ class AfterglowMeshResource;
 class AfterglowSystemUtilities;
 
 // TODO: Abstract more functions into super class.
-// TODO: apply bloom switch for performance test.
 class AfterglowBloomPassSet : public AfterglowPassSet<render::Domain::Transparency> {
 public: 
 	struct ParamName {

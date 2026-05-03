@@ -91,10 +91,10 @@ std::string AfterglowMaterialAssetRegistrar::registerMaterialInstanceAsset(const
 			DEBUG_CLASS_ERROR("Parent material of material instance asset is not exists.");
 			return mat::ErrorMaterialName();
 		}
-		auto& materialInstance = materialManager.createMaterialInstance(
+		auto materialInstance = materialManager.createMaterialInstance(
 			materialInstanceName, parentMaterialName
-		);
-		materialInstanceAsset.fill(materialInstance);
+		).lock();
+		materialInstanceAsset.fill(*materialInstance);
 	}
 	catch (const std::exception& assetException) {
 		DEBUG_CLASS_ERROR(std::string("Some errors occurred when creating material instance asset: \n") + assetException.what());
@@ -174,8 +174,8 @@ inline void AfterglowMaterialAssetRegistrar::Impl::createMaterialFromAsset(const
 	std::string materialName = materialAsset.materialName();
 	materialManager.createMaterial(materialName, materialAsset.material(), materialAsset);
 	auto& materialLayout = *materialManager.materialLayout(materialName);
-	auto& material = materialLayout.material();
-	updateShaderAssetReferences(&Impl::increaseShaderAssetReference, material, materialName);
+	auto material = materialLayout.material().lock();
+	updateShaderAssetReferences(&Impl::increaseShaderAssetReference, *material, materialName);
 }
 
 void AfterglowMaterialAssetRegistrar::Impl::modifiedMateiralAssetCallback(Impl& context, const std::string& modifiedPath, AfterglowAssetMonitor::TagInfos& tagInfos) {
@@ -185,7 +185,7 @@ void AfterglowMaterialAssetRegistrar::Impl::modifiedMateiralAssetCallback(Impl& 
 
 		// Decreasing old shaders
 		auto& oldMaterialName = tagInfos[materialNameTag];
-		auto* oldMaterial = context.materialManager.material(oldMaterialName);
+		auto oldMaterial = context.materialManager.material(oldMaterialName).lock();
 		if (oldMaterial) {
 			context.updateShaderAssetReferences(&Impl::decreaseShaderAssetReference, *oldMaterial, oldMaterialName);
 		}
@@ -238,8 +238,9 @@ void AfterglowMaterialAssetRegistrar::Impl::modifiedMateiralInstanceAssetCallbac
 			return;
 		}
 		// fill() will not change old parameter settings. so reset it to make sure removed parametes can be applied.
-		matResource->materialInstance().reset();
-		materialInstanceAsset.fill(matResource->materialInstance());
+		auto materialInstance = matResource->materialInstance().lock();
+		materialInstance->reset();
+		materialInstanceAsset.fill(*materialInstance);
 
 		// @deprecated: applyMaterialResource already do that.
 		// @see: AfterglowMaterialManager::Impl::applyMaterialResource()
@@ -269,8 +270,8 @@ void AfterglowMaterialAssetRegistrar::Impl::modifiedShaderAssetCallback(Impl& co
 			// context.decreaseShaderAssetReference(modifiedPath, materialName);
 			continue;
 		}
-		auto& material = matLayout->material();
-		auto materialAsset = AfterglowMaterialAsset(material);
+		auto material = matLayout->material().lock();
+		auto materialAsset = AfterglowMaterialAsset(*material);
 
 		// Make sure pipeline was released before we update it.
 		materialManager.waitGPU();

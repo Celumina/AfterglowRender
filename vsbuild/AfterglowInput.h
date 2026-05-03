@@ -206,7 +206,7 @@ public:
 	void updateScrollFromGLFW(double offsetX, double offsetY);
 	void updateCursorEnteredFromGLFW(int entered);
 
-	// @brief: Updated in one thread only, Which thread want to use input, then which thread should update it.
+	// @brief: Updated in one thread only, the thread which want to use inputs should update it.
 	void update();
 
 	static Key keyFromGLFW(int glfwKeyCode);
@@ -240,24 +240,24 @@ private:
 	Mutex _mutex;
 };
 
-constexpr AfterglowInput::Modifier operator| (AfterglowInput::Modifier left, AfterglowInput::Modifier right) {
+constexpr AfterglowInput::Modifier operator| (AfterglowInput::Modifier left, AfterglowInput::Modifier right) noexcept {
 	return AfterglowInput::Modifier(util::EnumValue(left) | util::EnumValue(right));
 }
 
-constexpr AfterglowInput::Modifier operator& (AfterglowInput::Modifier left, AfterglowInput::Modifier right) {
+constexpr AfterglowInput::Modifier operator& (AfterglowInput::Modifier left, AfterglowInput::Modifier right)  noexcept {
 	return AfterglowInput::Modifier(util::EnumValue(left) & util::EnumValue(right));
 }
 
-constexpr AfterglowInput::Modifier operator~ (AfterglowInput::Modifier modifier) {
+constexpr AfterglowInput::Modifier operator~ (AfterglowInput::Modifier modifier)  noexcept {
 	return AfterglowInput::Modifier(~util::EnumValue(modifier));
 }
 
-constexpr AfterglowInput::Modifier& operator|= (AfterglowInput::Modifier& left, AfterglowInput::Modifier right) {
+constexpr AfterglowInput::Modifier& operator|= (AfterglowInput::Modifier& left, AfterglowInput::Modifier right)  noexcept {
 	left = left | right;
 	return left;
 }
 
-constexpr AfterglowInput::Modifier& operator&= (AfterglowInput::Modifier& left, AfterglowInput::Modifier right) {
+constexpr AfterglowInput::Modifier& operator&= (AfterglowInput::Modifier& left, AfterglowInput::Modifier right)  noexcept {
 	left = left & right;
 	return left;
 }

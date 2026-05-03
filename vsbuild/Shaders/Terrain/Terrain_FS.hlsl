@@ -25,6 +25,7 @@ FSOutput main(VSOutput input) {
 	// float3 detailNormal = ReconstructNormal(FractalNormal.SampleLevel(FractalNormalSampler, input.worldPosition.xy * 0.2, 0).xy);
 	// normal = BlendAngleCorrectedNormals(normal, detailNormal);
 
+	// TODO: Make it as a standard function
 	float3x3 tbn = {
 		cross(normal, float3(1.0, 0.0, 0.0)), 
 		float3(1.0, 0.0, 0.0), 
@@ -61,7 +62,7 @@ FSOutput main(VSOutput input) {
 
 	ShadingContext shadingContext = (ShadingContext)0;
 	shadingContext.baseColor = texColor.rgb;
-	shadingContext.metallic = 0.0;
+	shadingContext.metallic = 0.1;
 	shadingContext.specular = texProperty.z;
 	shadingContext.roughness = min(texProperty.y, terrainSurface.a);
 	shadingContext.ambientOcclusion = texProperty.x;
@@ -73,7 +74,7 @@ FSOutput main(VSOutput input) {
 
 	output.color.xyz = finalColor;
 
-	// output.color.xyz = texProperty.w;
+	// output.color.xyz = terrainSurface.a;
 
 	return output;
 }

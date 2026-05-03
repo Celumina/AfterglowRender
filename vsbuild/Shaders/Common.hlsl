@@ -24,8 +24,17 @@ Type DecodeNormal(Type normal) {
 	return Snorm(normal);
 }
 
+half3 ScaleNormal(half3 normal, half intensity) {
+	return normalize(half3(normal.xy * intensity, normal.z));
+}
+
 float3 ScaleNormal(float3 normal, float intensity) {
 	return normalize(float3(normal.xy * intensity, normal.z));
+}
+
+// TODO: Any template method to handle these redundances?
+half3 ReconstructNormal(half2 normalXY) {
+	return half3(normalXY, sqrt(max(1.0 - (normalXY.x * normalXY.x + normalXY.y * normalXY.y), 0.0)));
 }
 
 float3 ReconstructNormal(float2 normalXY) {

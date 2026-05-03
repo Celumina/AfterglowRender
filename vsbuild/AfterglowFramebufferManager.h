@@ -10,11 +10,18 @@ class AfterglowPassManager;
 
 class AfterglowFramebufferManager :  public AfterglowObject {
 public:
-	struct AcquireState{
+	struct AcquireState {
 		enum {
 			Invalid = -1
 		};
 	};
+
+	//struct ResolutionKey {
+	//	union {
+	//		glm::u32vec2 resolution;
+	//		uint64_t key;
+	//	};
+	//};
 
 	//struct AttachmentImage {
 	//	std::unique_ptr<AfterglowObject> _image;
@@ -58,6 +65,9 @@ private:
 
 	// Single framebuffer for off-screen render passes.
 	render::PassUnorderedMap<AfterglowFramebuffer::Array> _framebuffers;
+	
+	// Is combining framebuffer necessary?
+	//std::unordered_map<uint64_t, AfterglowFramebuffer::Array> _framebuffers;
 
 	render::PassUnorderedMap<PerPassImages> _images;
 	render::PassUnorderedMap<img::ImageReferences> _imageReferences;

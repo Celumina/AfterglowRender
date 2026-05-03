@@ -54,6 +54,9 @@ private:
 	template<auto ParamFunc, typename Type>
 	bool tryPreserve(shader::Stage stage, const Parameter<Type>& newParam, const Type* dstValue);
 
+	template<typename Type>
+	inline bool setExistedParameter(Parameter<Type>* destParam, const Type& newValue);
+
 	const AfterglowMaterial* _parent;
 };
 
@@ -71,4 +74,13 @@ inline bool AfterglowMaterialInstance::tryPreserve(shader::Stage stage, const Pa
 	//if (oldParam->value != oldDefaultParam->value) {
 	//	dstValue = &oldParam->value;
 	//}
+}
+
+template<typename Type>
+inline bool AfterglowMaterialInstance::setExistedParameter(Parameter<Type>* destParam, const Type& newValue) {
+	if (destParam) {
+		destParam->value = newValue;
+		return true;
+	}
+	return false;
 }

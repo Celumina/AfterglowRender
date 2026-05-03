@@ -138,6 +138,7 @@ void main(uint3 threadID : SV_DispatchThreadID) {
 		return;
 	}
 
+	// Fixed Update
 	static const uint maxExecutions = 8;
 	uint executionCount = 0;
 	float remainingTime = states.accumulatedTime;

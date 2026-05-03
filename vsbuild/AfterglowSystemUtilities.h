@@ -76,7 +76,7 @@ public:
 	* @param materialAsset [optional]: For existing material to reapply shaders;
 	* @thread_safety
 	*/
-	AfterglowMaterial& createMaterial(const std::string& name, util::OptionalRef<AfterglowMaterial> sourceMaterial = std::nullopt) const;
+	std::weak_ptr<AfterglowMaterial> createMaterial(const std::string& name, util::OptionalRef<AfterglowMaterial> sourceMaterial = std::nullopt) const;
 
 	/**
 	* @brief: Create materialInstance by name, if name exists, replace old material by new one.
@@ -84,14 +84,15 @@ public:
 	* @return: Material Insrtance handle;
 	* @thread_safety
 	*/
-	AfterglowMaterialInstance& createMaterialInstance(const std::string& name, const std::string& parentMaterialName) const;
+	std::weak_ptr<AfterglowMaterialInstance> createMaterialInstance(const std::string& name, const std::string& parentMaterialName) const;
 
 	// @return: Material handle;
-	AfterglowMaterial* material(const std::string& name) const;
-	AfterglowMaterial* findMaterialByInstanceName(const std::string& name) const;
+	std::weak_ptr<AfterglowMaterial> material(const std::string& name) const;
+	std::weak_ptr<AfterglowMaterial> findMaterialByInstanceName(const std::string& name) const;
 
 	// @return: MaterialInstance  handle;
-	AfterglowMaterialInstance* materialInstance(const std::string& name) const;
+	std::weak_ptr<AfterglowMaterialInstance> materialInstance(const std::string& name) const;
+	// TODO: Replace all of these return value to weak_pointer
 	// @note: These following functions use for custom pass submission.
 	AfterglowMaterialResource* materialResource(const std::string& name) const;
 	AfterglowDescriptorSetReferences* materialDescriptorSetReferences(const std::string& name, const ubo::MeshUniform& meshUniform) const;

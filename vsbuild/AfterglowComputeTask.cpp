@@ -113,7 +113,7 @@ const std::string& AfterglowComputeTask::computeShaderPath() const noexcept {
 	return _computeShaderPath;
 }
 
-const compute::DispatchGroup AfterglowComputeTask::dispatchGroup() const noexcept {
+compute::DispatchGroup AfterglowComputeTask::dispatchGroup() const noexcept {
 	return _dispatchGroup;
 }
 

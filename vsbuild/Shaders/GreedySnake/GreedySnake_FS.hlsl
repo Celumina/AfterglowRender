@@ -24,7 +24,7 @@ FSOutput main(UnlitFSInput input) {
 	// use invModelMat to reconstruct model space position (relavant to the box).
 	float3 sceneObjectPos = mul(float4(sceneWorldPos, 1.0), invTransModel).xyz;
 	// Simplified method: Consider position only.
-	// sceneObjectPos =  model._m03_m13_m23;
+	// float3 sceneObjectPos = sceneWorldPos - model._m03_m13_m23;
 	// @note: Here assumes the decal box model size (-1, 1)
 	float2 decalUV = Unorm(sceneObjectPos.xy);
 
@@ -79,7 +79,7 @@ FSOutput main(UnlitFSInput input) {
 	output.color.a = max(any(tileUV < tileBorder) | any(tileUV > (1.0 - tileBorder)), output.color.a);
 	output.color.a *= all(tileUV > tilePadding) & all(tileUV < (1.0 - tilePadding));
 
-	// Limited in the ground.
+	// Limited on the ground.
 	output.color.a *= all(decalUV >= 0.0) & all(decalUV <= 1.0);
 	// output.color.a = 1;
 

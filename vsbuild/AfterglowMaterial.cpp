@@ -330,8 +330,8 @@ uint32_t AfterglowMaterial::scalarPaddingSize(shader::Stage stage) const noexcep
 	if (iterator == _scalars.end()) {
 		return 0;
 	}
-	size_t numScalars = iterator->second.size();
-	return static_cast<uint32_t>(util::Align(numScalars, elementAlignment()) - numScalars);
+	uint32_t numScalars = static_cast<uint32_t>(iterator->second.size());
+	return util::Align(numScalars, elementAlignment()) - numScalars;
 }
 
 bool AfterglowMaterial::hasComputeTask() const noexcept {

@@ -80,6 +80,7 @@ public:
 	*	If ExtentMode == Swapchain, renderpass would use swapchain extent with scale.
 	*/
 	glm::u32vec2 extent() const;
+	glm::u32vec2 extent(glm::u32vec2 swapchainExtent) const noexcept;
 	void setExtent(glm::u32vec2 extent);
 
 	glm::vec2 scale() const;

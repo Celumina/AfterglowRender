@@ -18,6 +18,16 @@ glm::u32vec2 AfterglowPassInterface::extent() const {
 	return _extentScale.extent;
 }
 
+glm::u32vec2 AfterglowPassInterface::extent(glm::u32vec2 swapchainExtent) const noexcept {
+	if (_extentMode == ExtentMode::Fixed) {
+		return _extentScale.extent;
+	}
+	else {
+		// Truncated result
+		return glm::u32vec2{ glm::vec2{ swapchainExtent } * _extentScale.scale };
+	}
+}
+
 void AfterglowPassInterface::setExtent(glm::u32vec2 extent) {
 	if (_extentMode != ExtentMode::Fixed) {
 		EXCEPT_CLASS_RUNTIME("Swapchain frame bufer can not adjust the extent size.");

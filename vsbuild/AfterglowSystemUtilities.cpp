@@ -110,23 +110,23 @@ void AfterglowSystemUtilities::unregisterMaterialInstanceAsset(const std::string
 	return _impl->materialManager->unregisterMaterialInstanceAsset(materialInstancePath);
 }
 
-AfterglowMaterial& AfterglowSystemUtilities::createMaterial(const std::string& name, util::OptionalRef<AfterglowMaterial> sourceMaterial) const {
+std::weak_ptr<AfterglowMaterial> AfterglowSystemUtilities::createMaterial(const std::string& name, util::OptionalRef<AfterglowMaterial> sourceMaterial) const {
 	return _impl->materialManager->createMaterial(name, sourceMaterial);
 }
 
-AfterglowMaterialInstance& AfterglowSystemUtilities::createMaterialInstance(const std::string& name, const std::string& parentMaterialName) const {
+std::weak_ptr<AfterglowMaterialInstance> AfterglowSystemUtilities::createMaterialInstance(const std::string& name, const std::string& parentMaterialName) const {
 	return _impl->materialManager->createMaterialInstance(name, parentMaterialName);
 }
 
-AfterglowMaterial* AfterglowSystemUtilities::material(const std::string& name) const {
+std::weak_ptr<AfterglowMaterial> AfterglowSystemUtilities::material(const std::string& name) const {
 	return _impl->materialManager->material(name);
 }
 
-AfterglowMaterial* AfterglowSystemUtilities::findMaterialByInstanceName(const std::string& name) const {
+std::weak_ptr<AfterglowMaterial> AfterglowSystemUtilities::findMaterialByInstanceName(const std::string& name) const {
 	return _impl->materialManager->findMaterialByInstanceName(name);
 }
 
-AfterglowMaterialInstance* AfterglowSystemUtilities::materialInstance(const std::string& name) const {
+std::weak_ptr<AfterglowMaterialInstance> AfterglowSystemUtilities::materialInstance(const std::string& name) const {
 	return _impl->materialManager->materialInstance(name);
 }
 

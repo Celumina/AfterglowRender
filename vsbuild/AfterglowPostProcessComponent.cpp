@@ -17,8 +17,8 @@ void AfterglowPostProcessComponent::setBloomIntensity(uint32_t downSamplingIndex
 		return;
 	}
 
-	auto* horizontalBlurMatInst = sysUtils().materialInstance(*horizontalBlurMatInstName);
-	auto* verticalBlurCombinationMatInst = sysUtils().materialInstance(*verticalBlurCombinationMatInstName);
+	auto horizontalBlurMatInst = sysUtils().materialInstance(*horizontalBlurMatInstName).lock();
+	auto verticalBlurCombinationMatInst = sysUtils().materialInstance(*verticalBlurCombinationMatInstName).lock();
 
 	if (!horizontalBlurMatInst || !verticalBlurCombinationMatInst) {
 		DEBUG_CLASS_WARNING("Bloom material instance not found.");
@@ -64,7 +64,7 @@ void AfterglowPostProcessComponent::onRenderBegin() {
 }
 
 inline void AfterglowPostProcessComponent::setMaterialInstanceScalar(const std::string& name, float value) {
-	auto* postProcessMat = sysUtils().materialInstance(_postProcessMaterialName);
+	auto postProcessMat = sysUtils().materialInstance(_postProcessMaterialName).lock();
 	if (postProcessMat) {
 		postProcessMat->setScalar(shader::Stage::Fragment, name, value);
 		sysUtils().submitMaterialInstance(_postProcessMaterialName);

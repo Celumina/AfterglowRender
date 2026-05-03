@@ -119,7 +119,7 @@ void AfterglowDrawCommandBuffer::draw(const RecordInfo& recordInfo) {
 		if (recordInfo.indirectBuffer) {
 			// @note: support indexed indiret draw only
 			// 16 is the storage stuct memory alignment size
-			constexpr uint32_t strideSize = static_cast<uint32_t>(util::Align(sizeof(VkDrawIndexedIndirectCommand), 16));
+			constexpr uint32_t strideSize = indirectBufferStride();
 			vkCmdDrawIndexedIndirect(_currentCommandBuffer, recordInfo.indirectBuffer, 0, recordInfo.indirectCommandCount, strideSize);
 		}
 		else {
@@ -130,7 +130,7 @@ void AfterglowDrawCommandBuffer::draw(const RecordInfo& recordInfo) {
 	// Otherwise draw directly.
 	else {
 		if (recordInfo.indirectBuffer) {
-			constexpr uint32_t strideSize = static_cast<uint32_t>(util::Align(sizeof(VkDrawIndirectCommand), 16));
+			constexpr uint32_t strideSize = indirectBufferStride();
 			vkCmdDrawIndirect(_currentCommandBuffer, recordInfo.vertexBuffer, 0, recordInfo.indirectCommandCount, strideSize);
 		}
 		else {

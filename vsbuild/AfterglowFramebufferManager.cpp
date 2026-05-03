@@ -157,6 +157,7 @@ void AfterglowFramebufferManager::recreatePassFramebuffers(AfterglowPassInterfac
 
 	// Recreate framebuffer(s)
 	pass.clearFramebufferBindings();
+	//uint64_t passKey = ResolutionKey{ pass.extent({ _swapchain.extent().width, _swapchain.extent().height }) }.key;
 	auto& passFramebuffers = _framebuffers[&pass];
 	passFramebuffers.clear();
 	uint32_t framebufferCount = 1;

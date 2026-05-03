@@ -13,6 +13,7 @@
 class AfterglowComputeTask;
 
 // TODO: Wrap bools into feature flag bits.
+// TODO: Static marco params support. (Edit these params require to rebuild the pipelines.)
 
 class AfterglowMaterial {
 public:

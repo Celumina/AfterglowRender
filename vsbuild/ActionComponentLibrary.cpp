@@ -247,28 +247,36 @@ void acl::MaterialObjectStateParamUpdater::bindMaterialInstance(const std::strin
 }
 
 void acl::MaterialObjectStateParamUpdater::update() {
+	
 	auto& transformComponent = entity().get<AfterglowTransformComponent>();
 	for (auto& name : _materialInstanceNames) {
-		auto* materialInstance = sysUtils().materialInstance(name);
+		// Historical problem: 
+		// [CRITICAL] [Thread Interference] [Dangling Pointer] When the SetVector() is invoked with reloadMaterialLayout() at the same time...
+		// Ideas: Use weak_ptr instead of raw pointer.
+
+		auto materialInstance = sysUtils().materialInstance(name).lock();
+
 		if (!materialInstance) {
 			DEBUG_CLASS_WARNING(std::format("Material instance not found: {}", name));
 			continue;
 		}
+		
+		//DEBUG_COST_BEGIN("PARAMS");
 		materialInstance->setVector(shader::Stage::Shared, "objectForward", AfterglowMaterial::Vector(transformComponent.globalForward(), 0.0f));
 		materialInstance->setVector(shader::Stage::Shared, "objectRight", AfterglowMaterial::Vector(transformComponent.globalRight(), 0.0f));
 		materialInstance->setVector(shader::Stage::Shared, "objectUp", AfterglowMaterial::Vector(transformComponent.globalUp(), 0.0f));
-		// TODO: Something happend if apply UniformParams only?
+		//DEBUG_COST_END;
 		sysUtils().submitMaterialInstanceUniformParams(name);
-		//sysUtils().submitMaterialInstance(name);
 	}
 }
 
 void acl::MaterialObjectStateParamUpdater::initializeMaterialParams() {
-	auto* material = sysUtils().material(_materialName);
+	auto material = sysUtils().material(_materialName).lock();
 	if (!material) {
 		DEBUG_CLASS_ERROR("Material not found, make sure material was created before binding.");
 		return;
 	}
+
 	// We don't need to write these declarations to asset file manually, thanks to material shader reload asset from memory.
 	material->setVector(shader::Stage::Shared, "objectForward", {});
 	material->setVector(shader::Stage::Shared, "objectRight", {});
@@ -319,7 +327,7 @@ void acl::GreedySnakeSpawner::update() {
 }
 
 void acl::GreedySnakeSpawner::setMaterialInputParam(float value) const {
-	auto* matInst = sysUtils().materialInstance(_greedySnakeMaterialName);
+	auto matInst = sysUtils().materialInstance(_greedySnakeMaterialName).lock();
 	if (matInst) {
 		matInst->setScalar(shader::Stage::Compute, "input", value);
 		sysUtils().submitMaterialInstance(_greedySnakeMaterialName);

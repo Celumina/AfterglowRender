@@ -35,8 +35,14 @@ public:
 	
 	AfterglowComputePipeline::Array& ssboInitComputePipelines();
 
-	AfterglowMaterial& material() noexcept;
-	const AfterglowMaterial& material() const noexcept;
+	// @note: std::weak_ptr for multi-threads support.
+	std::weak_ptr<AfterglowMaterial> material() noexcept { return _material; }
+	const std::weak_ptr<AfterglowMaterial> material() const noexcept { return _material; }
+
+	// @brief: Raw pointer for certain no dangling and same thread scene to improve performance.
+	AfterglowMaterial* unsafeMaterial() noexcept { return _material.get(); }
+	const AfterglowMaterial* unsafeMaterial() const noexcept { return _material.get(); }
+
 
 	void setMaterial(const AfterglowMaterial& material);
 
@@ -96,7 +102,8 @@ private:
 	AfterglowShaderModule::AsElement _vertexShader;
 	AfterglowShaderModule::AsElement _fragmentShader;
 
-	AfterglowMaterial _material;
+	std::shared_ptr<AfterglowMaterial> _material;
+
 	DescriptorSetLayouts _descriptorSetLayouts;
 	// This raw array including the global set layout and per object (for mesh) set layout
 	RawDescriptorSetLayouts _rawDescriptorSetLayouts;

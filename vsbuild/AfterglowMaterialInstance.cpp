@@ -56,7 +56,10 @@ AfterglowMaterialInstance AfterglowMaterialInstance::makeRedirectedInstance(cons
 bool AfterglowMaterialInstance::setScalar(shader::Stage stage, const std::string& name, Scalar value) {
 	auto*oldScalar = scalar(stage, name);
 	// @note: _parent->scalar(stage, name) handle parent material changed case.
-	if (oldScalar || _parent->scalar(stage, name)) {
+	if (setExistedParameter(oldScalar, value)) {
+		return true;
+	}
+	else if (_parent->scalar(stage, name)) {
 		AfterglowMaterial::setScalar(stage, name, value);
 		return true;
 	}
@@ -65,7 +68,10 @@ bool AfterglowMaterialInstance::setScalar(shader::Stage stage, const std::string
 
 bool AfterglowMaterialInstance::setVector(shader::Stage stage, const std::string& name, Vector value) {
 	auto* oldVector = vector(stage, name);
-	if (oldVector || _parent->vector(stage, name)) {
+	if (setExistedParameter(oldVector, value)) {
+		return true;
+	}
+	else if (_parent->vector(stage, name)) {
 		AfterglowMaterial::setVector(stage, name, value);
 		return true;
 	}
@@ -74,13 +80,23 @@ bool AfterglowMaterialInstance::setVector(shader::Stage stage, const std::string
 
 bool AfterglowMaterialInstance::setTexture(shader::Stage stage, const std::string& name, const TextureInfo& assetInfo) {
 	auto* oldTexture = texture(stage, name);
-	if (!oldTexture || !_parent->texture(stage, name)) {
-		return false;
+	if (!oldTexture) {
+		auto* parentTexture = _parent->texture(stage, name);
+		if (parentTexture) {
+			AfterglowMaterial::setTexture(stage, name, parentTexture->value);
+			oldTexture = texture(stage, name);
+		}
+		else {
+			return false;
+		}
 	}
+
 	auto targetColorSpace = 
 		(assetInfo.colorSpace == img::ColorSpace::Undefined) ? oldTexture->value.colorSpace : assetInfo.colorSpace;
 
-	AfterglowMaterial::setTexture(stage, name, {targetColorSpace, assetInfo.path});
+	oldTexture->value = { targetColorSpace, assetInfo.path };
+
+	//AfterglowMaterial::setTexture(stage, name, {targetColorSpace, assetInfo.path});
 	return true;
 }
 

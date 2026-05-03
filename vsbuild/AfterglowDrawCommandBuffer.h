@@ -26,7 +26,7 @@ public:
 
 		// [Optional] Indirect Buffer 
 		VkBuffer indirectBuffer = nullptr;
-		// TODO: aquire indirectCommandCount from compute task.
+		// Aquire indirectCommandCount from ssboinfo.elementCount, while this ssbo is used for indriect buffer.
 		uint32_t indirectCommandCount = 1;
 
 		// Vertex Info
@@ -83,6 +83,8 @@ public:
 		VkPipelineStageFlags destPipelineStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT
 	);
 	void barrier(AfterglowPassInterface& pass);
+
+	constexpr static uint32_t indirectBufferStride() { return util::Align(sizeof(VkDrawIndexedIndirectCommand), 16u); }
 
 private:
 	AfterglowPipeline* _currentPipeline = nullptr;

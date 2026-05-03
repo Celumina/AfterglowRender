@@ -9,8 +9,9 @@ void main(uint3 threadID : SV_DispatchThreadID) {
 	// waterFlowDamping: To avoid water over oscillation.
 	static const float waterFlowDamping = 0.005;
 	static const float waterViscosity = 1.0;
-	static const float soilDissolvingFactor = 0.1;
+	static const float soilDissolvingFactor = 0.4;
 	static const float sedimentDepositingFactor = 0.025;
+	static const float maxSedimentSlope = 0.85;
 	static const float deltaTerrainDistance = 0.001;
 	static const float hydrologicalCycleRate = 0.5;
 	// Compensation factor from the meteorogragh resolution error.
@@ -50,7 +51,7 @@ void main(uint3 threadID : SV_DispatchThreadID) {
 	waterHeight += max(0.0, rainfall * hydrologicalCycleRate);
 
 	// Full Rain Test
-	// if (frac(time * 0.2) > 0.99) {
+	// if (frac(time * 0.5) > 0.99) {
 	// 	waterHeight = terrainHeight + 0.2;
 	// }
 	
@@ -158,26 +159,14 @@ void main(uint3 threadID : SV_DispatchThreadID) {
 		// 	terrainHeightT.x - terrainHeightB.x
 		// ) * (0.5 * terrainInvDataInterval); 
 
-		// if (abs(sediment) > 1e-6) {
-		float sedimentCapability = waterSedimentCapability * length(waterVelocity) * terrainSlope;
+		float sedimentCapability = waterSedimentCapability * length(waterVelocity) * min(terrainSlope, maxSedimentSlope);
 		float deltaDissolvingSediment = (sedimentCapability - sediment);
 		deltaDissolvingSediment *= deltaDissolvingSediment > 0.0 ? soilDissolvingFactor : sedimentDepositingFactor;
 		terrainHeight -= deltaDissolvingSediment;
 		sediment += deltaDissolvingSediment;
 		WaterSedimentOut[threadID.xy] = sediment;
 		WaterVelocityOut[threadID.xy] = waterVelocity;
-		// }
-		// else {
-		// 	terrainHeight -= sediment;
-		// 	WaterSedimentOut[threadID.xy].x = 0.0;
-		// }
-
 	}
-	// else {
-	// 	terrainHeight += WaterSedimentIn[threadID.xy].x;
-	// 	WaterSedimentOut[threadID.xy] = 0.0;
-	// 	WaterVelocityOut[threadID.xy] = 0.0;
-	// }
 	
 	// Thermal Erosion
 	float soilMoisture = SoilMoisture(waterHeight - terrainHeight);
@@ -263,7 +252,7 @@ void main(uint3 threadID : SV_DispatchThreadID) {
 		0.2, 
 		-(1.0 / surfaceRoughnessRange) * min(abs(waterToTerrainHeight + 0.2) - surfaceRoughnessRange, 0.0)
 	);
-	
+	// terrainSurface.a = terrainSlope > 0.5;
 
 	TerrainSurfaceOut[threadID.xy] = terrainSurface;
 }

@@ -84,7 +84,7 @@ inline AfterglowDrawCommandBuffer::RecordInfo* AfterglowCommandManager::Impl::aq
 	}
 	auto& matLayout = matResource.materialLayout();
 	auto& pipeline = matLayout.pipeline();
-	render::Domain domain = matLayout.material().domain();
+	render::Domain domain = matLayout.unsafeMaterial()->domain();
 	uint32_t subpassIndex = matLayout.subpassIndex();
 	
 	if (!drawRecordInfos[util::EnumValue(domain)]) {
@@ -182,10 +182,7 @@ inline void AfterglowCommandManager::Impl::applyComputeCommands() {
 }
 
 inline bool AfterglowCommandManager::Impl::verifyMaterialDomain(AfterglowMaterialResource& matResource) const noexcept {
-	if (matResource.materialLayout().material().customPassName().empty()) {
-		return true;
-	}
-	return false;
+	return matResource.materialLayout().unsafeMaterial()->customPassName().empty();
 }
 
 AfterglowCommandManager::AfterglowCommandManager(AfterglowPassManager& passManager) : 
@@ -258,6 +255,7 @@ bool AfterglowCommandManager::recordDraw(
 
 	if (indirectBuffer) {
 		recordInfo->indirectBuffer = *indirectBuffer;
+		recordInfo->indirectCommandCount = indirectBuffer->byteSize() / AfterglowDrawCommandBuffer::indirectBufferStride();
 	}
 
 	return true;
@@ -271,7 +269,7 @@ void AfterglowCommandManager::applyDrawCommands(int32_t imageIndex) {
 void AfterglowCommandManager::recordCompute(AfterglowMaterialResource& matResource, AfterglowDescriptorSetReferences& setRefs) {
 	auto frameIndex = _impl->commandPool.device().currentFrameIndex();
 	auto& matLayout = matResource.materialLayout();
-	auto& computeTask = matLayout.material().computeTask();
+	auto& computeTask = matLayout.unsafeMaterial()->computeTask();
 
 	// SSBO initialization from compute shader.
 	// Order dependency buffer.

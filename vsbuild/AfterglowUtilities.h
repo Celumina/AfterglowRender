@@ -5,6 +5,7 @@
 #include <optional>
 #include <string>
 #include <typeindex>
+#include <concepts>
 
 namespace constant {
 	static constexpr float pi_float = 3.1415927f;
@@ -37,7 +38,11 @@ namespace util {
 	std::string ToString(const std::wstring& wstr);
 	std::string UpperCase(const std::string& str);
 
-	constexpr size_t Align(size_t value, size_t alignment) noexcept;
+	/**
+	* @warning: Place larger parameter type first to avoid data wrapping.
+	*/
+	template<std::integral LeftSizeType, std::integral RightSizeType>
+	constexpr LeftSizeType Align(LeftSizeType value, RightSizeType alignment) noexcept;
 
 	template<typename Type>
 	inline constexpr std::type_index TypeIndex() noexcept;
@@ -72,7 +77,8 @@ constexpr float operator"" _degf(long double degrees) {
 	return static_cast<float>(degrees) * constant::pi / 180.0f;
 };
 
-constexpr size_t util::Align(size_t value, size_t alignment) noexcept {
+template<std::integral LeftSizeType, std::integral RightSizeType>
+constexpr LeftSizeType util::Align(LeftSizeType value, RightSizeType alignment) noexcept {
 	return (value + alignment - 1) / alignment * alignment;
 }
 

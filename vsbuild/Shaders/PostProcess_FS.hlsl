@@ -1,7 +1,3 @@
-
-// TODO: Generate Attachment sceneColorTexture info.
-// [[vk::input_attachment_index(0)]] SubpassInput<float4> sceneColorTexture;
-
 #include "PostEffects.hlsl"
 #include "PostEffectUnderwater.hlsl"
 #include "Chromatics/ChromaticsCommon.hlsl"
@@ -68,7 +64,7 @@ FSOutput main(VSOutput input) {
 	// output.color.xyz = edge.xyz;
 	// output.color.xyz = SceneColorLinearBlur(input.texCoord0, sceneDepth);
 	// output.color.xyz = sceneDepth;
-	
+
 	// Reconstruct world position.
 	float3 worldPos = ReconstructWorldPosition(input.texCoord0, depth);
 
@@ -85,9 +81,12 @@ FSOutput main(VSOutput input) {
 	float underwaterMask = UnderwaterMask(input.texCoord0);
 	output.color.xyz = lerp(output.color.xyz, float3(0.02, 0.05, 0.12) + envColor * 0.05, saturate(1.0 - exp(-sceneDepth * 0.05 - 1.0)) * underwaterMask);
 
-	// Bloom
 	if (bloomEnabled) {
-		output.color.xyz += bloomCombinedTexture.Sample(bloomCombinedTextureSampler, input.texCoord0);
+		float3 bloomColor = bloomCombinedTexture.Sample(bloomCombinedTextureSampler, input.texCoord0);
+		// Bloom
+		output.color.xyz += bloomColor;
+		// Light Shaft
+		output.color.xyz += SkylightShaft(bloomColor, input.texCoord0, sceneDepth, 1.0, 8);
 	}
 
 	// Effect Blending
@@ -100,6 +99,5 @@ FSOutput main(VSOutput input) {
 	output.color.xyz = LUTMapping(output.color.xyz);
 
 	// output.color.xyz = ReconstructWorldNormal(input.texCoord0, depth);
-
 	return output;
 }

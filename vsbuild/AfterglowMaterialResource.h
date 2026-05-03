@@ -29,6 +29,7 @@ public:
 	struct StorageBufferResource {
 		uint32_t bindingIndex = 0;
 		// Using iamge or buffer depend on the ssboInfo.textureFormat
+		// TODO: Add a mutual exclusion constraint.
 		AfterglowStorageBuffer::AsElement buffer;
 		AfterglowStorageImage::AsElement image;
 	};
@@ -65,8 +66,12 @@ public:
 
 	void setMateiralInstance(const AfterglowMaterialInstance& materialInstance) noexcept;
 
-	AfterglowMaterialInstance& materialInstance() noexcept;
-	const AfterglowMaterialInstance& materialInstance() const noexcept;
+	// @note: std::weak_ptr for multi-threads support.
+	std::weak_ptr<AfterglowMaterialInstance> materialInstance() noexcept { return _materialInstance; }
+	const std::weak_ptr<AfterglowMaterialInstance> materialInstance() const noexcept { return _materialInstance; }
+
+	AfterglowMaterialInstance* unsafeMaterialInstance() noexcept { return _materialInstance.get(); }
+	const AfterglowMaterialInstance* unsafeMaterialInstance() const noexcept { return _materialInstance.get(); }
 
 	AfterglowMaterialLayout& materialLayout() noexcept;
 	const AfterglowMaterialLayout& materialLayout() const noexcept;
@@ -134,7 +139,7 @@ private:
 	AfterglowDescriptorSetWriter& _descriptorSetWriter;
 	AfterglowMaterialLayout& _materialLayout;
 
-	AfterglowMaterialInstance _materialInstance;
+	std::shared_ptr<AfterglowMaterialInstance> _materialInstance;
 	InFlightDescriptorSets _inFlightDescriptorSets;
 	// This raw array including meshSetLayout
 	StageResources _stageResources;

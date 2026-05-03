@@ -6,7 +6,7 @@
 #include  "ShaderDefinitions.h"
 #include "AfterglowDevice.h"
 
-// TODO: Persistence spirv data (make spirv file asset).
+// TODO: Persisted spirv data (make spirv file asset).
 
 class AfterglowShaderModule : public AfterglowProxyObject<AfterglowShaderModule, VkShaderModule, VkShaderModuleCreateInfo>{
 public:

@@ -20,7 +20,7 @@ void main(uint3 threadID : SV_DispatchThreadID) {
 	float3 positionOut = ParticleSSBOOut[index].position;
 
 
-	// If paticle leaving boundary, elapsing double time.
+	// If paticle leaving boundary, increasing elapsing time.
 	if (any(positionOut < boundaryMin)
 		|| any(positionOut > boundaryMax)) {
 		deltaElapseTime *= 4;

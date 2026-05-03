@@ -18,12 +18,13 @@ AfterglowMaterialResource::AfterglowMaterialResource(
 	_descriptorSetWriter(descriptorSetWriter) , 
 	_texturePool(texturePool),
 	_descriptorPool(descriptorPool), 
-	_materialInstance(materialLayout.material()), 
+	_materialInstance(std::make_shared<AfterglowMaterialInstance>(*materialLayout.material().lock())), 
 	_shouldReregisterTextures(false) {
 
 	if (!_materialLayout.rawDescriptorSetLayouts().empty()) {
 		reloadMaterialLayout();
 	}	
+
 }
 
 AfterglowDevice& AfterglowMaterialResource::device() noexcept {
@@ -31,15 +32,7 @@ AfterglowDevice& AfterglowMaterialResource::device() noexcept {
 }
 
 void AfterglowMaterialResource::setMateiralInstance(const AfterglowMaterialInstance& materialInstance) noexcept {
-	_materialInstance = materialInstance;
-}
-
-AfterglowMaterialInstance& AfterglowMaterialResource::materialInstance() noexcept {
-	return _materialInstance;
-}
-
-const AfterglowMaterialInstance& AfterglowMaterialResource::materialInstance() const noexcept {
-	return _materialInstance;
+	_materialInstance = std::make_shared<AfterglowMaterialInstance>(materialInstance);
 }
 
 AfterglowMaterialLayout& AfterglowMaterialResource::materialLayout() noexcept {
@@ -97,9 +90,12 @@ const AfterglowStorageBuffer* AfterglowMaterialResource::indirectStorageBuffer()
 
 void AfterglowMaterialResource::reloadMaterialLayout() {
 	_shouldReregisterTextures = true;
+
+	auto lockedMaterial = _materialLayout.material().lock();
+
 	// Update material parent and inheritance material instance modification.
 	//DEBUG_COST_BEGIN("Redirect material instance");
-	_materialInstance = _materialInstance.makeRedirectedInstance(_materialLayout.material());
+	_materialInstance = std::make_shared<AfterglowMaterialInstance>(_materialInstance->makeRedirectedInstance(*lockedMaterial));
 	//DEBUG_COST_END;
 
 	// Recreate descriptor sets
@@ -123,7 +119,7 @@ void AfterglowMaterialResource::reloadMaterialLayout() {
 	}
 
 	// Storage buffers relative to Material, instead of MaterialInstance.
-	if (_materialLayout.material().hasComputeTask()) {
+	if (lockedMaterial->hasComputeTask()) {
 		submitStorageBuffers();
 	}
 }
@@ -157,19 +153,20 @@ void AfterglowMaterialResource::updateUniforms(uint32_t frameIndex) {
 	}
 
 	// Fill scalars.
-	for (const auto& [stage, scalarParams] : _materialInstance.scalars()) {
+	for (const auto& [stage, scalarParams] : _materialInstance->scalars()) {
 		for (const auto& scalarParam : scalarParams) {
 			_stageResources[stage].uniforms.push_back(scalarParam.value);
 		}
 	}
 
 	// Memory alignment.
+	auto lockedMaterial = _materialLayout.material().lock();
 	for (auto& [stage, resource] : _stageResources) {
-		resource.uniforms.resize(_materialLayout.material().scalarPaddingSize(stage) + resource.uniforms.size());
+		resource.uniforms.resize(lockedMaterial->scalarPaddingSize(stage) + resource.uniforms.size());
 	}
 
 	// Fill vectors.
-	for (const auto& [stage, vectorParams] : _materialInstance.vectors()) {
+	for (const auto& [stage, vectorParams] : _materialInstance->vectors()) {
 		auto& resource = _stageResources[stage];
 		for (const auto& vectorParam : vectorParams) {
 			for (uint32_t index = 0; index < AfterglowMaterial::elementAlignment(); ++index) {
@@ -251,11 +248,11 @@ inline void AfterglowMaterialResource::synchronizeTextures() {
 	// Check if old textures were removed from material instance.
 	for (auto& [stage, resources] : _stageResources) {
 		auto& textureResources = resources.textureResources;
-		std::erase_if(textureResources, [this, stage](const auto& item) { return !_materialInstance.texture(stage, item.first); });
+		std::erase_if(textureResources, [this, stage](const auto& item) { return !_materialInstance->texture(stage, item.first); });
 	}
 
 	// Refleshing binding indices here, to avoid adding and removing influence.
-	for (auto& [stage, textureParams] : _materialInstance.textures()) {
+	for (auto& [stage, textureParams] : _materialInstance->textures()) {
 		auto& textureResources = _stageResources[stage].textureResources;
 		for (uint32_t index = 0; index < textureParams.size(); ++index) {
 			textureResources[textureParams[index].name].bindingIndex = index + 1;
@@ -264,7 +261,7 @@ inline void AfterglowMaterialResource::synchronizeTextures() {
 }
 
 inline void AfterglowMaterialResource::reregisterUnmodifiedTextures() {
-	for (const auto& [stage, textureParams] : _materialInstance.textures()) {
+	for (const auto& [stage, textureParams] : _materialInstance->textures()) {
 		for (const auto& textureParam : textureParams) {
 			if (textureParam.modified) {
 				continue;
@@ -285,7 +282,7 @@ inline void AfterglowMaterialResource::reregisterUnmodifiedTextures() {
 }
 
 inline void AfterglowMaterialResource::reloadModifiedTextures(uint32_t frameIndex) {
-	auto& textures = _materialInstance.textures();
+	auto& textures = _materialInstance->textures();
 	for (auto& [stage, textureParams] : textures) {
 		for (auto& textureParam : textureParams) {
 			const std::string* texturePath = &textureParam.value.path;
@@ -320,19 +317,21 @@ inline void AfterglowMaterialResource::reloadModifiedTextures(uint32_t frameInde
 }
 
 inline void AfterglowMaterialResource::synchronizeStorageBuffers() {
+	auto lockedMaterial = _materialLayout.material().lock();
+
 	// Clear outdated resources.
 	// TODO: Reload all resource, otherwise it will bring very terrible complexity.
 	// TODO: Textures also should do that.
 	for(auto& [stage, resources] : _stageResources) {
 		auto& ssboResources = resources.storageBufferResources;
-		auto& computeTask = _materialLayout.material().computeTask();
+		auto& computeTask = lockedMaterial->computeTask();
 		std::erase_if(ssboResources, [&computeTask](const auto& item){
 			return !computeTask.findSSBOInfo(item.first);
 		});
 	};
 
 	// Init Buffers
-	const auto& computeTask = _materialLayout.material().computeTask();
+	const auto& computeTask = lockedMaterial->computeTask();
 	const auto& ssboInfos = computeTask.ssboInfos();
 	std::unordered_map<shader::Stage, uint32_t> bindingIndices;
 	for (const auto& ssboInfo : ssboInfos) {

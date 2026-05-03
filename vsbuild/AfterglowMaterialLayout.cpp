@@ -8,7 +8,7 @@
 #include "ExceptionUtilities.h"
 
 AfterglowMaterialLayout::AfterglowMaterialLayout(const AfterglowMaterial& refMaterial) :
-	_material(refMaterial) {
+	_material(std::make_shared<AfterglowMaterial>(refMaterial)) {
 }
 
 AfterglowMaterialLayout::DescriptorSetLayouts& AfterglowMaterialLayout::descriptorSetLayouts() {
@@ -59,16 +59,8 @@ AfterglowComputePipeline::Array& AfterglowMaterialLayout::ssboInitComputePipelin
 	return _computeLayout->ssboInitPipelines;
 }
 
-AfterglowMaterial& AfterglowMaterialLayout::material() noexcept {
-	return _material;
-}
-
-const AfterglowMaterial& AfterglowMaterialLayout::material() const noexcept {
-	return _material;
-}
-
 void AfterglowMaterialLayout::setMaterial(const AfterglowMaterial& material) {
-	_material = material;
+	_material = std::make_shared<AfterglowMaterial>(material);
 }
 
 void AfterglowMaterialLayout::compileVertexShader(const std::string& shaderCode) {
@@ -76,7 +68,7 @@ void AfterglowMaterialLayout::compileVertexShader(const std::string& shaderCode)
 		throw runtimeError("Failed to compute vertex shader due to this material is compute only.");
 	}
 	_vertexShader.recreate(
-		device(), shader::Stage::Vertex, shaderCode, _material.vertexShaderPath()
+		device(), shader::Stage::Vertex, shaderCode, _material->vertexShaderPath()
 	);
 }
 
@@ -85,14 +77,14 @@ void AfterglowMaterialLayout::compileFragmentShader(const std::string& shaderCod
 		throw runtimeError("Failed to compute fragment shader due to this material is compute only.");
 	}
 	_fragmentShader.recreate(
-		device(), shader::Stage::Fragment, shaderCode, _material.fragmentShaderPath()
+		device(), shader::Stage::Fragment, shaderCode, _material->fragmentShaderPath()
 	);
 }
 
 void AfterglowMaterialLayout::compileComputeShader(const std::string& shaderCode) {
 	verifyComputeTask();
 	_computeLayout->shader.recreate(
-		device(), shader::Stage::Compute, shaderCode, _material.computeTask().computeShaderPath()
+		device(), shader::Stage::Compute, shaderCode, _material->computeTask().computeShaderPath()
 	);
 }
 
@@ -103,16 +95,16 @@ void AfterglowMaterialLayout::updateDescriptorSetLayouts(
 	AfterglowDescriptorSetLayout& perObjectSetLayout
 ) {
 	// Update pass
-	if (_material.customPassName().empty()) {
-		_pass = passManager.findPass(_material.domain());
+	if (_material->customPassName().empty()) {
+		_pass = passManager.findPass(_material->domain());
 	}
 	else {
-		_pass = passManager.findPass(_material.customPassName());
+		_pass = passManager.findPass(_material->customPassName());
 	}
 	if (!_pass) {
 		DEBUG_CLASS_ERROR(std::format(
 			"Material pass is not exists: \"{}\", pipeline will be created by the default pass (Forward).",
-			_material.customPassName()
+			_material->customPassName()
 		));
 		_pass = passManager.findPass(render::Domain::Forward);
 	}
@@ -133,7 +125,7 @@ void AfterglowMaterialLayout::updateDescriptorSetLayouts(
 
 	// begin from shader::materialSetIndexBegin to ignore Global and PerObject Sets.
 	uint32_t setIndexEnd = shader::materialSetIndexEnd;
-	if (_material.hasComputeTask()) {
+	if (_material->hasComputeTask()) {
 		setIndexEnd = shader::computeSetIndexEnd;
 	}
 	for (auto setIndex = shader::materialSetIndexBegin; setIndex < setIndexEnd; ++setIndex) {
@@ -153,7 +145,7 @@ void AfterglowMaterialLayout::updateDescriptorSetLayouts(
 
 void AfterglowMaterialLayout::activateComputeExternalSSBOSetLayout(AfterglowDescriptorSetLayout& externalSSBOSetLayout) {
 	// Compute External SSBO layout place holder.
-	if (_material.hasComputeTask()) {
+	if (_material->hasComputeTask()) {
 		constexpr auto externalStorageSetIndex = util::EnumValue(shader::SetIndex::ExternalStorage);
 		if (_rawDescriptorSetLayouts.size() < externalStorageSetIndex + 1) {
 			_rawDescriptorSetLayouts.resize(externalStorageSetIndex + 1);
@@ -171,37 +163,37 @@ void AfterglowMaterialLayout::updatePipeline() {
 	}
 	// Store subpassindex for draw commands.
 	auto& subpassContext = _pass->subpassContext();
-	_subpassIndex = _material.subpassName().empty() ? 0 : subpassContext.subpassIndex(_material.subpassName());
+	_subpassIndex = _material->subpassName().empty() ? 0 : subpassContext.subpassIndex(_material->subpassName());
 	
-	_pipeline.recreate(*_pass, _material.subpassName(), _material.vertexTypeIndex());
+	_pipeline.recreate(*_pass, _material->subpassName(), _material->vertexTypeIndex());
 	AfterglowPipeline& pipeline = _pipeline;
 
 	// TODO: Provide a material interface instead of dependent on the domain. (for custom pass)
-	if (_material.domain() == render::Domain::Transparency) {
+	if (_material->domain() == render::Domain::Transparency) {
 		pipeline.setBlendingMode(AfterglowPipeline::BlendingMode::Alpha);
 	}
 	// TODO: Filp normal if it is backface.
-	pipeline.setCullMode(vulkanCullMode(_material.cullMode()));
+	pipeline.setCullMode(vulkanCullMode(_material->cullMode()));
 
-	if (_material.wireframe()) {
+	if (_material->wireframe()) {
 		pipeline.setPolygonMode(VK_POLYGON_MODE_LINE);
 	}
-	pipeline.setDepthWrite(_material.depthWrite());
-	pipeline.setFaceStencilInfos(_material.faceStencilInfos());
+	pipeline.setDepthWrite(_material->depthWrite());
+	pipeline.setFaceStencilInfos(_material->faceStencilInfos());
 
 	// If use SSBO as vertex input.
-	if (_material.hasComputeTask() && _material.computeTask().vertexInputSSBOInfo()) {
-		pipeline.assignVertex(_material.computeTask().vertexInputSSBOInfo()->elementLayout());
+	if (_material->hasComputeTask() && _material->computeTask().vertexInputSSBOInfo()) {
+		pipeline.assignVertex(_material->computeTask().vertexInputSSBOInfo()->elementLayout());
 	}
 
-	pipeline.setTopology(_material.topology());
+	pipeline.setTopology(_material->topology());
 	fillPipelineLayout(pipeline.pipelineLayout());
 
 	// Compile default shaders.
 	if (!_vertexShader || !_fragmentShader) {
 		DEBUG_CLASS_WARNING("Vertex shader or fragment shader is not built, the updatePipeline() will build them from material. ");
 		// TODO: Here inputAttachmentInfos is dated.
-		auto materialAsset = AfterglowMaterialAsset(_material);
+		auto materialAsset = AfterglowMaterialAsset(*_material);
 		if (!_vertexShader) {
 			compileVertexShader(materialAsset.generateShaderCode(shader::Stage::Vertex, *_pass));
 		}
@@ -223,17 +215,17 @@ void AfterglowMaterialLayout::updateComputePipeline() {
 
 	std::unique_ptr<AfterglowMaterialAsset> materialAsset;
 	if (!_computeLayout->shader) {
-		materialAsset = std::make_unique<AfterglowMaterialAsset>(_material);
+		materialAsset = std::make_unique<AfterglowMaterialAsset>(*_material);
 		// Compute shader does not use global texture (input attachments)
 		compileComputeShader(materialAsset->generateShaderCode(shader::Stage::Compute));
 	}
 	computePipeline.setComputeShader(_computeLayout->shader);
 
 	// [Optional] Indirect reset pipeline
-	auto& computeTask = _material.computeTask();
+	auto& computeTask = _material->computeTask();
 	if (computeTask.indirectSSBOInfo()) {
 		if (!materialAsset) {
-			materialAsset = std::make_unique<AfterglowMaterialAsset>(_material);
+			materialAsset = std::make_unique<AfterglowMaterialAsset>(*_material);
 		}
 		_computeLayout->indirectResetPipeline.recreate(device());
 		AfterglowComputePipeline& indirectResetPipeline = _computeLayout->indirectResetPipeline;
@@ -257,7 +249,7 @@ void AfterglowMaterialLayout::updateComputePipeline() {
 		return;
 	}
 	if (!materialAsset) {
-		materialAsset = std::make_unique<AfterglowMaterialAsset>(_material);
+		materialAsset = std::make_unique<AfterglowMaterialAsset>(*_material);
 	}
 
 	_computeLayout->ssboInitPipelines.clear();
@@ -280,7 +272,7 @@ void AfterglowMaterialLayout::updateComputePipeline() {
 				device(),
 				shader::Stage::Compute,
 				materialAsset->shaderDeclaration(shader::Stage::Compute) + shaderAsset.code(),
-				_material.computeTask().computeShaderPath()
+				_material->computeTask().computeShaderPath()
 			);
 		}
 		catch (const std::runtime_error& error) {
@@ -292,7 +284,7 @@ void AfterglowMaterialLayout::updateComputePipeline() {
 				device(),
 				shader::Stage::Compute,
 				mat::ErrorMaterialAsset().generateShaderCode(shader::Stage::Compute),
-				_material.computeTask().computeShaderPath()
+				_material->computeTask().computeShaderPath()
 			);
 
 			// Skip initializer compute shader if it's throw some errors.
@@ -309,7 +301,7 @@ void AfterglowMaterialLayout::updateComputePipeline() {
 
 void AfterglowMaterialLayout::updatePipelines() {
 	updatePipeline();
-	if (_material.hasComputeTask()) {
+	if (_material->hasComputeTask()) {
 		updateComputePipeline();
 	}
 }
@@ -325,15 +317,15 @@ void AfterglowMaterialLayout::appendDescriptorSetLayout(shader::Stage stage) {
 
 	// Stage texture bindings.
 	// TODO: Sepreated texture and sampler binding for shared sampler.
-	for (const auto& textureParam : _material.textures()[stage]) {
+	for (const auto& textureParam : _material->textures()[stage]) {
 		setLayout.appendBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, vulkanStage);
 	}
 
-	if (!_material.hasComputeTask()) {
+	if (!_material->hasComputeTask()) {
 		return;
 	}
 	// Storage buffers, behind these texture binds.
-	const auto& computeTask = _material.computeTask();
+	const auto& computeTask = _material->computeTask();
 	for (auto& ssboInfo : computeTask.ssboInfos()) {
 		// Excluding different stage.
 		if (ssboInfo.stage() != stage) {
@@ -364,7 +356,7 @@ inline void AfterglowMaterialLayout::fillPipelineLayout(AfterglowPipelineLayout&
 }
 
 inline bool AfterglowMaterialLayout::isComputeOnly() {
-	return _material.hasComputeTask() && _material.computeTask().isComputeOnly();
+	return _material->hasComputeTask() && _material->computeTask().isComputeOnly();
 }
 
 inline std::runtime_error AfterglowMaterialLayout::runtimeError(const char* text) {
@@ -373,7 +365,7 @@ inline std::runtime_error AfterglowMaterialLayout::runtimeError(const char* text
 }
 
 inline void AfterglowMaterialLayout::verifyComputeTask() {
-	if (!_material.hasComputeTask()) {
+	if (!_material->hasComputeTask()) {
 		throw runtimeError("This mateiral have not compute task, make sure it was initialized.");
 	}
 	if (!_computeLayout) {

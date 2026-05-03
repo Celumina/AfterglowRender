@@ -17,11 +17,11 @@ AfterglowApplication::AfterglowApplication() :
 	auto& materialManager = _renderer.materialManager();
 
 	DEBUG_WARNING("UnlitMaterial");
-	auto& unlitMaterial = materialManager.createMaterial("Unlit", AfterglowMaterial::defaultMaterial());
-	unlitMaterial.setScalar(shader::Stage::Shared, "TEST", 1.0);
-	unlitMaterial.setScalar(shader::Stage::Shared, "TEST1", 4.0);
-	unlitMaterial.setScalar(shader::Stage::Shared, "TEST2", 1321.232);
-	unlitMaterial.setScalar(shader::Stage::Shared, "TEST3", 16.0);
+	auto unlitMaterial = materialManager.createMaterial("Unlit", AfterglowMaterial::defaultMaterial()).lock();
+	unlitMaterial->setScalar(shader::Stage::Shared, "TEST", 1.0);
+	unlitMaterial->setScalar(shader::Stage::Shared, "TEST1", 4.0);
+	unlitMaterial->setScalar(shader::Stage::Shared, "TEST2", 1321.232);
+	unlitMaterial->setScalar(shader::Stage::Shared, "TEST3", 16.0);
 	materialManager.submitMaterial("Unlit");
 
 	//  Material assets.
@@ -272,6 +272,15 @@ AfterglowApplication::AfterglowApplication() :
 	// TODO: Try to use a simplified model contains pos, normal, color only.
 	grassInstances.get<AfterglowComputeComponent>().setComputeMaterial(grassInstancingMaterialName);
 
+	// Glitched Mosaics
+	std::string glitchedMosaicsMaterial = materialManager.registerMaterialAsset("Assets/Shared/Materials/GlitchedMosaics.mat");
+	auto& glitchedMosaics = _system.createEntity<AfterglowComputeComponent, AfterglowStaticMeshComponent>("GlitchedMosaics");
+	auto& glitchedMosaicsMesh = glitchedMosaics.get<AfterglowStaticMeshComponent>();
+	glitchedMosaicsMesh.setMaterial(glitchedMosaicsMaterial);
+	glitchedMosaicsMesh.setModel("Assets/Shared/Models/DebugBox.fbx");
+	glitchedMosaics.get<AfterglowTransformComponent>().setGlobalTranslation({ 4.0f, 4.0f, 1.0f });
+	glitchedMosaics.get<AfterglowComputeComponent>().setComputeMaterial(glitchedMosaicsMaterial);
+
 	// Furry character
 	std::string ankhaMaterial = materialManager.registerMaterialAsset("Assets/Characters/Ankha/Materials/Ankha.mat");
 	std::string ankhaBodyMaterialName = materialManager.registerMaterialInstanceAsset("Assets/Characters/Ankha/Materials/AnkhaBody.mati");
@@ -300,7 +309,7 @@ AfterglowApplication::AfterglowApplication() :
 	std::string shellFurMaterialName = materialManager.registerMaterialAsset("Assets/Shared/Materials/ShellFur.mat");
 	uint32_t ankhaFurInstanceCount = 8;
 	std::string ankhaFurMaterialName = materialManager.registerMaterialInstanceAsset("Assets/Characters/Ankha/Materials/AnkhaFur.mati");
-	materialManager.materialInstance(ankhaFurMaterialName)->setScalar(shader::Stage::Shared, "instanceCount", static_cast<float>(ankhaFurInstanceCount));
+	materialManager.materialInstance(ankhaFurMaterialName).lock()->setScalar(shader::Stage::Shared, "instanceCount", static_cast<float>(ankhaFurInstanceCount));
 	//materialManager.materialInstance(ankhaFurMaterialName)->setScalar(shader::Stage::Shared, "invInstanceCount", 1.0f / ankhaFurInstanceCount);
 	auto& ankhaFur = _system.createEntity<AfterglowStaticMeshComponent>("AnkhaFur");
 

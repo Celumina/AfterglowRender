@@ -63,5 +63,29 @@ float HeightFog(float worldHeight, float sceneDepth, float distanceFade = 0.25, 
 	return saturate(1.0 - exp(-2.0 * heightFog));	
 }
 
+float3 SkylightShaft(float3 bloomColor, float2 uv, float sceneDepth, float intensity = 0.25, uint layerCount = 8) {
+	// Auto offset value and hash weight
+	float invLayerCount = rcp(layerCount);
+	float layerInterval = 0.32 * invLayerCount;
+	float hashScale = 0.16 * invLayerCount;// 0.32 * invLayerCount;
+	float3 radialBlurColor = 0.0;
+	float3 dirLightDirectionCS = mul(view, dirLightDirection).xyz;
+	float2 radialBlurOffset = float2(layerInterval, -layerInterval) * dirLightDirectionCS.xy * (1.0 - dirLightDirectionCS.z) + Snorm(uv) * min(dirLightDirectionCS.z, 0.0) * 0.02;
+	float2 screenLightDirection = normalize(dirLightDirectionCS.xy);
+	for (int index = 1; index < layerCount + 1; ++index) {
+		float2 radialBlurUV = uv + index * radialBlurOffset;
+		float2 radialHash = hashScale * Snorm(Hash2D(uv + index, frac(time) * randomSeed0)) * screenLightDirection;
+		radialBlurUV += radialHash;
+		radialBlurUV = clamp(radialBlurUV, invScreenResolution, 1.0 - invScreenResolution);
+		// Color sample was replaced by the bloom color.
+		radialBlurColor += 
+			// sceneColorTexture.SampleLevel(sceneColorTextureSampler, radialBlurUV, 0).xyz
+			bloomColor 
+			* (SampleDepth(radialBlurUV) < 0.0001).x;
+	}
+	radialBlurColor *= invLayerCount;
+	return radialBlurColor * intensity * min(sceneDepth * 0.5, 1.0);
+
+}
 
 #endif

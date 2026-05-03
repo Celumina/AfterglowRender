@@ -9,7 +9,7 @@ void AfterglowComputeComponent::applyDispatchFrequency(compute::DispatchFrequenc
 		return;
 	}
 	// TODO: Find instance first...
-	auto* material = sysUtils().findMaterialByInstanceName(_materialName);
+	auto material = sysUtils().findMaterialByInstanceName(_materialName).lock();
 	if (!material || !material->hasComputeTask()) {
 		DEBUG_CLASS_ERROR("The compute material is not found.");
 		return;

@@ -23,6 +23,8 @@ public:
 	AfterglowEntity* parent() noexcept;
 	const AfterglowEntity* parent() const noexcept;
 
+	// TODO: Entity switch affect to all components.
+
 	// @return: component pointer, if component not exist. return nullptr;
 	template<typename ComponentType>
 	ComponentType* component();

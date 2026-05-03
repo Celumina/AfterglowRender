@@ -81,7 +81,7 @@ inline void AfterglowBloomPassSet::Impl::submitCommands(AfterglowDrawCommandBuff
 	//DEBUG_COST_BEGIN("COMMIT");
 	uint32_t materialIndex = 0;
 	for (auto& pass : passSet->passes()) {
-		// Switch pipeline state only if actually needed.
+		// Switch pipeline state only if it's actually needed.
 		// 0: first downsampling; >= downSamplingCount: horizontal and vertical blur.
 		bool switchPipelineState = false;
 		if (materialIndex == 0 || materialIndex >= downSamplingCount) {
@@ -156,7 +156,7 @@ void AfterglowBloomPassSet::Impl::buildBloomPasses() {
 		);
 		if (index == downSamplingCount - 1) {
 			currentBloomPass.importAttachments()[0].attachmentName = currentBloomPass.combinedTextureName();
-			sysUtils->materialInstance(verticalBlurCombinationMaterialName)->setScalar(
+			sysUtils->materialInstance(verticalBlurCombinationMaterialName).lock()->setScalar(
 			shader::Stage::Fragment, ParamName::useCombinedTexture, 0.0f
 			);
 		}
@@ -174,33 +174,33 @@ inline AfterglowMaterial& AfterglowBloomPassSet::Impl::createMaterial(
 ) {
 	// TODO: Shared descriptor for materials
 	materialNames.emplace_back(materialName);
-	auto& material = sysUtils->createMaterial(materialName);
-	material.setScalar(shader::Stage::Fragment, ParamName::resolutionScale, pass.scale().x);
-	material.setScalar(shader::Stage::Fragment, ParamName::resolutionInvScale, 1.0f / pass.scale().x);
-	material.setScalar(shader::Stage::Fragment, ParamName::useCombinedTexture, 1.0f);
+	auto material = sysUtils->createMaterial(materialName).lock();
+	material->setScalar(shader::Stage::Fragment, ParamName::resolutionScale, pass.scale().x);
+	material->setScalar(shader::Stage::Fragment, ParamName::resolutionInvScale, 1.0f / pass.scale().x);
+	material->setScalar(shader::Stage::Fragment, ParamName::useCombinedTexture, 1.0f);
 	uint32_t sequenceID = downSamplingCount - static_cast<uint32_t>(std::log2(1.0f / pass.scale().x));
 	float bloomIntensity = defaultBloomIntensities[sequenceID];
-	material.setVector(
+	material->setVector(
 		shader::Stage::Fragment, 
 		ParamName::bloomIntensity, 
 		{ bloomIntensity, bloomIntensity, bloomIntensity, 0.0f }
 	);
-	material.setVertexShader(vertexShaderPath);
-	material.setFragmentShader(fragmentShaderPath);
+	material->setVertexShader(vertexShaderPath);
+	material->setFragmentShader(fragmentShaderPath);
 	// TOOD: Gosh, It's troublesome, find a way to set this value automatically.
-	material.setVertexTypeIndex(util::TypeIndex<vert::VertexPT0>());
+	material->setVertexTypeIndex(util::TypeIndex<vert::VertexPT0>());
 
-	material.setCustomPass(std::string(pass.passName()));
-	material.setSubpass(subpassName);
+	material->setCustomPass(std::string(pass.passName()));
+	material->setSubpass(subpassName);
 
 	sysUtils->submitMaterial(materialName);
 	sysUtils->materialSubmitMeshUniform(materialName, meshResource->meshUniform());
 
-	return material;
+	return *material;
 }
 
 inline void AfterglowBloomPassSet::Impl::drawMaterial(AfterglowDrawCommandBuffer& drawCommandBuffer, const std::string& materialName, bool switchPipelineState) {
-	// Mesh Uniform seems not require to update every frame
+	// The MeshUniform does not seem to require updating every frame
 	if (!materialUniformSubmitted) {
 		sysUtils->materialSubmitMeshUniform(materialName, meshResource->meshUniform());
 	}
