@@ -5,9 +5,9 @@ void main(uint3 threadID : SV_DispatchThreadID) {
 	
 	static const uint rayMatchingStep = 16.0;
 	static const float2 rayMatchingInterval = { 0.012, 0.005 };
-	static const float rayIntensity = 0.0006;
+	static const float rayIntensity = 0.001;
 
-	float4 mosaicNoiseMask0 = MosaicNoiseMaskIn.SampleLevel(MosaicNoiseMaskInSampler, (uv * float2(1.73, 0.32) + time * float2(0.3, 0.05)), 0);
+	float4 mosaicNoiseMask0 = MosaicNoiseMaskIn.SampleLevel(MosaicNoiseMaskInSampler, (uv * float2(1.73, 0.92) + time * float2(0.3, 0.05)), 0);
 	float4 mosaicNoiseMask1 = MosaicNoiseMaskIn.SampleLevel(MosaicNoiseMaskInSampler, (uv * float2(2.4, 0.84) + time * float2(-0.25, -0.08)), 0);
 	
 	// float4 mosaicNoiseMask = lerp(mosaicNoiseMask0, mosaicNoiseMask1, abs(frac(time) - 0.5) * 2.0);
@@ -35,8 +35,7 @@ void main(uint3 threadID : SV_DispatchThreadID) {
 		}
 	}
 
-	float4 finalColor = partial * 16.0 + mosaicNoise0 * 0.1 + rayAccumulation * rayIntensity; 
+	float4 finalColor = partial * 8.0 + mosaicNoise0 * 0.1 + rayAccumulation * rayIntensity; 
 
-	PresentOut[threadID.xy] = round(mosaicNoiseMask);
 	PresentOut[threadID.xy] = finalColor;
 }
